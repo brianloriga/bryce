@@ -99,87 +99,51 @@ function generateQuestions(type) {
 
 // ---- NUMBER LINE QUESTIONS ----
 function generateNumberLineQuestions() {
-  const templates = [
-    {
-      topUnit: 'feet', bottomUnit: 'inches', factor: 12,
-      topValues: [0,1,2,3,4,5,6,7,8,9,10],
-      blanksTop: [4,6,7,8],
-      blanksBottom: [2,3,5,7,9]
-    },
-    {
-      topUnit: 'meters', bottomUnit: 'centimeters', factor: 100,
-      topValues: [0,1,2,3,4,5,6,7,8,9,10],
-      blanksTop: [4,5,7],
-      blanksBottom: [1,3,6,8,9]
-    },
-    {
-      topUnit: 'minutes', bottomUnit: 'seconds', factor: 60,
-      topValues: [0,1,2,3,4,5,6,7,8,9],
-      blanksTop: [4,6,7],
-      blanksBottom: [1,2,4,5,6]
-    },
-    {
-      topUnit: 'gallons', bottomUnit: 'quarts', factor: 4,
-      topValues: [0,1,2,3,4,5,6,7,8,9,10],
-      blanksTop: [3,4,7,8],
-      blanksBottom: [1,2,5,6,9]
-    },
-    {
-      topUnit: 'yards', bottomUnit: 'feet', factor: 3,
-      topValues: [0,1,2,3,4,5,6,7,8,9,10],
-      blanksTop: [3,5,7,8],
-      blanksBottom: [2,4,6,7,9]
-    },
-    {
-      topUnit: 'hours', bottomUnit: 'minutes', factor: 60,
-      topValues: [0,1,2,3,4,5],
-      blanksTop: [2,4],
-      blanksBottom: [1,3]
-    },
-    {
-      topUnit: 'feet', bottomUnit: 'inches', factor: 12,
-      topValues: [0,1,2,3,4,5],
-      blanksTop: [2,4],
-      blanksBottom: [1,3,5]
-    },
-    {
-      topUnit: 'meters', bottomUnit: 'centimeters', factor: 100,
-      topValues: [0,1,2,3,4,5],
-      blanksTop: [2,3],
-      blanksBottom: [1,4]
-    }
+  const unitPairs = [
+    { topUnit: 'feet', bottomUnit: 'inches', factor: 12 },
+    { topUnit: 'meters', bottomUnit: 'centimeters', factor: 100 },
+    { topUnit: 'minutes', bottomUnit: 'seconds', factor: 60 },
+    { topUnit: 'gallons', bottomUnit: 'quarts', factor: 4 },
+    { topUnit: 'yards', bottomUnit: 'feet', factor: 3 },
+    { topUnit: 'hours', bottomUnit: 'minutes', factor: 60 },
+    { topUnit: 'pounds', bottomUnit: 'ounces', factor: 16 },
+    { topUnit: 'cups', bottomUnit: 'tablespoons', factor: 16 },
+    { topUnit: 'pints', bottomUnit: 'cups', factor: 2 },
+    { topUnit: 'quarts', bottomUnit: 'pints', factor: 2 },
+    { topUnit: 'kilometers', bottomUnit: 'meters', factor: 1000 },
+    { topUnit: 'miles', bottomUnit: 'feet', factor: 5280 },
   ];
 
-  return shuffle(templates).slice(0, QUESTIONS_PER_ROUND).map(t => {
+  return shuffle(unitPairs).slice(0, QUESTIONS_PER_ROUND).map(pair => {
+    const rangeOptions = pair.factor >= 100 ? [4, 5, 6] : [5, 6, 7, 8];
+    const count = rangeOptions[Math.floor(Math.random() * rangeOptions.length)];
+    const startOffset = Math.floor(Math.random() * 4);
+
     const slots = [];
-    const numSlots = Math.min(t.topValues.length, 8);
-    const step = Math.max(1, Math.floor(t.topValues.length / numSlots));
-    const selectedIndices = [];
-    for (let i = 0; i < t.topValues.length && selectedIndices.length < numSlots; i += step) {
-      selectedIndices.push(i);
+    const blankCount = Math.max(2, Math.floor(count * 0.4 + Math.random() * 2));
+    const blankIndices = new Set();
+    while (blankIndices.size < blankCount) {
+      const idx = 1 + Math.floor(Math.random() * (count - 1));
+      blankIndices.add(idx);
     }
 
-    const blanksTopSet = new Set(t.blanksTop.filter(i => selectedIndices.includes(i)));
-    const blanksBottomSet = new Set(t.blanksBottom.filter(i => selectedIndices.includes(i)));
-
-    if (blanksTopSet.size === 0) blanksTopSet.add(selectedIndices[Math.floor(selectedIndices.length / 2)]);
-    if (blanksBottomSet.size === 0) blanksBottomSet.add(selectedIndices[Math.floor(selectedIndices.length / 3)]);
-
-    selectedIndices.forEach(idx => {
-      const topVal = t.topValues[idx];
-      const bottomVal = topVal * t.factor;
+    for (let i = 0; i < count; i++) {
+      const topVal = startOffset + i;
+      const bottomVal = topVal * pair.factor;
+      const isBlank = blankIndices.has(i);
+      const blankTop = isBlank && Math.random() < 0.5;
       slots.push({
         topVal,
         bottomVal,
-        topBlank: blanksTopSet.has(idx) && idx !== 0,
-        bottomBlank: blanksBottomSet.has(idx) && idx !== 0
+        topBlank: blankTop,
+        bottomBlank: !blankTop && isBlank
       });
-    });
+    }
 
     return {
       type: 'numberline',
-      topUnit: t.topUnit,
-      bottomUnit: t.bottomUnit,
+      topUnit: pair.topUnit,
+      bottomUnit: pair.bottomUnit,
       slots
     };
   });
@@ -187,20 +151,42 @@ function generateNumberLineQuestions() {
 
 // ---- TOOL QUESTIONS ----
 function generateToolQuestions() {
-  const scenarios = shuffle([
-    { text: 'Cora needs 8 ounces of water for her experiment. Which tool can she use?', answer: 'measuring_cup', explanation: 'A measuring cup measures liquid volume in ounces.' },
-    { text: 'The pet food factory fills small bags of dry dog food. Each bag holds 250 grams. Which tool can be used to measure the dog food?', answer: 'scale', explanation: 'A scale measures mass in grams.' },
-    { text: 'Rosie wants to find the length of her bedroom. Which tool should she use?', answer: 'tape_measure', explanation: 'A tape measure is best for measuring long distances.' },
-    { text: 'Phillipa needs to measure how much water is in a beaker. Which tool should she read?', answer: 'beaker', explanation: 'A beaker has markings to show liquid volume.' },
-    { text: 'Simon must take his temperature before going to the doctor. Which tool should he use?', answer: 'thermometer', explanation: 'A thermometer measures temperature.' },
-    { text: 'A baker needs 500 grams of cocoa for a recipe. Which tool should she use?', answer: 'scale', explanation: 'A scale measures mass in grams and kilograms.' },
-    { text: 'Gia wants to measure the distance she walks to school. Which tool would work best?', answer: 'tape_measure', explanation: 'A long tape measure or measuring wheel measures distance.' },
-    { text: 'Anamaria wants to measure the mass of her pencil. Which tool should she use?', answer: 'scale', explanation: 'A balance scale can measure the mass of small objects.' },
-    { text: 'A nurse needs to give a patient exactly 5 milliliters of medicine. Which tool should she use?', answer: 'dropper', explanation: 'A dropper or syringe precisely measures small amounts of liquid.' },
-    { text: 'Carlos wants to check if the pool water is warm enough. Which tool should he use?', answer: 'thermometer', explanation: 'A thermometer measures the temperature of liquids.' },
-    { text: 'Emma wants to measure how tall she is. Which tool should she use?', answer: 'tape_measure', explanation: 'A tape measure or ruler measures height.' },
-    { text: 'A chef needs to measure 2 cups of milk for pancakes. Which tool should she use?', answer: 'measuring_cup', explanation: 'A measuring cup measures liquid volume in cups.' }
-  ]);
+  const names = shuffle(['Bryce','Cora','Rosie','Simon','Gia','Emma','Carlos','Lily','Max','Noah','Zoe','Mia','Liam','Ava','Jack','Ella','Leo','Ivy','Finn','Ruby']);
+  let nameIdx = 0;
+  const nextName = () => names[nameIdx++ % names.length];
+
+  const scenarioTemplates = [
+    // Scale
+    () => ({ text: `${nextName()} needs ${50 + Math.floor(Math.random()*450)} grams of flour for a recipe. Which tool should they use?`, answer: 'scale' }),
+    () => ({ text: `${nextName()} wants to know the mass of a watermelon. Which tool should they use?`, answer: 'scale' }),
+    () => ({ text: `The pet store needs to weigh ${Math.floor(Math.random()*5+1)} kilograms of birdseed into bags. Which tool should they use?`, answer: 'scale' }),
+    () => ({ text: `${nextName()} wants to find out if a package is heavier than ${Math.floor(Math.random()*10+2)} pounds. Which tool should they use?`, answer: 'scale' }),
+    () => ({ text: `A scientist needs to measure exactly ${Math.floor(Math.random()*90+10)} grams of salt for an experiment. Which tool should they use?`, answer: 'scale' }),
+    // Measuring cup
+    () => ({ text: `${nextName()} needs ${Math.floor(Math.random()*3+1)} cups of milk for a smoothie. Which tool should they use?`, answer: 'measuring_cup' }),
+    () => ({ text: `A chef needs to measure ${Math.floor(Math.random()*12+4)} ounces of broth for soup. Which tool should they use?`, answer: 'measuring_cup' }),
+    () => ({ text: `${nextName()} is baking cookies and needs ½ cup of oil. Which tool should they use?`, answer: 'measuring_cup' }),
+    () => ({ text: `${nextName()} wants to pour exactly ${Math.floor(Math.random()*3+1)} cups of water into a fish bowl. Which tool should they use?`, answer: 'measuring_cup' }),
+    // Tape measure / ruler
+    () => ({ text: `${nextName()} wants to find the length of the classroom. Which tool should they use?`, answer: 'tape_measure' }),
+    () => ({ text: `${nextName()} wants to see if a bookshelf will fit against a ${Math.floor(Math.random()*8+4)}-foot wall. Which tool should they use?`, answer: 'tape_measure' }),
+    () => ({ text: `${nextName()} needs to measure how wide the doorway is. Which tool should they use?`, answer: 'tape_measure' }),
+    () => ({ text: `${nextName()} is building a birdhouse and needs to cut a board to ${Math.floor(Math.random()*10+6)} inches. Which tool should they use?`, answer: 'tape_measure' }),
+    () => ({ text: `${nextName()} wants to measure how tall a sunflower has grown. Which tool should they use?`, answer: 'tape_measure' }),
+    // Thermometer
+    () => ({ text: `${nextName()} wants to check if the bath water is too hot. Which tool should they use?`, answer: 'thermometer' }),
+    () => ({ text: `${nextName()} feels sick and needs to check their temperature. Which tool should they use?`, answer: 'thermometer' }),
+    () => ({ text: `${nextName()} wants to know how cold it is outside before picking an outfit. Which tool should they use?`, answer: 'thermometer' }),
+    () => ({ text: `A farmer wants to check the temperature of the soil before planting seeds. Which tool should they use?`, answer: 'thermometer' }),
+    // Beaker
+    () => ({ text: `${nextName()} is doing a science experiment and needs to measure ${Math.floor(Math.random()*400+100)} milliliters of a liquid. Which tool should they use?`, answer: 'beaker' }),
+    () => ({ text: `In science class, ${nextName()} must mix two liquids and track the total volume. Which tool should they use?`, answer: 'beaker' }),
+    () => ({ text: `${nextName()} needs to measure how much vinegar to add to the volcano project. Which tool should they use?`, answer: 'beaker' }),
+    // Dropper / syringe
+    () => ({ text: `A vet needs to give a kitten exactly ${Math.floor(Math.random()*8+2)} milliliters of medicine. Which tool should they use?`, answer: 'dropper' }),
+    () => ({ text: `${nextName()} needs to add exactly ${Math.floor(Math.random()*5+1)} drops of food coloring. Which tool should they use?`, answer: 'dropper' }),
+    () => ({ text: `A nurse needs to measure exactly ${Math.floor(Math.random()*8+1)} milliliters of liquid medicine for a baby. Which tool should they use?`, answer: 'dropper' }),
+  ];
 
   const tools = [
     { id: 'scale', emoji: '⚖️', name: 'Scale' },
@@ -211,7 +197,9 @@ function generateToolQuestions() {
     { id: 'dropper', emoji: '💧', name: 'Dropper / Syringe' }
   ];
 
-  return scenarios.slice(0, QUESTIONS_PER_ROUND).map(s => {
+  const scenarios = shuffle(scenarioTemplates).slice(0, QUESTIONS_PER_ROUND).map(fn => fn());
+
+  return scenarios.map(s => {
     let options = tools.filter(t => t.id === s.answer);
     let others = shuffle(tools.filter(t => t.id !== s.answer)).slice(0, 3);
     options = shuffle([...options, ...others]);
@@ -221,39 +209,36 @@ function generateToolQuestions() {
 
 // ---- RULER QUESTIONS ----
 function generateRulerQuestions() {
-  const measurements = shuffle([
-    { inches: 2.125, display: '2⅛', wholeInches: 2, eighths: 1 },
-    { inches: 2.375, display: '2⅜', wholeInches: 2, eighths: 3 },
-    { inches: 2.625, display: '2⅝', wholeInches: 2, eighths: 5 },
-    { inches: 2.75, display: '2¾', wholeInches: 2, eighths: 6 },
-    { inches: 1.5, display: '1½', wholeInches: 1, eighths: 4 },
-    { inches: 3.25, display: '3¼', wholeInches: 3, eighths: 2 },
-    { inches: 1.875, display: '1⅞', wholeInches: 1, eighths: 7 },
-    { inches: 3.75, display: '3¾', wholeInches: 3, eighths: 6 },
-    { inches: 1.25, display: '1¼', wholeInches: 1, eighths: 2 },
-    { inches: 2.5, display: '2½', wholeInches: 2, eighths: 4 },
-    { inches: 3.5, display: '3½', wholeInches: 3, eighths: 4 },
-    { inches: 3.125, display: '3⅛', wholeInches: 3, eighths: 1 }
-  ]);
+  const results = [];
 
-  return measurements.slice(0, QUESTIONS_PER_ROUND).map(m => {
-    const wrongOptions = [];
-    const nearby = [m.inches - 0.25, m.inches + 0.125, m.inches - 0.125, m.inches + 0.25]
-      .filter(v => v > 0 && v !== m.inches);
-    while (wrongOptions.length < 3 && nearby.length > 0) {
-      wrongOptions.push(nearby.shift());
+  for (let i = 0; i < QUESTIONS_PER_ROUND; i++) {
+    const wholeInch = Math.floor(Math.random() * 4) + 1;
+    const eighths = Math.floor(Math.random() * 7) + 1;
+    const inches = wholeInch + eighths / 8;
+
+    const wrongSet = new Set();
+    while (wrongSet.size < 3) {
+      const offsets = [-0.25, 0.25, -0.125, 0.125, -0.375, 0.375, -0.5, 0.5];
+      const offset = offsets[Math.floor(Math.random() * offsets.length)];
+      const wrong = Math.round((inches + offset) * 8) / 8;
+      if (wrong > 0 && wrong !== inches && !wrongSet.has(wrong)) {
+        wrongSet.add(wrong);
+      }
     }
-    const allOptions = shuffle([m.inches, ...wrongOptions.slice(0, 3)]);
+
+    const allOptions = shuffle([inches, ...wrongSet]);
     const displayOptions = allOptions.map(v => ({ value: v, display: inchesToFraction(v) }));
 
-    return {
+    results.push({
       type: 'ruler',
-      inches: m.inches,
-      display: m.display,
+      inches,
+      display: inchesToFraction(inches),
       options: displayOptions,
-      maxInches: Math.ceil(m.inches) + 1
-    };
-  });
+      maxInches: Math.ceil(inches) + 1
+    });
+  }
+
+  return results;
 }
 
 function inchesToFraction(val) {
@@ -272,20 +257,31 @@ function inchesToFraction(val) {
 // ---- CONVERSION QUESTIONS ----
 function generateConvertQuestions() {
   const conversions = [
-    { fromUnit: 'feet', toUnit: 'inches', factor: 12, values: [1,2,3,4,5,6,7,8,9,10] },
-    { fromUnit: 'inches', toUnit: 'feet', factor: 1/12, values: [12,24,36,48,60,72,84,96,108,120] },
-    { fromUnit: 'meters', toUnit: 'centimeters', factor: 100, values: [1,2,3,4,5,6,7,8,9,10] },
-    { fromUnit: 'centimeters', toUnit: 'meters', factor: 1/100, values: [100,200,300,400,500,600,700,800] },
-    { fromUnit: 'minutes', toUnit: 'seconds', factor: 60, values: [1,2,3,4,5,6,7,8,9,10] },
-    { fromUnit: 'seconds', toUnit: 'minutes', factor: 1/60, values: [60,120,180,240,300,360,420,480] },
-    { fromUnit: 'gallons', toUnit: 'quarts', factor: 4, values: [1,2,3,4,5,6,7,8,9,10] },
-    { fromUnit: 'quarts', toUnit: 'gallons', factor: 1/4, values: [4,8,12,16,20,24,28,32,36,40] },
-    { fromUnit: 'yards', toUnit: 'feet', factor: 3, values: [1,2,3,4,5,6,7,8,9,10] },
-    { fromUnit: 'feet', toUnit: 'yards', factor: 1/3, values: [3,6,9,12,15,18,21,24,27,30] }
+    { fromUnit: 'feet', toUnit: 'inches', factor: 12, min: 1, max: 12 },
+    { fromUnit: 'inches', toUnit: 'feet', factor: 1/12, multOf: 12, min: 1, max: 12 },
+    { fromUnit: 'meters', toUnit: 'centimeters', factor: 100, min: 1, max: 10 },
+    { fromUnit: 'centimeters', toUnit: 'meters', factor: 1/100, multOf: 100, min: 1, max: 10 },
+    { fromUnit: 'minutes', toUnit: 'seconds', factor: 60, min: 1, max: 10 },
+    { fromUnit: 'seconds', toUnit: 'minutes', factor: 1/60, multOf: 60, min: 1, max: 10 },
+    { fromUnit: 'gallons', toUnit: 'quarts', factor: 4, min: 1, max: 12 },
+    { fromUnit: 'quarts', toUnit: 'gallons', factor: 1/4, multOf: 4, min: 1, max: 12 },
+    { fromUnit: 'yards', toUnit: 'feet', factor: 3, min: 1, max: 12 },
+    { fromUnit: 'feet', toUnit: 'yards', factor: 1/3, multOf: 3, min: 1, max: 12 },
+    { fromUnit: 'pounds', toUnit: 'ounces', factor: 16, min: 1, max: 8 },
+    { fromUnit: 'ounces', toUnit: 'pounds', factor: 1/16, multOf: 16, min: 1, max: 8 },
+    { fromUnit: 'cups', toUnit: 'tablespoons', factor: 16, min: 1, max: 6 },
+    { fromUnit: 'pints', toUnit: 'cups', factor: 2, min: 1, max: 12 },
+    { fromUnit: 'cups', toUnit: 'pints', factor: 1/2, multOf: 2, min: 1, max: 12 },
+    { fromUnit: 'quarts', toUnit: 'pints', factor: 2, min: 1, max: 10 },
+    { fromUnit: 'kilometers', toUnit: 'meters', factor: 1000, min: 1, max: 10 },
+    { fromUnit: 'hours', toUnit: 'minutes', factor: 60, min: 1, max: 8 },
+    { fromUnit: 'days', toUnit: 'hours', factor: 24, min: 1, max: 7 },
+    { fromUnit: 'weeks', toUnit: 'days', factor: 7, min: 1, max: 10 },
   ];
 
   return shuffle(conversions).slice(0, QUESTIONS_PER_ROUND).map(c => {
-    const fromVal = c.values[Math.floor(Math.random() * c.values.length)];
+    const n = c.min + Math.floor(Math.random() * (c.max - c.min + 1));
+    const fromVal = c.multOf ? n * c.multOf : n;
     const toVal = Math.round(fromVal * c.factor * 100) / 100;
     return {
       type: 'convert',
