@@ -21,6 +21,7 @@ const tryAgains = [
 document.addEventListener('DOMContentLoaded', () => {
   createParticles();
   updateHomeStars();
+  updateBossCard();
 });
 
 function createParticles() {
@@ -61,6 +62,7 @@ function showScreen(id) {
 function goHome() {
   showScreen('home-screen');
   updateHomeStars();
+  updateBossCard();
 }
 
 // ===================== START GAME =====================
@@ -676,3 +678,305 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// ===================== BOSS BATTLE =====================
+const BOSS_MAX_HP = 100;
+const BOSS_TOTAL_ROUNDS = 10;
+const BOSS_PLAYER_HEARTS = 5;
+const BOSS_UNLOCK_THRESHOLD = 3;
+
+let bossState = null;
+
+function isBossUnlocked() {
+  const games = ['numberline', 'tools', 'ruler', 'convert'];
+  return games.every(g => (bestScores[g] || 0) >= BOSS_UNLOCK_THRESHOLD);
+}
+
+function updateBossCard() {
+  const card = document.getElementById('boss-card');
+  const icon = document.getElementById('boss-lock-icon');
+  const title = document.getElementById('boss-card-title');
+  const desc = document.getElementById('boss-card-desc');
+  const checklist = document.getElementById('boss-checklist');
+
+  const games = [
+    { key: 'numberline', name: 'Number Lines' },
+    { key: 'tools', name: 'Right Tool' },
+    { key: 'ruler', name: 'Ruler' },
+    { key: 'convert', name: 'Converter' }
+  ];
+
+  const unlocked = isBossUnlocked();
+
+  checklist.innerHTML = games.map(g => {
+    const done = (bestScores[g.key] || 0) >= BOSS_UNLOCK_THRESHOLD;
+    return `<span class="boss-check-item ${done ? 'done' : 'todo'}">${done ? '✅' : '☐'} ${g.name}</span>`;
+  }).join('');
+
+  if (unlocked) {
+    card.classList.remove('locked');
+    card.classList.add('unlocked');
+    card.disabled = false;
+    icon.textContent = '🐉';
+    title.textContent = 'BOSS BATTLE';
+    desc.textContent = 'Defeat the Measurement Dragon!';
+  } else {
+    card.classList.add('locked');
+    card.classList.remove('unlocked');
+    card.disabled = true;
+    icon.textContent = '🔒';
+    title.textContent = 'BOSS BATTLE';
+    desc.textContent = 'Get ⭐3+ in all 4 activities to unlock!';
+  }
+}
+
+function startBoss() {
+  if (!isBossUnlocked()) return;
+
+  bossState = {
+    hp: BOSS_MAX_HP,
+    hearts: BOSS_PLAYER_HEARTS,
+    combo: 0,
+    maxCombo: 0,
+    round: 0,
+    totalCorrect: 0,
+    questions: generateBossQuestions(),
+    answering: false
+  };
+
+  showScreen('boss-screen');
+  renderBossHud();
+  renderBossMonster();
+  nextBossRound();
+}
+
+function generateBossQuestions() {
+  const qs = [];
+
+  const conversionPairs = shuffle([
+    { from: 'feet', to: 'inches', f: 12 },
+    { from: 'yards', to: 'feet', f: 3 },
+    { from: 'meters', to: 'centimeters', f: 100 },
+    { from: 'gallons', to: 'quarts', f: 4 },
+    { from: 'pounds', to: 'ounces', f: 16 },
+    { from: 'hours', to: 'minutes', f: 60 },
+    { from: 'minutes', to: 'seconds', f: 60 },
+    { from: 'pints', to: 'cups', f: 2 },
+    { from: 'weeks', to: 'days', f: 7 },
+    { from: 'days', to: 'hours', f: 24 },
+    { from: 'cups', to: 'tablespoons', f: 16 },
+  ]);
+
+  for (let i = 0; i < 5; i++) {
+    const p = conversionPairs[i % conversionPairs.length];
+    const n = Math.floor(Math.random() * 7) + 2;
+    const answer = n * p.f;
+    const wrongs = new Set();
+    while (wrongs.size < 3) {
+      const off = (Math.floor(Math.random() * 5) + 1) * p.f * (Math.random() < 0.5 ? 1 : -1);
+      const w = answer + off;
+      if (w > 0 && w !== answer) wrongs.add(w);
+    }
+    qs.push({
+      text: `⚡ ${n} ${p.from} = ? ${p.to}`,
+      answer: String(answer),
+      options: shuffle([String(answer), ...[...wrongs].map(String)])
+    });
+  }
+
+  const toolQs = shuffle([
+    { q: 'Which tool measures weight?', a: 'Scale', wrong: ['Ruler', 'Thermometer', 'Beaker'] },
+    { q: 'Which tool measures temperature?', a: 'Thermometer', wrong: ['Scale', 'Ruler', 'Measuring Cup'] },
+    { q: 'Which tool measures length?', a: 'Ruler', wrong: ['Scale', 'Thermometer', 'Dropper'] },
+    { q: 'Which tool measures liquid volume?', a: 'Measuring Cup', wrong: ['Thermometer', 'Ruler', 'Scale'] },
+    { q: 'Which tool gives tiny amounts of liquid?', a: 'Dropper', wrong: ['Beaker', 'Ruler', 'Scale'] },
+    { q: 'Which tool measures grams?', a: 'Scale', wrong: ['Ruler', 'Measuring Cup', 'Thermometer'] },
+    { q: 'Which tool measures cups of milk?', a: 'Measuring Cup', wrong: ['Scale', 'Ruler', 'Dropper'] },
+    { q: 'Which tool checks if you have a fever?', a: 'Thermometer', wrong: ['Ruler', 'Scale', 'Beaker'] },
+    { q: 'Which tool measures how tall you are?', a: 'Ruler', wrong: ['Thermometer', 'Scale', 'Measuring Cup'] },
+    { q: 'Which tool measures milliliters in a lab?', a: 'Beaker', wrong: ['Scale', 'Thermometer', 'Ruler'] },
+  ]);
+
+  for (let i = 0; i < 3; i++) {
+    const t = toolQs[i];
+    qs.push({
+      text: `🔧 ${t.q}`,
+      answer: t.a,
+      options: shuffle([t.a, ...t.wrong])
+    });
+  }
+
+  const comparisonQs = shuffle([
+    { q: 'Which is longer?', a: '1 yard', wrong: ['2 feet'] },
+    { q: 'Which is heavier?', a: '2 pounds', wrong: ['20 ounces'] },
+    { q: 'Which is more liquid?', a: '5 cups', wrong: ['2 pints'] },
+    { q: 'Which takes longer?', a: '2 hours', wrong: ['100 minutes'] },
+    { q: 'Which is longer?', a: '1 mile', wrong: ['5000 feet'] },
+    { q: 'Which is more?', a: '4 quarts', wrong: ['1 gallon', '15 cups', '6 pints'] },
+    { q: 'Which is taller?', a: '5 feet', wrong: ['50 inches'] },
+    { q: 'Which is longer?', a: '100 cm', wrong: ['2 feet'] },
+  ]);
+
+  for (let i = 0; i < 2; i++) {
+    const c = comparisonQs[i];
+    const wrongOptions = c.wrong.length >= 3 ? c.wrong : [...c.wrong, ...shuffle(['3 inches', '1 ounce', '10 seconds']).slice(0, 3 - c.wrong.length)];
+    qs.push({
+      text: `⚔️ ${c.q}`,
+      answer: c.a,
+      options: shuffle([c.a, ...wrongOptions.slice(0, 3)])
+    });
+  }
+
+  return shuffle(qs).slice(0, BOSS_TOTAL_ROUNDS);
+}
+
+function renderBossHud() {
+  const heartsEl = document.getElementById('boss-hearts');
+  heartsEl.innerHTML = '';
+  for (let i = 0; i < BOSS_PLAYER_HEARTS; i++) {
+    heartsEl.innerHTML += i < bossState.hearts ? '❤️' : '🖤';
+  }
+  updateBossCombo();
+}
+
+function updateBossCombo() {
+  const el = document.getElementById('boss-combo');
+  if (bossState.combo >= 3) {
+    el.textContent = `🔥 x${bossState.combo}!`;
+    el.className = 'boss-combo fire';
+  } else if (bossState.combo >= 2) {
+    el.textContent = `⚡ x${bossState.combo}`;
+    el.className = 'boss-combo';
+  } else {
+    el.textContent = '';
+    el.className = 'boss-combo';
+  }
+}
+
+function renderBossMonster() {
+  const hpPct = bossState.hp / BOSS_MAX_HP * 100;
+  document.getElementById('boss-hp-bar').style.width = hpPct + '%';
+  document.getElementById('boss-hp-text').textContent = `${bossState.hp} / ${BOSS_MAX_HP}`;
+
+  const monster = document.getElementById('boss-monster');
+  monster.classList.remove('low-hp');
+  if (hpPct <= 30 && hpPct > 0) monster.classList.add('low-hp');
+}
+
+function nextBossRound() {
+  if (bossState.round >= BOSS_TOTAL_ROUNDS || bossState.hp <= 0) {
+    bossVictory();
+    return;
+  }
+  if (bossState.hearts <= 0) {
+    bossDefeat();
+    return;
+  }
+
+  bossState.answering = true;
+  const q = bossState.questions[bossState.round];
+
+  document.getElementById('boss-q-text').textContent = q.text;
+  const optionsEl = document.getElementById('boss-options');
+  optionsEl.innerHTML = q.options.map((o, i) => `
+    <button class="boss-option" onclick="bossAnswer(${i})" data-idx="${i}">${o}</button>
+  `).join('');
+}
+
+function bossAnswer(idx) {
+  if (!bossState.answering) return;
+  bossState.answering = false;
+
+  const q = bossState.questions[bossState.round];
+  const selected = q.options[idx];
+  const correct = selected === q.answer;
+  const buttons = document.querySelectorAll('.boss-option');
+
+  buttons.forEach((btn, i) => {
+    btn.classList.add('disabled');
+    if (q.options[i] === q.answer) btn.classList.add('correct');
+    if (i === idx && !correct) btn.classList.add('wrong');
+  });
+
+  if (correct) {
+    bossState.combo++;
+    if (bossState.combo > bossState.maxCombo) bossState.maxCombo = bossState.combo;
+    bossState.totalCorrect++;
+
+    const dmg = 10;
+    bossState.hp = Math.max(0, bossState.hp - dmg);
+
+    showDamageFloat(`-${dmg} HP`, 'hit');
+    const monster = document.getElementById('boss-monster');
+    monster.classList.remove('hit');
+    void monster.offsetWidth;
+    monster.classList.add('hit');
+    renderBossMonster();
+    updateBossCombo();
+
+    if (bossState.combo >= 3) launchMiniConfetti();
+  } else {
+    bossState.combo = 0;
+    bossState.hearts--;
+    showDamageFloat('MISS!', 'miss');
+
+    const arena = document.querySelector('.boss-arena');
+    arena.classList.remove('player-hit');
+    void arena.offsetWidth;
+    arena.classList.add('player-hit');
+
+    renderBossHud();
+  }
+
+  bossState.round++;
+
+  setTimeout(() => {
+    if (bossState.hp <= 0) {
+      const monster = document.getElementById('boss-monster');
+      monster.classList.add('defeated');
+      setTimeout(() => bossVictory(), 1200);
+    } else if (bossState.hearts <= 0) {
+      bossDefeat();
+    } else if (bossState.round >= BOSS_TOTAL_ROUNDS) {
+      bossDefeat();
+    } else {
+      nextBossRound();
+    }
+  }, 800);
+}
+
+function showDamageFloat(text, type) {
+  const container = document.getElementById('boss-damage-float');
+  const el = document.createElement('div');
+  el.className = `damage-number ${type}`;
+  el.textContent = text;
+  el.style.left = (Math.random() * 40 - 20) + 'px';
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function bossVictory() {
+  launchConfetti();
+  document.getElementById('boss-victory-title').textContent = 'VICTORY!';
+  document.getElementById('boss-victory-sub').textContent = 'You defeated the Measurement Dragon!';
+  document.getElementById('boss-victory-emoji').textContent = '⚔️';
+  document.getElementById('boss-victory-stats').innerHTML = `
+    Correct: ${bossState.totalCorrect} / ${BOSS_TOTAL_ROUNDS}<br>
+    Max Combo: 🔥 x${bossState.maxCombo}<br>
+    Hearts Left: ${'❤️'.repeat(bossState.hearts)}${'🖤'.repeat(BOSS_PLAYER_HEARTS - bossState.hearts)}
+  `;
+  showScreen('boss-victory-screen');
+  setTimeout(launchConfetti, 800);
+}
+
+function bossDefeat() {
+  document.getElementById('boss-victory-title').textContent = 'DEFEATED...';
+  document.getElementById('boss-victory-sub').textContent = 'The dragon was too strong this time!';
+  document.getElementById('boss-victory-emoji').textContent = '💔';
+  document.getElementById('boss-victory-stats').innerHTML = `
+    You dealt ${BOSS_MAX_HP - bossState.hp} damage<br>
+    Dragon HP remaining: ${bossState.hp} / ${BOSS_MAX_HP}<br>
+    Keep practicing and try again!
+  `;
+  showScreen('boss-victory-screen');
+}

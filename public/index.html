@@ -47,8 +47,59 @@
             <div class="card-stars" id="stars-convert"></div>
           </button>
         </div>
+        <div class="boss-card-wrapper" id="boss-card-wrapper">
+          <button class="boss-card locked" id="boss-card" onclick="startBoss()" disabled>
+            <div class="boss-card-glow"></div>
+            <div class="boss-card-inner">
+              <div class="boss-lock-icon" id="boss-lock-icon">🔒</div>
+              <div class="boss-card-title" id="boss-card-title">BOSS BATTLE</div>
+              <div class="boss-card-desc" id="boss-card-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+              <div class="boss-card-checklist" id="boss-checklist"></div>
+            </div>
+          </button>
+        </div>
         <div class="total-score-display">
           <span class="trophy">🏆</span> Total Stars: <span id="total-stars">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boss Battle Screen -->
+    <div id="boss-screen" class="screen">
+      <div class="boss-arena">
+        <div class="boss-hud">
+          <button class="back-btn" onclick="goHome()">← Flee</button>
+          <div class="boss-hearts" id="boss-hearts"></div>
+          <div class="boss-combo" id="boss-combo"></div>
+        </div>
+        <div class="boss-monster-area" id="boss-monster-area">
+          <div class="boss-monster-name">Measurement Dragon</div>
+          <div class="boss-hp-bar-container">
+            <div class="boss-hp-bar" id="boss-hp-bar"></div>
+            <span class="boss-hp-text" id="boss-hp-text">100 / 100</span>
+          </div>
+          <div class="boss-monster" id="boss-monster">
+            <div class="boss-monster-sprite">🐉</div>
+          </div>
+          <div class="boss-damage-float" id="boss-damage-float"></div>
+        </div>
+        <div class="boss-question-area" id="boss-question-area">
+          <div class="boss-question-text" id="boss-q-text"></div>
+          <div class="boss-options" id="boss-options"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boss Victory Screen -->
+    <div id="boss-victory-screen" class="screen">
+      <div class="boss-victory-container">
+        <div class="boss-victory-emoji">⚔️</div>
+        <h2 class="boss-victory-title" id="boss-victory-title">VICTORY!</h2>
+        <p class="boss-victory-sub" id="boss-victory-sub">You defeated the Measurement Dragon!</p>
+        <div class="boss-victory-stats" id="boss-victory-stats"></div>
+        <div class="results-buttons">
+          <button class="retry-btn" onclick="startBoss()">Fight Again ⚔️</button>
+          <button class="home-btn-result" onclick="goHome()">Home 🏠</button>
         </div>
       </div>
     </div>
