@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Measurement Master</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- Floating particles background -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen active">
+      <div class="home-container">
+        <div class="logo-area">
+          <div class="logo-icon">📏</div>
+          <h1 class="game-title">Measurement<br>Master</h1>
+          <p class="subtitle">Become a measurement superhero!</p>
+        </div>
+        <div class="menu-cards">
+          <button class="menu-card" onclick="startGame('numberline')" style="--accent: #FF6B6B;">
+            <div class="card-icon">📐</div>
+            <div class="card-title">Number Lines</div>
+            <div class="card-desc">Fill in the missing measurements</div>
+            <div class="card-stars" id="stars-numberline"></div>
+          </button>
+          <button class="menu-card" onclick="startGame('tools')" style="--accent: #4ECDC4;">
+            <div class="card-icon">🔧</div>
+            <div class="card-title">Right Tool</div>
+            <div class="card-desc">Pick the best tool to measure</div>
+            <div class="card-stars" id="stars-tools"></div>
+          </button>
+          <button class="menu-card" onclick="startGame('ruler')" style="--accent: #45B7D1;">
+            <div class="card-icon">📏</div>
+            <div class="card-title">Read the Ruler</div>
+            <div class="card-desc">How long is it?</div>
+            <div class="card-stars" id="stars-ruler"></div>
+          </button>
+          <button class="menu-card" onclick="startGame('convert')" style="--accent: #F7DC6F;">
+            <div class="card-icon">🔄</div>
+            <div class="card-title">Unit Converter</div>
+            <div class="card-desc">Convert between units</div>
+            <div class="card-stars" id="stars-convert"></div>
+          </button>
+        </div>
+        <div class="total-score-display">
+          <span class="trophy">🏆</span> Total Stars: <span id="total-stars">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <div class="game-header-info">
+          <span class="game-label" id="game-label">Number Lines</span>
+          <span class="game-progress" id="game-progress">1 / 5</span>
+        </div>
+        <div class="game-score">
+          ⭐ <span id="current-score">0</span>
+        </div>
+      </div>
+      <div class="game-body" id="game-body">
+        <!-- Dynamic content goes here -->
+      </div>
+      <div class="game-footer">
+        <button class="check-btn" id="check-btn" onclick="checkAnswer()">Check Answer ✓</button>
+        <button class="next-btn hidden" id="next-btn" onclick="nextQuestion()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="results-screen" class="screen">
+      <div class="results-container">
+        <div class="results-emoji" id="results-emoji">🎉</div>
+        <h2 class="results-title" id="results-title">Great Job!</h2>
+        <div class="results-stars" id="results-stars"></div>
+        <p class="results-score" id="results-score">You got 4 out of 5 correct!</p>
+        <div class="results-buttons">
+          <button class="retry-btn" onclick="retryGame()">Try Again 🔄</button>
+          <button class="home-btn-result" onclick="goHome()">Home 🏠</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback overlay -->
+    <div class="feedback-overlay hidden" id="feedback-overlay">
+      <div class="feedback-content" id="feedback-content"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
