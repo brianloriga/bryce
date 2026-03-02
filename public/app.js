@@ -5,8 +5,10 @@ let currentQ = 0;
 let score = 0;
 let answered = false;
 let bestScores = JSON.parse(localStorage.getItem('measurementMaster') || '{}');
+let bossForceUnlocked = JSON.parse(localStorage.getItem('bossForceUnlocked') || 'false');
 
 const QUESTIONS_PER_ROUND = 5;
+const PARENT_PASSCODE = '01131984';
 
 const encouragements = [
   '🎉 Awesome!', '🌟 You rock!', '💪 Nailed it!', '🔥 On fire!',
@@ -688,6 +690,7 @@ const BOSS_UNLOCK_THRESHOLD = 3;
 let bossState = null;
 
 function isBossUnlocked() {
+  if (bossForceUnlocked) return true;
   const games = ['numberline', 'tools', 'ruler', 'convert'];
   return games.every(g => (bestScores[g] || 0) >= BOSS_UNLOCK_THRESHOLD);
 }
@@ -979,4 +982,45 @@ function bossDefeat() {
     Keep practicing and try again!
   `;
   showScreen('boss-victory-screen');
+}
+
+// ===================== PARENT MENU =====================
+function promptPasscode() {
+  const code = prompt('Enter parent passcode:');
+  return code === PARENT_PASSCODE;
+}
+
+function showParentMenu() {
+  if (!promptPasscode()) {
+    if (arguments[0] !== undefined) return false;
+    return;
+  }
+
+  const choice = prompt(
+    'Parent Menu\n\n' +
+    '1 - Reset all stars\n' +
+    '2 - Unlock Boss Battle\n' +
+    '3 - Lock Boss Battle (re-require stars)\n\n' +
+    'Enter 1, 2, or 3:'
+  );
+
+  if (choice === '1') {
+    bestScores = {};
+    localStorage.setItem('measurementMaster', '{}');
+    bossForceUnlocked = false;
+    localStorage.setItem('bossForceUnlocked', 'false');
+    updateHomeStars();
+    updateBossCard();
+    alert('All stars have been reset!');
+  } else if (choice === '2') {
+    bossForceUnlocked = true;
+    localStorage.setItem('bossForceUnlocked', 'true');
+    updateBossCard();
+    alert('Boss Battle unlocked!');
+  } else if (choice === '3') {
+    bossForceUnlocked = false;
+    localStorage.setItem('bossForceUnlocked', 'false');
+    updateBossCard();
+    alert('Boss Battle locked. Stars required again.');
+  }
 }
