@@ -3,69 +3,257 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Measurement Master</title>
+  <title>BryceLearning</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="app">
-    <!-- Floating particles background -->
-    <div class="particles" id="particles"></div>
+    <!-- Top Navigation -->
+    <nav id="top-nav" class="top-nav">
+      <div class="nav-brand">
+        <span class="brand-icon">📚</span>
+        <span class="brand-text">BryceLearning</span>
+      </div>
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-subject="math" onclick="switchTab('math')">
+          <span class="tab-icon">🔢</span>
+          <span class="tab-label">Math</span>
+        </button>
+        <button class="nav-tab" data-subject="reading" onclick="switchTab('reading')">
+          <span class="tab-icon">📖</span>
+          <span class="tab-label">Reading</span>
+        </button>
+        <button class="nav-tab" data-subject="science" onclick="switchTab('science')">
+          <span class="tab-icon">🔬</span>
+          <span class="tab-label">Science</span>
+        </button>
+      </div>
+      <button class="parent-gear" onclick="showParentMenu()" title="Parent Settings">⚙️</button>
+    </nav>
 
-    <!-- Home Screen -->
-    <div id="home-screen" class="screen active">
+    <!-- ==================== MATH HOME ==================== -->
+    <div id="math-home" class="screen home-screen active">
       <div class="home-container">
-        <button class="parent-gear" onclick="showParentMenu()" title="Parent Settings">⚙️</button>
-        <div class="logo-area">
-          <div class="logo-icon">📏</div>
-          <h1 class="game-title">Measurement<br>Master</h1>
-          <p class="subtitle">Become a measurement superhero!</p>
+        <div class="subject-header math-header">
+          <div class="subject-icon">📏</div>
+          <h1>Measurement Master</h1>
+          <p>Become a measurement superhero!</p>
         </div>
-        <div class="menu-cards">
-          <button class="menu-card" onclick="startGame('numberline')" style="--accent: #FF6B6B;">
+        <div class="unit-pills">
+          <button class="unit-pill active" data-unit="15.1" onclick="switchMathUnit('15.1')">📏 Units 15.1 &amp; 15.2</button>
+          <button class="unit-pill" data-unit="15.7" onclick="switchMathUnit('15.7')">⏰ Unit 15.7 &ndash; Time</button>
+        </div>
+
+        <!-- 15.1 & 15.2 grid -->
+        <div id="math-grid-15-1" class="activity-grid">
+          <button class="activity-card" onclick="startGame('numberline')">
             <div class="card-icon">📐</div>
             <div class="card-title">Number Lines</div>
             <div class="card-desc">Fill in the missing measurements</div>
             <div class="card-stars" id="stars-numberline"></div>
           </button>
-          <button class="menu-card" onclick="startGame('tools')" style="--accent: #4ECDC4;">
+          <button class="activity-card" onclick="startGame('tools')">
             <div class="card-icon">🔧</div>
             <div class="card-title">Right Tool</div>
             <div class="card-desc">Pick the best tool to measure</div>
             <div class="card-stars" id="stars-tools"></div>
           </button>
-          <button class="menu-card" onclick="startGame('ruler')" style="--accent: #45B7D1;">
+          <button class="activity-card" onclick="startGame('ruler')">
             <div class="card-icon">📏</div>
             <div class="card-title">Read the Ruler</div>
             <div class="card-desc">How long is it?</div>
             <div class="card-stars" id="stars-ruler"></div>
           </button>
-          <button class="menu-card" onclick="startGame('convert')" style="--accent: #F7DC6F;">
+          <button class="activity-card" onclick="startGame('convert')">
             <div class="card-icon">🔄</div>
             <div class="card-title">Unit Converter</div>
             <div class="card-desc">Convert between units</div>
             <div class="card-stars" id="stars-convert"></div>
           </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="math-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="math-boss-icon">🔒</span>
+                <div class="boss-card-title" id="math-boss-title">BOSS BATTLE</div>
+                <div class="boss-card-desc" id="math-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="math-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
         </div>
-        <div class="boss-card-wrapper" id="boss-card-wrapper">
-          <button class="boss-card locked" id="boss-card" onclick="startBoss()" disabled>
-            <div class="boss-card-glow"></div>
-            <div class="boss-card-inner">
-              <div class="boss-lock-icon" id="boss-lock-icon">🔒</div>
-              <div class="boss-card-title" id="boss-card-title">BOSS BATTLE</div>
-              <div class="boss-card-desc" id="boss-card-desc">Get ⭐3+ in all 4 activities to unlock!</div>
-              <div class="boss-card-checklist" id="boss-checklist"></div>
-            </div>
+
+        <!-- 15.7 grid -->
+        <div id="math-grid-15-7" class="activity-grid hidden">
+          <button class="activity-card" onclick="startGame('readclock')">
+            <div class="card-icon">🕐</div>
+            <div class="card-title">Read the Clock</div>
+            <div class="card-desc">What time is it?</div>
+            <div class="card-stars" id="stars-readclock"></div>
           </button>
+          <button class="activity-card" onclick="startGame('elapsedtime')">
+            <div class="card-icon">⏱️</div>
+            <div class="card-title">Elapsed Time</div>
+            <div class="card-desc">How much time has passed?</div>
+            <div class="card-stars" id="stars-elapsedtime"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('timeconvert')">
+            <div class="card-icon">🔄</div>
+            <div class="card-title">Time Converter</div>
+            <div class="card-desc">Hours, minutes &amp; seconds</div>
+            <div class="card-stars" id="stars-timeconvert"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('timeword')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Time Problems</div>
+            <div class="card-desc">Solve real-world time puzzles</div>
+            <div class="card-stars" id="stars-timeword"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="math157-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="math157-boss-icon">🔒</span>
+                <div class="boss-card-title" id="math157-boss-title">BOSS BATTLE</div>
+                <div class="boss-card-desc" id="math157-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="math157-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
         </div>
-        <div class="total-score-display">
-          <span class="trophy">🏆</span> Total Stars: <span id="total-stars">0</span>
+
+        <div class="total-stars">🏆 Total Stars: <span id="math-total-stars">0</span></div>
+      </div>
+    </div>
+
+    <!-- ==================== READING HOME ==================== -->
+    <div id="reading-home" class="screen home-screen">
+      <div class="home-container">
+        <div class="subject-header reading-header">
+          <div class="subject-icon">📖</div>
+          <h1>Reading &mdash; Unit 5</h1>
+          <p>Looking at Things Closely</p>
+        </div>
+        <div class="activity-grid">
+          <button class="activity-card" onclick="startGame('vocabulary')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Vocabulary</div>
+            <div class="card-desc">Learn key words from the unit</div>
+            <div class="card-stars" id="stars-vocabulary"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('comprehension')">
+            <div class="card-icon">🔍</div>
+            <div class="card-title">Comprehension</div>
+            <div class="card-desc">Understand what you read</div>
+            <div class="card-stars" id="stars-comprehension"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('textfeatures')">
+            <div class="card-icon">📸</div>
+            <div class="card-title">Text Features</div>
+            <div class="card-desc">Photos, captions &amp; more</div>
+            <div class="card-stars" id="stars-textfeatures"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('chronology')">
+            <div class="card-icon">⏳</div>
+            <div class="card-title">Chronology</div>
+            <div class="card-desc">Put events in the right order</div>
+            <div class="card-stars" id="stars-chronology"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="reading-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="reading-boss-icon">🔒</span>
+                <div class="boss-card-title" id="reading-boss-title">READING TEST</div>
+                <div class="boss-card-desc" id="reading-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="reading-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="total-stars">🏆 Total Stars: <span id="reading-total-stars">0</span></div>
+      </div>
+    </div>
+
+    <!-- ==================== SCIENCE HOME ==================== -->
+    <div id="science-home" class="screen home-screen">
+      <div class="home-container">
+        <div class="subject-header science-header">
+          <div class="subject-icon">🔭</div>
+          <h1>Science &mdash; Concept 4</h1>
+          <p>Earth and Moon Patterns</p>
+        </div>
+        <div class="activity-grid">
+          <button class="activity-card" onclick="startGame('constellation')">
+            <div class="card-icon">⭐</div>
+            <div class="card-title">Constellations</div>
+            <div class="card-desc">Find &amp; connect star patterns</div>
+            <div class="card-stars" id="stars-constellation"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('moonphases')">
+            <div class="card-icon">🌙</div>
+            <div class="card-title">Moon Phases</div>
+            <div class="card-desc">Identify the phases of the moon</div>
+            <div class="card-stars" id="stars-moonphases"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('daynight')">
+            <div class="card-icon">🌍</div>
+            <div class="card-title">Day &amp; Night</div>
+            <div class="card-desc">Rotation, revolution &amp; more</div>
+            <div class="card-stars" id="stars-daynight"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('spacevocab')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Space Vocabulary</div>
+            <div class="card-desc">Key words about Earth &amp; space</div>
+            <div class="card-stars" id="stars-spacevocab"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="science-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="science-boss-icon">🔒</span>
+                <div class="boss-card-title" id="science-boss-title">SPACE BATTLE</div>
+                <div class="boss-card-desc" id="science-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="science-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="total-stars">🏆 Total Stars: <span id="science-total-stars">0</span></div>
+      </div>
+    </div>
+
+    <!-- ==================== GAME SCREEN (shared) ==================== -->
+    <div id="game-screen" class="screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goHome()">← Back</button>
+        <div class="game-header-info">
+          <span class="game-label" id="game-label">Activity</span>
+          <span class="game-progress" id="game-progress">1 / 5</span>
+        </div>
+        <div class="game-score">⭐ <span id="current-score">0</span></div>
+      </div>
+      <div class="game-body" id="game-body"></div>
+      <div class="game-footer">
+        <button class="check-btn" id="check-btn" onclick="checkAnswer()">Check Answer ✓</button>
+        <button class="next-btn hidden" id="next-btn" onclick="nextQuestion()">Next →</button>
+      </div>
+    </div>
+
+    <!-- ==================== RESULTS SCREEN (shared) ==================== -->
+    <div id="results-screen" class="screen">
+      <div class="results-container">
+        <div class="results-emoji" id="results-emoji">🎉</div>
+        <h2 class="results-title" id="results-title">Great Job!</h2>
+        <div class="results-stars" id="results-stars"></div>
+        <p class="results-score" id="results-score"></p>
+        <div class="results-buttons">
+          <button class="btn btn-retry" onclick="retryGame()">Try Again 🔄</button>
+          <button class="btn btn-home" onclick="goHome()">Home 🏠</button>
         </div>
       </div>
     </div>
 
-    <!-- Boss Battle Screen -->
+    <!-- ==================== BOSS BATTLE SCREEN (shared) ==================== -->
     <div id="boss-screen" class="screen">
       <div class="boss-arena">
         <div class="boss-hud">
@@ -74,13 +262,13 @@
           <div class="boss-combo" id="boss-combo"></div>
         </div>
         <div class="boss-monster-area" id="boss-monster-area">
-          <div class="boss-monster-name">Measurement Dragon</div>
+          <div class="boss-monster-name" id="boss-monster-name">Boss</div>
           <div class="boss-hp-bar-container">
             <div class="boss-hp-bar" id="boss-hp-bar"></div>
             <span class="boss-hp-text" id="boss-hp-text">100 / 100</span>
           </div>
           <div class="boss-monster" id="boss-monster">
-            <div class="boss-monster-sprite">🐉</div>
+            <div class="boss-monster-sprite" id="boss-monster-sprite">🐉</div>
           </div>
           <div class="boss-damage-float" id="boss-damage-float"></div>
         </div>
@@ -91,52 +279,29 @@
       </div>
     </div>
 
-    <!-- Boss Victory Screen -->
+    <!-- ==================== BOSS VICTORY SCREEN (shared) ==================== -->
     <div id="boss-victory-screen" class="screen">
       <div class="boss-victory-container">
-        <div class="boss-victory-emoji">⚔️</div>
+        <div class="boss-victory-emoji" id="boss-victory-emoji">⚔️</div>
         <h2 class="boss-victory-title" id="boss-victory-title">VICTORY!</h2>
-        <p class="boss-victory-sub" id="boss-victory-sub">You defeated the Measurement Dragon!</p>
+        <p class="boss-victory-sub" id="boss-victory-sub"></p>
         <div class="boss-victory-stats" id="boss-victory-stats"></div>
         <div class="results-buttons">
-          <button class="retry-btn" onclick="startBoss()">Fight Again ⚔️</button>
-          <button class="home-btn-result" onclick="goHome()">Home 🏠</button>
+          <button class="btn btn-retry" onclick="startBoss()">Fight Again ⚔️</button>
+          <button class="btn btn-home" onclick="goHome()">Home 🏠</button>
         </div>
       </div>
     </div>
 
-    <!-- Game Screen -->
-    <div id="game-screen" class="screen">
-      <div class="game-header">
-        <button class="back-btn" onclick="goHome()">← Back</button>
-        <div class="game-header-info">
-          <span class="game-label" id="game-label">Number Lines</span>
-          <span class="game-progress" id="game-progress">1 / 5</span>
+    <!-- Passage Modal -->
+    <div class="passage-modal-overlay hidden" id="passage-modal" onclick="closePassageModal(event)">
+      <div class="passage-modal">
+        <div class="passage-modal-header">
+          <span class="passage-modal-icon" id="passage-modal-icon">📖</span>
+          <h3 class="passage-modal-title" id="passage-modal-title">Reading Passage</h3>
+          <button class="passage-modal-close" onclick="closePassageModal()">&times;</button>
         </div>
-        <div class="game-score">
-          ⭐ <span id="current-score">0</span>
-        </div>
-      </div>
-      <div class="game-body" id="game-body">
-        <!-- Dynamic content goes here -->
-      </div>
-      <div class="game-footer">
-        <button class="check-btn" id="check-btn" onclick="checkAnswer()">Check Answer ✓</button>
-        <button class="next-btn hidden" id="next-btn" onclick="nextQuestion()">Next →</button>
-      </div>
-    </div>
-
-    <!-- Results Screen -->
-    <div id="results-screen" class="screen">
-      <div class="results-container">
-        <div class="results-emoji" id="results-emoji">🎉</div>
-        <h2 class="results-title" id="results-title">Great Job!</h2>
-        <div class="results-stars" id="results-stars"></div>
-        <p class="results-score" id="results-score">You got 4 out of 5 correct!</p>
-        <div class="results-buttons">
-          <button class="retry-btn" onclick="retryGame()">Try Again 🔄</button>
-          <button class="home-btn-result" onclick="goHome()">Home 🏠</button>
-        </div>
+        <div class="passage-modal-body" id="passage-modal-body"></div>
       </div>
     </div>
 
