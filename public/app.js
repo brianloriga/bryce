@@ -17,7 +17,7 @@ if (bossForceUnlocked.science === undefined) bossForceUnlocked.science = false;
 if (bossForceUnlocked.math157 === undefined) bossForceUnlocked.math157 = false;
 if (bossForceUnlocked.math129 === undefined) bossForceUnlocked.math129 = false;
 
-const QUESTIONS_PER_ROUND = 5;
+const QUESTIONS_PER_ROUND = 9;
 const PARENT_PASSCODE = '01131984';
 
 const MATH_GAMES_15_1 = ['numberline', 'tools', 'ruler', 'convert'];
@@ -29,6 +29,91 @@ const SCIENCE_GAMES = ['constellation', 'moonphases', 'daynight', 'spacevocab'];
 
 let currentMathUnit = '15.1';
 let constellationState = { found: new Set(), canvas: null, distractors: [] };
+
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playSound(type) {
+  try { initAudio(); } catch(e) { return; }
+  const t = audioCtx.currentTime;
+  const g = audioCtx.createGain();
+  g.connect(audioCtx.destination);
+  if (type === 'hit') {
+    const o = audioCtx.createOscillator(); o.type = 'sawtooth';
+    o.connect(g); o.frequency.setValueAtTime(600, t); o.frequency.exponentialRampToValueAtTime(200, t+0.12);
+    g.gain.setValueAtTime(0.15, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+    o.start(t); o.stop(t+0.15);
+  } else if (type === 'crit') {
+    [600,800,1000].forEach((f,i) => {
+      const o = audioCtx.createOscillator(); o.type = 'square';
+      const gn = audioCtx.createGain(); o.connect(gn); gn.connect(audioCtx.destination);
+      o.frequency.setValueAtTime(f, t+i*0.08);
+      gn.gain.setValueAtTime(0.1, t+i*0.08); gn.gain.exponentialRampToValueAtTime(0.001, t+i*0.08+0.15);
+      o.start(t+i*0.08); o.stop(t+i*0.08+0.15);
+    });
+  } else if (type === 'miss') {
+    const o = audioCtx.createOscillator(); o.type = 'sine';
+    o.connect(g); o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(100, t+0.3);
+    g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.3);
+    o.start(t); o.stop(t+0.3);
+  } else if (type === 'victory') {
+    [523,659,784,1047].forEach((f,i) => {
+      const o = audioCtx.createOscillator(); o.type = 'sine';
+      const gn = audioCtx.createGain(); o.connect(gn); gn.connect(audioCtx.destination);
+      o.frequency.setValueAtTime(f, t+i*0.15);
+      gn.gain.setValueAtTime(0.12, t+i*0.15); gn.gain.exponentialRampToValueAtTime(0.001, t+i*0.15+0.4);
+      o.start(t+i*0.15); o.stop(t+i*0.15+0.4);
+    });
+  } else if (type === 'defeat') {
+    [400,300,200,100].forEach((f,i) => {
+      const o = audioCtx.createOscillator(); o.type = 'sine';
+      const gn = audioCtx.createGain(); o.connect(gn); gn.connect(audioCtx.destination);
+      o.frequency.setValueAtTime(f, t+i*0.2);
+      gn.gain.setValueAtTime(0.1, t+i*0.2); gn.gain.exponentialRampToValueAtTime(0.001, t+i*0.2+0.3);
+      o.start(t+i*0.2); o.stop(t+i*0.2+0.3);
+    });
+  }
+}
+
+let bossBgAnim = null;
+function startBossBgAnimation() {
+  const canvas = document.getElementById('boss-bg-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+  const stars = Array.from({length: 80}, () => ({
+    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+    r: Math.random() * 2 + 0.5, s: Math.random() * 0.02 + 0.005, a: Math.random() * Math.PI * 2
+  }));
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(st => {
+      st.a += st.s;
+      const alpha = 0.4 + 0.6 * Math.abs(Math.sin(st.a));
+      ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
+    });
+    bossBgAnim = requestAnimationFrame(frame);
+  }
+  frame();
+}
+function stopBossBgAnimation() { if (bossBgAnim) { cancelAnimationFrame(bossBgAnim); bossBgAnim = null; } }
+
+function showBossFx(type) {
+  const layer = document.getElementById('boss-fx-layer');
+  if (!layer) return;
+  layer.innerHTML = '';
+  if (type === 'slash') {
+    layer.innerHTML = '<div class="slash-fx"></div>';
+  } else if (type === 'critical') {
+    layer.innerHTML = '<div class="slash-fx"></div><div class="critical-fx">💥</div>';
+  } else if (type === 'enemy-hit') {
+    layer.innerHTML = '<div class="boss-enemy-hit-fx"></div>';
+  }
+  setTimeout(() => { layer.innerHTML = ''; }, 800);
+}
 
 const encouragements = [
   '🎉 Awesome!', '🌟 You rock!', '💪 Nailed it!', '🔥 On fire!',
@@ -190,6 +275,7 @@ function showScreen(id) {
 }
 
 function goHome() {
+  stopBossBgAnimation();
   setSubjectCSS(currentSubject);
   showScreen(currentSubject + '-home');
   updateAllStars();
@@ -557,6 +643,12 @@ function generateTimeWordQuestions() {
     { type: 'science_mc', question: 'Fasil plays basketball for 40 minutes each day on Monday, Wednesday, and Saturday. How many total minutes does he play in a week?', options: ['80 minutes', '100 minutes', '120 minutes', '160 minutes'], correctIndex: 2 },
     { type: 'science_mc', question: 'Ana has math class 1½ hours each day on 4 days of the week. How many total minutes of math class per week?', options: ['240 minutes', '300 minutes', '360 minutes', '420 minutes'], correctIndex: 2 },
     { type: 'science_mc', question: 'Henry walks one lap in 12 minutes. How many laps can he walk in an hour?', options: ['3 laps', '4 laps', '5 laps', '6 laps'], correctIndex: 2 },
+    { type: 'science_mc', question: 'A basketball game starts at 6:30 p.m. and ends at 8:15 p.m. How long was the game?', options: ['1 hour 15 minutes', '1 hour 30 minutes', '1 hour 45 minutes', '2 hours'], correctIndex: 2 },
+    { type: 'science_mc', question: 'Maria practices violin from 3:45 p.m. to 5:10 p.m. How many minutes did she practice?', options: ['75 minutes', '80 minutes', '85 minutes', '90 minutes'], correctIndex: 2 },
+    { type: 'science_mc', question: 'A bus arrives every 20 minutes. If you just missed the 2:15 p.m. bus, when is the next one?', options: ['2:25 p.m.', '2:30 p.m.', '2:35 p.m.', '2:40 p.m.'], correctIndex: 2 },
+    { type: 'science_mc', question: 'Dad cooked dinner for 1 hour 25 minutes. He finished at 6:45 p.m. What time did he start?', options: ['5:10 p.m.', '5:15 p.m.', '5:20 p.m.', '5:30 p.m.'], correctIndex: 2 },
+    { type: 'science_mc', question: 'Recess is 25 minutes, lunch is 35 minutes, and study hall is 40 minutes. How many total minutes?', options: ['90 minutes', '95 minutes', '100 minutes', '110 minutes'], correctIndex: 2 },
+    { type: 'science_mc', question: 'School starts at 7:50 a.m. It takes Alex 35 minutes to get ready and 15 minutes to walk. What time should he wake up?', options: ['6:50 a.m.', '7:00 a.m.', '7:10 a.m.', '7:15 a.m.'], correctIndex: 1 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
@@ -638,6 +730,11 @@ function generateCountMoneyQuestions() {
     { bills: [5, 1, 1], coins: [25, 10, 5, 5, 1] },
     { bills: [10, 5], coins: [25, 25, 10] },
     { bills: [1], coins: [25, 10, 10, 5, 1, 1, 1] },
+    { bills: [10, 5], coins: [25, 10, 5, 1, 1] },
+    { bills: [20, 1], coins: [25, 25, 10] },
+    { bills: [5], coins: [25, 25, 25, 10, 10, 5, 1, 1] },
+    { bills: [1, 1, 1, 1], coins: [25, 10, 10, 5] },
+    { bills: [10], coins: [25, 10, 10, 10, 5, 5, 1] },
   ];
   shuffle(configs).slice(0, QUESTIONS_PER_ROUND).forEach(cfg => {
     const total = cfg.bills.reduce((s, b) => s + b * 100, 0) + cfg.coins.reduce((s, c) => s + c, 0);
@@ -713,6 +810,12 @@ function generateMakeChangeQuestions() {
     { item: 'a banana', price: 50, paid: 100 },
     { item: 'a yogurt', price: 105, paid: 200 },
     { item: 'a salad', price: 350, paid: 500 },
+    { item: 'a toy car', price: 350, paid: 500 },
+    { item: 'a comic book', price: 275, paid: 300 },
+    { item: 'gummy bears', price: 95, paid: 100 },
+    { item: 'a water bottle', price: 125, paid: 200 },
+    { item: 'a cookie', price: 65, paid: 100 },
+    { item: 'a pack of cards', price: 450, paid: 500 },
   ];
   return shuffle(scenarios).slice(0, QUESTIONS_PER_ROUND).map(s => {
     const change = s.paid - s.price;
@@ -743,6 +846,24 @@ function generateMoneyWordQuestions() {
     { type: 'science_mc', question: 'A calculator costs $5.00 and a folder costs $0.75. How much do they cost together?', options: ['$5.75', '$5.50', '$6.00', '$5.25'], correctIndex: 0 },
     { type: 'science_mc', question: 'You have 3 five-dollar bills and 7 dimes. How much money do you have?', options: ['$15.70', '$15.07', '$15.35', '$16.70'], correctIndex: 0 },
     { type: 'science_mc', question: 'Breakfast costs $2.85 for eggs and $0.65 for toast. What is the total?', options: ['$3.50', '$3.40', '$3.60', '$3.55'], correctIndex: 0 },
+    { type: 'science_mc', question: 'A toy costs $3.49 and a book costs $2.75. How much for both?', options: ['$6.24', '$6.14', '$6.34', '$5.24'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Jake has 3 quarters, 4 dimes, and 6 pennies. How much money?', options: ['$1.21', '$1.11', '$1.31', '$1.01'], correctIndex: 0 },
+    { type: 'science_mc', question: 'A pizza slice costs $1.50. You buy 3 slices. How much?', options: ['$4.50', '$3.50', '$4.00', '$5.00'], correctIndex: 0 },
+    { type: 'science_mc', question: 'You have $10.00 and buy a shirt for $6.25. How much change?', options: ['$3.75', '$3.25', '$4.75', '$3.50'], correctIndex: 0 },
+    { type: 'science_mc', question: 'A pack of gum costs $0.85. You pay with 4 quarters. Change?', options: ['$0.15', '$0.25', '$0.10', '$0.20'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Mom gives you $5.00. You buy a snack for $1.35 and a drink for $0.90. How much is left?', options: ['$2.75', '$2.85', '$2.65', '$3.75'], correctIndex: 0 },
+    { type: 'shopping_budget', budget: 800, supplies: [
+      { name: 'pencil', price: 50 }, { name: 'notebook', price: 100 },
+      { name: 'folder', price: 75 }, { name: 'calculator', price: 500 }
+    ], correct: 'calculator + 2 notebooks + 1 folder + 1 pencil', options: ['calculator + 2 notebooks + 1 folder + 1 pencil', 'calculator + 3 notebooks', 'calculator + 2 folders + 2 pencils', '8 notebooks'], correctIndex: 0 },
+    { type: 'shopping_budget', budget: 500, supplies: [
+      { name: 'apple', price: 45 }, { name: 'sandwich', price: 105 },
+      { name: 'juice', price: 85 }, { name: 'cookie', price: 65 }
+    ], correct: 'sandwich + juice + cookie + 2 apples + juice', options: ['2 sandwiches + 2 juices + 1 apple', '3 sandwiches + juice', 'sandwich + 2 juices + 2 cookies + apple', '5 apples + 2 cookies'], correctIndex: 0 },
+    { type: 'shopping_budget', budget: 1000, supplies: [
+      { name: 'toy car', price: 350 }, { name: 'stickers', price: 125 },
+      { name: 'bouncy ball', price: 50 }, { name: 'puzzle', price: 275 }
+    ], correct: 'toy car + puzzle + stickers + bouncy ball', options: ['toy car + puzzle + stickers + bouncy ball', '3 toy cars', 'puzzle + 2 stickers + 3 bouncy balls', '2 puzzles + 3 stickers'], correctIndex: 0 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
@@ -784,6 +905,12 @@ function generateComprehensionQuestions() {
     { question: 'What did Alfred Donné do in 1840?', source: 'your-world-up-close', options: ['Invented the camera', 'First photographed images through a microscope', 'Discovered snowflakes', 'Built the first electron microscope'], correctIndex: 1 },
     { question: 'Why does the author begin and end "A Drop of Water" with a drop of water?', source: 'a-drop-of-water', options: ['Because water is pretty', 'To explain the water cycle and how water changes forms', 'Because the author likes rain', 'To make the pictures more colorful'], correctIndex: 1 },
     { question: 'What does the word "micro" mean in "photomicrograph"?', source: 'your-world-up-close', options: ['Large', 'Fast', 'Small', 'Old'], correctIndex: 2 },
+    { question: 'What does the author suggest happens when you look at things closely?', source: 'your-world-up-close', options: ['You discover hidden details', 'Things look exactly the same', 'Colors disappear', 'Objects get smaller'], correctIndex: 0 },
+    { question: 'What is the main purpose of a magnifying glass in the text?', source: 'your-world-up-close', options: ['To see small details larger', 'To make things smaller', 'To change colors', 'To measure weight'], correctIndex: 0 },
+    { question: 'What does the word "observe" mean as used in the passage?', source: 'your-world-up-close', options: ['To watch carefully', 'To ignore completely', 'To run quickly', 'To write a story'], correctIndex: 0 },
+    { question: 'Why does the author include photographs in the text?', source: 'your-world-up-close', options: ['To show what things look like up close', 'To fill empty space', 'To make the book heavier', 'To confuse readers'], correctIndex: 0 },
+    { question: 'What is the main difference between how we see things normally and up close?', source: 'your-world-up-close', options: ['Up close reveals patterns and textures we can\'t normally see', 'There is no difference', 'Things look worse up close', 'Colors change completely'], correctIndex: 0 },
+    { question: 'What lesson does the author want readers to learn?', source: 'your-world-up-close', options: ['There is beauty in small details around us', 'Microscopes are dangerous', 'Never look at things closely', 'Science is boring'], correctIndex: 0 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND).map(q => ({ type: 'reading_mc', ...q }));
 }
@@ -803,6 +930,13 @@ function generateTextFeaturesQuestions() {
     { question: '"Your World Up Close" includes photographs of snowflakes, sugar crystals, and fruit. These photos help the reader by...', source: 'your-world-up-close', options: ['Making the text confusing', 'Showing details that are too small to see with just our eyes', 'Telling a story about winter', 'Replacing the need to read the words'], correctIndex: 1 },
     { question: 'What makes "Your World Up Close" an expository text?', source: 'your-world-up-close', options: ['It has made-up characters', 'It gives facts and information, and includes text features like photographs and captions', 'It rhymes', 'It is a fairy tale'], correctIndex: 1 },
     { question: 'Imagery is the use of words to help readers...', source: 'the-incredible-shrinking-potion', options: ['Count the pages', 'Visualize what the author is describing using their senses', 'Spell difficult words', 'Find the main character'], correctIndex: 1 },
+    { question: 'What is the purpose of bold text in a nonfiction passage?', source: 'your-world-up-close', options: ['To highlight important words', 'To make the text longer', 'To confuse readers', 'To show dialogue'], correctIndex: 0 },
+    { question: 'Why might an author include a diagram?', source: 'your-world-up-close', options: ['To show how something works', 'To replace all the words', 'To make the book thicker', 'To decorate the page'], correctIndex: 0 },
+    { question: 'What does a table of contents help you find?', source: 'your-world-up-close', options: ['Where topics are located in the book', 'The author\'s favorite color', 'How many words are in the book', 'The price of the book'], correctIndex: 0 },
+    { question: 'What is the purpose of a glossary?', source: 'your-world-up-close', options: ['To define important vocabulary words', 'To list the author\'s friends', 'To show pictures', 'To tell a story'], correctIndex: 0 },
+    { question: 'How does a photograph differ from an illustration?', source: 'your-world-up-close', options: ['A photograph shows a real image', 'They are exactly the same', 'An illustration is always better', 'A photograph is always drawn by hand'], correctIndex: 0 },
+    { question: 'What is the purpose of labels on a diagram?', source: 'your-world-up-close', options: ['To identify specific parts', 'To make it look fancy', 'To hide information', 'To confuse the reader'], correctIndex: 0 },
+    { question: 'Why do some texts include sidebars?', source: 'your-world-up-close', options: ['To give extra information about the topic', 'To waste space', 'To replace the main text', 'To make reading harder'], correctIndex: 0 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND).map(q => ({ type: 'reading_mc', ...q }));
 }
@@ -822,6 +956,12 @@ function generateChronologyQuestions() {
     { question: 'In "The Incredible Shrinking Potion," what did Hector do BEFORE bringing cupcakes to class?', source: 'the-incredible-shrinking-potion', options: ['He shrank Rambo the hamster', 'He worked with Isabel and Mariela to create the shrinking potion', 'He told Ms. Sampson about the potion', 'He ran out of the classroom'], correctIndex: 1 },
     { question: 'Which happened most recently in the history of microscopes?', source: 'your-world-up-close', options: ['Alfred Donné used a microscope (1840)', 'Photomicrography cameras (1852)', 'Wilson Bentley\'s snowflake photos (1882)', 'We have electron micrographs (today)'], correctIndex: 3 },
     { question: 'Chronological order means organizing events by...', source: 'your-world-up-close', options: ['Size, from smallest to largest', 'The time they happened, from earliest to latest', 'Importance, from most to least', 'The alphabet'], correctIndex: 1 },
+    { question: 'What word signals the FIRST event?', source: 'your-world-up-close', options: ['First / Initially / To begin', 'Finally', 'Meanwhile', 'However'], correctIndex: 0 },
+    { question: 'If a story says "Before lunch, she..." when did the event happen?', source: 'your-world-up-close', options: ['In the morning', 'After dinner', 'At midnight', 'The next day'], correctIndex: 0 },
+    { question: 'What is the correct order: "Finally she ate" "First she cooked" "Then she set the table"?', source: 'your-world-up-close', options: ['cooked, set the table, ate', 'ate, cooked, set the table', 'set the table, ate, cooked', 'ate, set the table, cooked'], correctIndex: 0 },
+    { question: 'The word "meanwhile" tells you...', source: 'your-world-up-close', options: ['Two things happen at the same time', 'Something happened long ago', 'The story is ending', 'A character is leaving'], correctIndex: 0 },
+    { question: 'What comes AFTER "Next" in a sequence?', source: 'your-world-up-close', options: ['Then or Finally', 'First', 'Once upon a time', 'Before'], correctIndex: 0 },
+    { question: 'Why do authors use time-order words?', source: 'your-world-up-close', options: ['To help readers understand the sequence of events', 'To make the text longer', 'To confuse readers', 'To replace pictures'], correctIndex: 0 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND).map(q => ({ type: 'reading_mc', ...q }));
 }
@@ -863,6 +1003,30 @@ const CONSTELLATIONS = [
     fact: 'Contains Polaris, the North Star! Helps you find north.',
     stars: [{x:82,y:22},{x:70,y:30},{x:58,y:25},{x:48,y:35},{x:48,y:55},{x:32,y:55},{x:32,y:32}],
     edges: [[0,1],[1,2],[2,3],[3,6],[6,5],[5,4],[4,3]]
+  },
+  {
+    name: 'Gemini', season: 'Winter',
+    fact: 'The twins Castor and Pollux',
+    stars: [{x:20,y:25},{x:35,y:20},{x:25,y:45},{x:40,y:40},{x:30,y:60},{x:45,y:55}],
+    edges: [[0,1],[0,2],[1,3],[2,4],[3,5],[2,3]]
+  },
+  {
+    name: 'Scorpius', season: 'Summer',
+    fact: 'Look for its curved tail',
+    stars: [{x:50,y:15},{x:45,y:30},{x:50,y:45},{x:55,y:55},{x:60,y:65},{x:65,y:75},{x:55,y:80}],
+    edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]
+  },
+  {
+    name: 'Lyra', season: 'Summer',
+    fact: 'Contains the bright star Vega',
+    stars: [{x:50,y:15},{x:40,y:35},{x:60,y:35},{x:35,y:55},{x:65,y:55}],
+    edges: [[0,1],[0,2],[1,3],[2,4],[1,2],[3,4]]
+  },
+  {
+    name: 'Draco', season: 'All Year',
+    fact: 'The dragon wraps around the Little Dipper',
+    stars: [{x:25,y:20},{x:35,y:30},{x:50,y:25},{x:60,y:35},{x:55,y:50},{x:40,y:55},{x:30,y:45}],
+    edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]
   }
 ];
 
@@ -909,6 +1073,12 @@ function generateDayNightQuestions() {
     { type: 'science_mc', question: 'Which TWO statements are true?\nB. Earth revolves around the sun in about 365 days\nD. Earth rotates on its axis in about 24 hours', options: ['A and C','B and D','A and D','B and C'], correctIndex: 1 },
     { type: 'science_mc', question: 'What does "revolve" mean in science?', options: ['To spin in place','To orbit around another object','To stop moving','To change shape'], correctIndex: 1 },
     { type: 'science_mc', question: 'What does "rotation" mean?', options: ['Moving around the sun','Spinning around on an axis','Flying through space','Reflecting light'], correctIndex: 1 },
+    { type: 'science_mc', question: 'How long does it take Earth to complete one full rotation?', options: ['12 hours','24 hours','7 days','365 days'], correctIndex: 1 },
+    { type: 'science_mc', question: 'What would happen if Earth stopped rotating?', options: ['Nothing would change','One side would always be in darkness','The moon would disappear','Gravity would stop'], correctIndex: 1 },
+    { type: 'science_mc', question: 'Why do we see different constellations in summer vs winter?', options: ['Earth\'s position changes as it orbits the Sun','The stars move around','The moon blocks them','Clouds cover different stars'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What causes the Sun to appear to rise in the east?', options: ['The Sun moves around Earth','Earth rotates from west to east','The Moon pulls the Sun','Wind pushes the Sun'], correctIndex: 1 },
+    { type: 'science_mc', question: 'How long does one orbit of Earth around the Sun take?', options: ['24 hours','30 days','365 days (1 year)','7 days'], correctIndex: 2 },
+    { type: 'science_mc', question: 'Why is the North Star important for navigation?', options: ['It is the brightest star','It stays in almost the same position all night','It changes color','It is closest to Earth'], correctIndex: 1 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
@@ -928,6 +1098,12 @@ function generateSpaceVocabQuestions() {
     { type: 'science_mc', question: 'Earth revolves around the sun once every...', options: ['Day','Week','Month','About 365 days (one year)'], correctIndex: 3 },
     { type: 'science_mc', question: 'The sun appears to move across the sky because of Earth\'s...', options: ['Revolution','Rotation','Moon phases','Constellations'], correctIndex: 1 },
     { type: 'science_mc', question: 'The moon completes its phase cycle about every...', options: ['7 days','29 days','365 days','24 hours'], correctIndex: 1 },
+    { type: 'science_mc', question: 'What is a "crater" on the Moon?', options: ['A bowl-shaped hole caused by an impact','A mountain made of cheese','A river of lava','A type of moon rock'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What does "waning" mean for the Moon?', options: ['The lit part is getting smaller','The lit part is getting bigger','The Moon is moving closer','The Moon changes color'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What does "waxing" mean for the Moon?', options: ['The lit part is getting bigger','The lit part is getting smaller','The Moon is spinning faster','The Moon is hiding'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What is the "horizon"?', options: ['The line where Earth and sky appear to meet','The top of a mountain','The center of the Sun','A type of cloud'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What is a "lunar eclipse"?', options: ['When Earth\'s shadow falls on the Moon','When the Moon blocks the Sun','When the Moon disappears forever','When two moons collide'], correctIndex: 0 },
+    { type: 'science_mc', question: 'What does "nocturnal" mean?', options: ['Active at night','Active during the day','Living underwater','Living in space'], correctIndex: 0 },
   ];
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
@@ -956,6 +1132,7 @@ function renderQuestion() {
     case 'constellation': renderConstellation(body, q); break;
     case 'moon_visual': renderMoonVisual(body, q); break;
     case 'science_mc': renderScienceMC(body, q); break;
+    case 'shopping_budget': renderShoppingBudget(body, q); break;
   }
 }
 
@@ -1170,6 +1347,21 @@ function renderMenuMath(body, q) {
   body.innerHTML = `<div class="question-card"><div class="question-text">${q.question}</div>
     <div class="menu-card-grid">${menuHTML}</div>
     <div class="menu-order-summary">🧾 Order: ${orderList}</div>
+    <div class="mc-options">${optionsHTML}</div></div>`;
+}
+
+// ---- RENDER SHOPPING BUDGET ----
+function renderShoppingBudget(body, q) {
+  const tableHTML = q.supplies.map(s => 
+    `<tr><td>${s.name}</td><td>${moneyToStr(s.price)}</td></tr>`
+  ).join('');
+  const optionsHTML = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<button type="button" class="mc-option" data-value="${i}" onclick="selectMC(this)">
+      <span class="mc-letter">${letter}</span><span class="mc-text">${opt}</span></button>`;
+  }).join('');
+  body.innerHTML = `<div class="question-card"><div class="question-text">You have exactly <strong>${moneyToStr(q.budget)}</strong> to spend. Which combination of items could you buy?</div>
+    <table class="supply-table"><thead><tr><th>Supply</th><th>Price</th></tr></thead><tbody>${tableHTML}</tbody></table>
     <div class="mc-options">${optionsHTML}</div></div>`;
 }
 
@@ -1441,7 +1633,8 @@ function checkAnswer() {
     case 'timeconvert_input': correct = checkTimeConvert(q); break;
     case 'constellation': correct = checkConstellation(q); break;
     case 'moon_visual':
-    case 'science_mc': correct = checkScienceMC(q); break;
+    case 'science_mc':
+    case 'shopping_budget': correct = checkScienceMC(q); break;
   }
 
   if (correct) {
@@ -1699,8 +1892,11 @@ function startBoss() {
   document.getElementById('boss-monster-sprite').textContent = bc.sprite;
 
   showScreen('boss-screen');
+  startBossBgAnimation();
   renderBossHud();
   renderBossMonster();
+  const heroSprites = { math: '⚔️', math157: '⚔️', math129: '⚔️', reading: '📖', science: '🔬' };
+  document.getElementById('boss-hero-sprite').textContent = heroSprites[bossSubject] || '⚔️';
   nextBossRound();
 }
 
@@ -1842,6 +2038,8 @@ function renderBossHud() {
   for (let i = 0; i < BOSS_PLAYER_HEARTS; i++) {
     heartsEl.innerHTML += i < bossState.hearts ? '❤️' : '🖤';
   }
+  const roundEl = document.getElementById('boss-round');
+  if (roundEl) roundEl.textContent = `Round ${bossState.round + 1} / ${BOSS_TOTAL_ROUNDS}`;
   updateBossCombo();
 }
 
@@ -1872,6 +2070,7 @@ function nextBossRound() {
   if (bossState.round >= BOSS_TOTAL_ROUNDS || bossState.hp <= 0) { bossVictory(); return; }
   if (bossState.hearts <= 0) { bossDefeat(); return; }
 
+  renderBossHud();
   bossState.answering = true;
   const q = bossState.questions[bossState.round];
   const passageBtn = q.source && PASSAGES[q.source]
@@ -1901,24 +2100,31 @@ function bossAnswer(idx) {
     bossState.combo++;
     if (bossState.combo > bossState.maxCombo) bossState.maxCombo = bossState.combo;
     bossState.totalCorrect++;
-    const dmg = 10;
+    const isCrit = bossState.combo >= 3;
+    const dmg = isCrit ? 15 : 10;
     bossState.hp = Math.max(0, bossState.hp - dmg);
-    showDamageFloat(`-${dmg} HP`, 'hit');
+    playSound(isCrit ? 'crit' : 'hit');
+    showDamageFloat(isCrit ? `💥 -${dmg} HP` : `-${dmg} HP`, isCrit ? 'crit' : 'hit');
+    showBossFx(isCrit ? 'critical' : 'slash');
+    const hero = document.getElementById('boss-hero');
+    hero.classList.remove('attacking'); void hero.offsetWidth; hero.classList.add('attacking');
+    setTimeout(() => hero.classList.remove('attacking'), 600);
     const monster = document.getElementById('boss-monster');
-    monster.classList.remove('hit');
-    void monster.offsetWidth;
-    monster.classList.add('hit');
+    monster.classList.remove('hit'); void monster.offsetWidth; monster.classList.add('hit');
     renderBossMonster();
     updateBossCombo();
-    if (bossState.combo >= 3) launchMiniConfetti();
+    if (isCrit) launchMiniConfetti();
   } else {
     bossState.combo = 0;
     bossState.hearts--;
+    playSound('miss');
     showDamageFloat('MISS!', 'miss');
+    showBossFx('enemy-hit');
+    const hero = document.getElementById('boss-hero');
+    hero.classList.remove('hurt'); void hero.offsetWidth; hero.classList.add('hurt');
+    setTimeout(() => hero.classList.remove('hurt'), 500);
     const arena = document.querySelector('.boss-arena');
-    arena.classList.remove('player-hit');
-    void arena.offsetWidth;
-    arena.classList.add('player-hit');
+    arena.classList.remove('player-hit'); void arena.offsetWidth; arena.classList.add('player-hit');
     renderBossHud();
   }
 
@@ -1951,6 +2157,8 @@ function showDamageFloat(text, type) {
 function bossVictory() {
   const bossNames = { math: 'the Measurement Dragon', math157: 'the Time Titan', math129: 'the Money Monster', reading: 'the Vocabulary Villain', science: 'the Cosmic Commander' };
   const bossName = bossNames[bossState.subject] || 'the Boss';
+  stopBossBgAnimation();
+  playSound('victory');
   launchConfetti();
   document.getElementById('boss-victory-title').textContent = 'VICTORY!';
   document.getElementById('boss-victory-sub').textContent = `You defeated ${bossName}!`;
@@ -1967,6 +2175,8 @@ function bossVictory() {
 function bossDefeat() {
   const defeatNames = { math: 'The dragon', math157: 'The Time Titan', math129: 'The Money Monster', reading: 'The villain', science: 'The commander' };
   const bossName = defeatNames[bossState.subject] || 'The boss';
+  stopBossBgAnimation();
+  playSound('defeat');
   document.getElementById('boss-victory-title').textContent = 'DEFEATED...';
   document.getElementById('boss-victory-sub').textContent = `${bossName} was too strong this time!`;
   document.getElementById('boss-victory-emoji').textContent = '💔';

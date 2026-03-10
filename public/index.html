@@ -295,19 +295,29 @@
     <!-- ==================== BOSS BATTLE SCREEN (shared) ==================== -->
     <div id="boss-screen" class="screen">
       <div class="boss-arena">
+        <canvas id="boss-bg-canvas" class="boss-bg-canvas"></canvas>
         <div class="boss-hud">
           <button class="back-btn" onclick="goHome()">← Flee</button>
-          <div class="boss-hearts" id="boss-hearts"></div>
+          <div class="boss-round" id="boss-round">Round 1 / 10</div>
           <div class="boss-combo" id="boss-combo"></div>
         </div>
-        <div class="boss-monster-area" id="boss-monster-area">
-          <div class="boss-monster-name" id="boss-monster-name">Boss</div>
-          <div class="boss-hp-bar-container">
-            <div class="boss-hp-bar" id="boss-hp-bar"></div>
-            <span class="boss-hp-text" id="boss-hp-text">100 / 100</span>
+        <div class="boss-battle-stage">
+          <div class="boss-hero-side">
+            <div class="boss-hero" id="boss-hero">
+              <div class="boss-hero-sprite" id="boss-hero-sprite">🗡️</div>
+            </div>
+            <div class="boss-hearts" id="boss-hearts"></div>
           </div>
-          <div class="boss-monster" id="boss-monster">
-            <div class="boss-monster-sprite" id="boss-monster-sprite">🐉</div>
+          <div class="boss-fx-layer" id="boss-fx-layer"></div>
+          <div class="boss-enemy-side">
+            <div class="boss-monster-name" id="boss-monster-name">Boss</div>
+            <div class="boss-hp-bar-container">
+              <div class="boss-hp-bar" id="boss-hp-bar"></div>
+              <span class="boss-hp-text" id="boss-hp-text">100 / 100</span>
+            </div>
+            <div class="boss-monster" id="boss-monster">
+              <div class="boss-monster-sprite" id="boss-monster-sprite">🐉</div>
+            </div>
           </div>
           <div class="boss-damage-float" id="boss-damage-float"></div>
         </div>
