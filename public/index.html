@@ -42,8 +42,9 @@
           <p>Become a measurement superhero!</p>
         </div>
         <div class="unit-pills">
-          <button class="unit-pill active" data-unit="15.1" onclick="switchMathUnit('15.1')">📏 Units 15.1 &amp; 15.2</button>
-          <button class="unit-pill" data-unit="15.7" onclick="switchMathUnit('15.7')">⏰ Unit 15.7 &ndash; Time</button>
+          <button class="unit-pill active" data-unit="15.1" onclick="switchMathUnit('15.1')">📏 15.1 &amp; 15.2</button>
+          <button class="unit-pill" data-unit="15.7" onclick="switchMathUnit('15.7')">⏰ 15.7 Time</button>
+          <button class="unit-pill" data-unit="12.9" onclick="switchMathUnit('12.9')">💵 12.9 Money</button>
         </div>
 
         <!-- 15.1 & 15.2 grid -->
@@ -117,6 +118,44 @@
                 <div class="boss-card-title" id="math157-boss-title">BOSS BATTLE</div>
                 <div class="boss-card-desc" id="math157-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
                 <div class="boss-card-checklist" id="math157-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 12.9 grid -->
+        <div id="math-grid-12-9" class="activity-grid hidden">
+          <button class="activity-card" onclick="startGame('countmoney')">
+            <div class="card-icon">💵</div>
+            <div class="card-title">Count the Money</div>
+            <div class="card-desc">Add up bills &amp; coins</div>
+            <div class="card-stars" id="stars-countmoney"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('menumath')">
+            <div class="card-icon">🛒</div>
+            <div class="card-title">Menu Math</div>
+            <div class="card-desc">Order food &amp; find the total</div>
+            <div class="card-stars" id="stars-menumath"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('makechange')">
+            <div class="card-icon">💰</div>
+            <div class="card-title">Make Change</div>
+            <div class="card-desc">Figure out the right change</div>
+            <div class="card-stars" id="stars-makechange"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('moneyword')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Money Problems</div>
+            <div class="card-desc">Solve real-world money puzzles</div>
+            <div class="card-stars" id="stars-moneyword"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="math129-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="math129-boss-icon">🔒</span>
+                <div class="boss-card-title" id="math129-boss-title">BOSS BATTLE</div>
+                <div class="boss-card-desc" id="math129-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="math129-boss-checklist"></div>
               </div>
             </button>
           </div>

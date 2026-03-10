@@ -15,13 +15,15 @@ let bossForceUnlocked = JSON.parse(localStorage.getItem('bossForceUnlocked') || 
 if (typeof bossForceUnlocked !== 'object') bossForceUnlocked = { math: false, math157: false, reading: false, science: false };
 if (bossForceUnlocked.science === undefined) bossForceUnlocked.science = false;
 if (bossForceUnlocked.math157 === undefined) bossForceUnlocked.math157 = false;
+if (bossForceUnlocked.math129 === undefined) bossForceUnlocked.math129 = false;
 
 const QUESTIONS_PER_ROUND = 5;
 const PARENT_PASSCODE = '01131984';
 
 const MATH_GAMES_15_1 = ['numberline', 'tools', 'ruler', 'convert'];
 const MATH_GAMES_15_7 = ['readclock', 'elapsedtime', 'timeconvert', 'timeword'];
-const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7];
+const MATH_GAMES_12_9 = ['countmoney', 'menumath', 'makechange', 'moneyword'];
+const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7, ...MATH_GAMES_12_9];
 const READING_GAMES = ['vocabulary', 'comprehension', 'textfeatures', 'chronology'];
 const SCIENCE_GAMES = ['constellation', 'moonphases', 'daynight', 'spacevocab'];
 
@@ -156,8 +158,10 @@ function switchTab(subject) {
 function switchMathUnit(unit) {
   currentMathUnit = unit;
   document.querySelectorAll('.unit-pill').forEach(p => p.classList.toggle('active', p.dataset.unit === unit));
-  document.getElementById('math-grid-15-1').classList.toggle('hidden', unit !== '15.1');
-  document.getElementById('math-grid-15-7').classList.toggle('hidden', unit !== '15.7');
+  ['15-1', '15-7', '12-9'].forEach(g => {
+    const el = document.getElementById('math-grid-' + g);
+    if (el) el.classList.toggle('hidden', unit !== g.replace('-', '.'));
+  });
   updateAllStars();
   updateBossCards();
 }
@@ -209,15 +213,15 @@ function updateAllStars() {
 // ===================== BOSS CARDS =====================
 function isBossUnlocked(subject) {
   if (bossForceUnlocked[subject]) return true;
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, reading: READING_GAMES, science: SCIENCE_GAMES };
   const games = gamesMap[subject] || [];
-  const scoreKey = subject === 'math157' ? 'math' : subject;
+  const scoreKey = (subject === 'math157' || subject === 'math129') ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   return games.every(g => (scores[g] || 0) >= 3);
 }
 
 function updateBossCards() {
-  ['math', 'math157', 'reading', 'science'].forEach(s => updateBossCard(s));
+  ['math', 'math157', 'math129', 'reading', 'science'].forEach(s => updateBossCard(s));
 }
 
 function updateBossCard(subject) {
@@ -228,16 +232,17 @@ function updateBossCard(subject) {
   const checklist = document.getElementById(subject + '-boss-checklist');
   if (!card) return;
 
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, reading: READING_GAMES, science: SCIENCE_GAMES };
   const labelsMap = {
     math: { numberline: 'Number Lines', tools: 'Right Tool', ruler: 'Ruler', convert: 'Converter' },
     math157: { readclock: 'Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Converter', timeword: 'Problems' },
+    math129: { countmoney: 'Count', menumath: 'Menu', makechange: 'Change', moneyword: 'Problems' },
     reading: { vocabulary: 'Vocabulary', comprehension: 'Comprehension', textfeatures: 'Text Features', chronology: 'Chronology' },
     science: { constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Vocabulary' }
   };
   const games = gamesMap[subject] || [];
   const labels = labelsMap[subject] || {};
-  const scoreKey = subject === 'math157' ? 'math' : subject;
+  const scoreKey = (subject === 'math157' || subject === 'math129') ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   const unlocked = isBossUnlocked(subject);
 
@@ -249,6 +254,7 @@ function updateBossCard(subject) {
   const bossInfo = {
     math:    { emoji: '🐉', name: 'BOSS BATTLE', desc: 'Defeat the Measurement Dragon!' },
     math157: { emoji: '⏰', name: 'TIME BATTLE', desc: 'Defeat the Time Titan!' },
+    math129: { emoji: '💰', name: 'MONEY BATTLE', desc: 'Defeat the Money Monster!' },
     reading: { emoji: '📚', name: 'READING TEST', desc: 'Prove your reading skills!' },
     science: { emoji: '🛸', name: 'SPACE BATTLE', desc: 'Defeat the Cosmic Commander!' }
   };
@@ -287,7 +293,8 @@ function startGame(type) {
     numberline: 'Number Lines', tools: 'Right Tool', ruler: 'Read the Ruler', convert: 'Unit Converter',
     vocabulary: 'Vocabulary', comprehension: 'Comprehension', textfeatures: 'Text Features', chronology: 'Chronology',
     constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Space Vocabulary',
-    readclock: 'Read the Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Time Converter', timeword: 'Time Problems'
+    readclock: 'Read the Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Time Converter', timeword: 'Time Problems',
+    countmoney: 'Count the Money', menumath: 'Menu Math', makechange: 'Make Change', moneyword: 'Money Problems'
   };
   document.getElementById('game-label').textContent = labels[type] || type;
   showScreen('game-screen');
@@ -315,6 +322,10 @@ function generateQuestions(type) {
     case 'elapsedtime': return generateElapsedTimeQuestions();
     case 'timeconvert': return generateTimeConvertQuestions();
     case 'timeword': return generateTimeWordQuestions();
+    case 'countmoney': return generateCountMoneyQuestions();
+    case 'menumath': return generateMenuMathQuestions();
+    case 'makechange': return generateMakeChangeQuestions();
+    case 'moneyword': return generateMoneyWordQuestions();
     default: return [];
   }
 }
@@ -550,6 +561,192 @@ function generateTimeWordQuestions() {
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
 
+// ===================== MATH 12.9: MONEY HELPERS =====================
+const BILL_COLORS = { 1: '#4a7c59', 5: '#3d6b8e', 10: '#8b6914', 20: '#4a7c59' };
+const BILL_LABELS = { 1: 'ONE', 5: 'FIVE', 10: 'TEN', 20: 'TWENTY' };
+const COIN_COLORS = { 1: '#b87333', 5: '#a8a8a8', 10: '#c0c0c0', 25: '#d4d4d4' };
+const COIN_NAMES = { 1: '1¢', 5: '5¢', 10: '10¢', 25: '25¢' };
+const COIN_RADII = { 1: 14, 5: 16, 10: 12, 25: 18 };
+
+function drawBill(ctx, x, y, denom) {
+  const w = 82, h = 38;
+  ctx.save();
+  ctx.fillStyle = '#e8f5e9';
+  ctx.strokeStyle = BILL_COLORS[denom] || '#4a7c59';
+  ctx.lineWidth = 2;
+  const r = 4;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = BILL_COLORS[denom] || '#4a7c59';
+  ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+  ctx.fillStyle = BILL_COLORS[denom] || '#2e7d32';
+  ctx.font = 'bold 16px Fredoka, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('$' + denom, x + w / 2, y + h / 2 - 2);
+  ctx.font = '7px Fredoka, sans-serif';
+  ctx.fillText(BILL_LABELS[denom] || '', x + w / 2, y + h / 2 + 11);
+  ctx.restore();
+}
+
+function drawCoin(ctx, x, y, cents) {
+  const r = COIN_RADII[cents] || 14;
+  ctx.save();
+  const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  grad.addColorStop(0, cents === 1 ? '#d4955a' : '#e8e8e8');
+  grad.addColorStop(1, COIN_COLORS[cents] || '#a0a0a0');
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.strokeStyle = cents === 1 ? '#8b5e3c' : '#888'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = cents === 1 ? '#6b3a1f' : '#444';
+  ctx.font = `bold ${r * 0.85}px Fredoka, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(COIN_NAMES[cents], x, y + 1);
+  ctx.restore();
+}
+
+function drawMoneySet(canvas, bills, coins) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let cx = 10, cy = 8;
+  bills.forEach(d => { drawBill(ctx, cx, cy, d); cx += 88; if (cx + 82 > canvas.width) { cx = 10; cy += 46; } });
+  if (bills.length > 0) cy += 48;
+  let coinX = 20;
+  coins.forEach(c => { drawCoin(ctx, coinX, cy + 18, c); coinX += (COIN_RADII[c] || 14) * 2 + 6; if (coinX + 20 > canvas.width) { coinX = 20; cy += 40; } });
+}
+
+function moneyToStr(cents) {
+  return '$' + (cents / 100).toFixed(2);
+}
+
+// ===================== MATH 12.9: COUNT THE MONEY =====================
+function generateCountMoneyQuestions() {
+  const qs = [];
+  const configs = [
+    { bills: [1, 1], coins: [25, 10, 10, 5] },
+    { bills: [5], coins: [25, 25, 10, 1, 1, 1] },
+    { bills: [5, 1], coins: [10, 10, 5, 1] },
+    { bills: [10], coins: [25, 25, 25, 10, 5] },
+    { bills: [5, 5], coins: [10, 10, 10, 5, 1] },
+    { bills: [1, 1, 1], coins: [25, 25, 5, 5] },
+    { bills: [20], coins: [25, 10, 10, 10, 1, 1] },
+    { bills: [5, 1, 1], coins: [25, 10, 5, 5, 1] },
+    { bills: [10, 5], coins: [25, 25, 10] },
+    { bills: [1], coins: [25, 10, 10, 5, 1, 1, 1] },
+  ];
+  shuffle(configs).slice(0, QUESTIONS_PER_ROUND).forEach(cfg => {
+    const total = cfg.bills.reduce((s, b) => s + b * 100, 0) + cfg.coins.reduce((s, c) => s + c, 0);
+    const correct = moneyToStr(total);
+    const wrongs = new Set();
+    while (wrongs.size < 3) {
+      const off = (Math.floor(Math.random() * 4) + 1) * 25 * (Math.random() < 0.5 ? 1 : -1);
+      const w = total + off;
+      if (w > 0 && w !== total) wrongs.add(moneyToStr(w));
+    }
+    const options = shuffle([correct, ...wrongs]);
+    qs.push({ type: 'countmoney', bills: cfg.bills, coins: cfg.coins, question: 'How much money is shown?', options, correctIndex: options.indexOf(correct) });
+  });
+  return qs;
+}
+
+// ===================== MATH 12.9: MENU MATH =====================
+const MENU_ITEMS = {
+  breakfast: [
+    { name: 'Oatmeal', emoji: '🥣', price: 145 },
+    { name: 'Eggs', emoji: '🍳', price: 285 },
+    { name: 'Toast', emoji: '🍞', price: 65 },
+    { name: 'Yogurt Cup', emoji: '🥛', price: 105 },
+    { name: 'Banana', emoji: '🍌', price: 50 },
+    { name: 'Mixed Berries', emoji: '🫐', price: 75 },
+  ],
+  lunch: [
+    { name: 'Sandwich', emoji: '🥪', price: 105 },
+    { name: 'Fruit Salad', emoji: '🥗', price: 565 },
+    { name: 'Apple', emoji: '🍎', price: 45 },
+    { name: 'Carrots', emoji: '🥕', price: 35 },
+  ],
+  dinner: [
+    { name: 'Chicken', emoji: '🍗', price: 775 },
+    { name: 'Sweet Potato', emoji: '🍠', price: 245 },
+    { name: 'Salmon', emoji: '🐟', price: 895 },
+    { name: 'Garden Salad', emoji: '🥗', price: 665 },
+  ]
+};
+
+function generateMenuMathQuestions() {
+  const qs = [];
+  const allItems = [...MENU_ITEMS.breakfast, ...MENU_ITEMS.lunch, ...MENU_ITEMS.dinner];
+  for (let i = 0; i < QUESTIONS_PER_ROUND; i++) {
+    const count = Math.floor(Math.random() * 2) + 2;
+    const picks = shuffle([...allItems]).slice(0, count);
+    const total = picks.reduce((s, p) => s + p.price, 0);
+    const correct = moneyToStr(total);
+    const wrongs = new Set();
+    while (wrongs.size < 3) {
+      const off = (Math.floor(Math.random() * 3) + 1) * 50 * (Math.random() < 0.5 ? 1 : -1);
+      const w = total + off;
+      if (w > 0 && w !== total) wrongs.add(moneyToStr(w));
+    }
+    const options = shuffle([correct, ...wrongs]);
+    qs.push({ type: 'menumath', items: picks, question: 'What is the total cost of this order?', options, correctIndex: options.indexOf(correct) });
+  }
+  return qs;
+}
+
+// ===================== MATH 12.9: MAKE CHANGE =====================
+function generateMakeChangeQuestions() {
+  const scenarios = [
+    { item: 'a snack', price: 175, paid: 200 },
+    { item: 'a notebook', price: 100, paid: 500 },
+    { item: 'a pencil', price: 50, paid: 100 },
+    { item: '2 pieces of pizza', price: 160, paid: 200 },
+    { item: 'a sandwich', price: 325, paid: 500 },
+    { item: 'a drink', price: 135, paid: 200 },
+    { item: 'a folder', price: 75, paid: 100 },
+    { item: 'stickers', price: 225, paid: 300 },
+    { item: 'a muffin', price: 185, paid: 200 },
+    { item: 'a banana', price: 50, paid: 100 },
+    { item: 'a yogurt', price: 105, paid: 200 },
+    { item: 'a salad', price: 350, paid: 500 },
+  ];
+  return shuffle(scenarios).slice(0, QUESTIONS_PER_ROUND).map(s => {
+    const change = s.paid - s.price;
+    const correct = moneyToStr(change);
+    const wrongs = new Set();
+    while (wrongs.size < 3) {
+      const off = (Math.floor(Math.random() * 4) + 1) * 5 * (Math.random() < 0.5 ? 1 : -1);
+      const w = change + off;
+      if (w >= 0 && w !== change) wrongs.add(moneyToStr(w));
+    }
+    const options = shuffle([correct, ...wrongs]);
+    return { type: 'science_mc', question: `You buy ${s.item} for ${moneyToStr(s.price)}. You pay ${moneyToStr(s.paid)}. How much change do you get back?`, options, correctIndex: options.indexOf(correct) };
+  });
+}
+
+// ===================== MATH 12.9: MONEY WORD PROBLEMS =====================
+function generateMoneyWordQuestions() {
+  const pool = [
+    { type: 'science_mc', question: 'Hannah buys a wrap for $5.60 and soup for $1.25. How much did she spend in total?', options: ['$6.85', '$6.75', '$7.05', '$6.95'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Tony has $4.82. He buys a notebook for $2.50. How much does he have left?', options: ['$2.22', '$2.32', '$2.42', '$2.52'], correctIndex: 1 },
+    { type: 'science_mc', question: 'Sergio buys a snack for $1.75. He pays $2.00 and gets a dime and a nickel back. Is the change correct?', options: ['Yes — $0.25 is correct', 'No — he should get $0.35', 'No — he should get $0.15', 'No — he should get $0.20'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Roger buys 2 slices of pizza at $0.80 each and pays $2.00. How much change does he get?', options: ['$0.30', '$0.40', '$0.50', '$0.20'], correctIndex: 1 },
+    { type: 'science_mc', question: 'Sally has 9 one-dollar bills, 12 dimes, and 5 pennies. How much money does she have?', options: ['$10.25', '$10.15', '$10.35', '$9.25'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Earl has a ten-dollar bill, 1 dime, and 5 pennies. How much money does he have?', options: ['$10.15', '$10.25', '$10.50', '$11.05'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Sarah has $8.00 to spend on school supplies. Pencils cost $0.50 and notebooks cost $1.00. If she buys 4 pencils and 5 notebooks, can she afford it?', options: ['Yes — it costs exactly $7.00', 'No — it costs $8.50', 'Yes — it costs exactly $8.00', 'No — it costs $9.00'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Mia has $6.00. She buys 2 folders at $0.75 each. How much does she have left?', options: ['$4.50', '$4.75', '$5.00', '$5.25'], correctIndex: 0 },
+    { type: 'science_mc', question: 'You buy an item for $7.75. You don\'t want coins in change. What is the smallest bill amount you could pay?', options: ['$8.00', '$7.75', '$10.00', '$9.00'], correctIndex: 0 },
+    { type: 'science_mc', question: 'A calculator costs $5.00 and a folder costs $0.75. How much do they cost together?', options: ['$5.75', '$5.50', '$6.00', '$5.25'], correctIndex: 0 },
+    { type: 'science_mc', question: 'You have 3 five-dollar bills and 7 dimes. How much money do you have?', options: ['$15.70', '$15.07', '$15.35', '$16.70'], correctIndex: 0 },
+    { type: 'science_mc', question: 'Breakfast costs $2.85 for eggs and $0.65 for toast. What is the total?', options: ['$3.50', '$3.40', '$3.60', '$3.55'], correctIndex: 0 },
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
+}
+
 // ===================== READING: VOCABULARY =====================
 function generateVocabularyQuestions() {
   const pool = [
@@ -754,6 +951,8 @@ function renderQuestion() {
     case 'readclock': renderReadClock(body, q); break;
     case 'elapsedtime': renderElapsedTime(body, q); break;
     case 'timeconvert_input': renderTimeConvert(body, q); break;
+    case 'countmoney': renderCountMoney(body, q); break;
+    case 'menumath': renderMenuMath(body, q); break;
     case 'constellation': renderConstellation(body, q); break;
     case 'moon_visual': renderMoonVisual(body, q); break;
     case 'science_mc': renderScienceMC(body, q); break;
@@ -939,6 +1138,39 @@ function renderTimeConvert(body, q) {
       <span>${q.answerUnit}</span>
     </div></div>`;
   document.getElementById('time-answer').focus();
+}
+
+// ---- RENDER COUNT MONEY ----
+function renderCountMoney(body, q) {
+  const cw = Math.min(420, window.innerWidth - 60);
+  const rows = Math.ceil(q.bills.length / 4) + Math.ceil(q.coins.length / 8);
+  const ch = Math.max(100, rows * 50 + 30);
+  const optionsHTML = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<button type="button" class="mc-option" data-value="${i}" onclick="selectMC(this)">
+      <span class="mc-letter">${letter}</span><span class="mc-text">${opt}</span></button>`;
+  }).join('');
+  body.innerHTML = `<div class="question-card"><div class="question-text">${q.question}</div>
+    <div class="money-canvas-wrap"><canvas id="money-canvas" width="${cw}" height="${ch}"></canvas></div>
+    <div class="mc-options">${optionsHTML}</div></div>`;
+  drawMoneySet(document.getElementById('money-canvas'), q.bills, q.coins);
+}
+
+// ---- RENDER MENU MATH ----
+function renderMenuMath(body, q) {
+  const menuHTML = q.items.map(it =>
+    `<div class="menu-item"><span class="menu-emoji">${it.emoji}</span><span class="menu-name">${it.name}</span><span class="menu-price">${moneyToStr(it.price)}</span></div>`
+  ).join('');
+  const orderList = q.items.map(it => it.name).join(' + ');
+  const optionsHTML = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<button type="button" class="mc-option" data-value="${i}" onclick="selectMC(this)">
+      <span class="mc-letter">${letter}</span><span class="mc-text">${opt}</span></button>`;
+  }).join('');
+  body.innerHTML = `<div class="question-card"><div class="question-text">${q.question}</div>
+    <div class="menu-card-grid">${menuHTML}</div>
+    <div class="menu-order-summary">🧾 Order: ${orderList}</div>
+    <div class="mc-options">${optionsHTML}</div></div>`;
 }
 
 // ---- RENDER CONSTELLATION (interactive canvas) ----
@@ -1203,7 +1435,9 @@ function checkAnswer() {
     case 'convert': correct = checkConvert(q); break;
     case 'reading_mc': correct = checkReadingMC(q); break;
     case 'readclock':
-    case 'elapsedtime': correct = checkScienceMC(q); break;
+    case 'elapsedtime':
+    case 'countmoney':
+    case 'menumath': correct = checkScienceMC(q); break;
     case 'timeconvert_input': correct = checkTimeConvert(q); break;
     case 'constellation': correct = checkConstellation(q); break;
     case 'moon_visual':
@@ -1437,10 +1671,10 @@ const BOSS_PLAYER_HEARTS = 5;
 let bossState = null;
 
 function startBoss() {
-  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : 'math') : currentSubject;
+  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
   if (!isBossUnlocked(bossSubject)) return;
 
-  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
+  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
   bossState = {
     subject: bossSubject,
     hp: BOSS_MAX_HP,
@@ -1456,6 +1690,7 @@ function startBoss() {
   const bossConfig = {
     math:    { name: 'Measurement Dragon', sprite: '🐉' },
     math157: { name: 'The Time Titan', sprite: '⏰' },
+    math129: { name: 'The Money Monster', sprite: '💰' },
     reading: { name: 'The Vocabulary Villain', sprite: '📕' },
     science: { name: 'The Cosmic Commander', sprite: '🛸' }
   };
@@ -1488,6 +1723,26 @@ function generateTimeBossQuestions() {
     { text: 'Henry walks a lap in 12 min. How many laps in 1 hour?', answer: '5', options: shuffle(['4', '5', '6', '8']) },
   ];
   return shuffle(pool);
+}
+
+function generateMoneyBossQuestions() {
+  return shuffle([
+    { text: 'Hannah buys a wrap ($5.60) and soup ($1.25). Total?', answer: '$6.85', options: shuffle(['$6.85', '$6.75', '$7.05', '$6.95']) },
+    { text: 'Tony has $4.82 and buys a notebook for $2.50. How much left?', answer: '$2.32', options: shuffle(['$2.22', '$2.32', '$2.42', '$2.12']) },
+    { text: '3 one-dollar bills + 2 quarters + 1 dime = ?', answer: '$3.60', options: shuffle(['$3.60', '$3.35', '$3.75', '$3.50']) },
+    { text: 'You pay $2.00 for a $1.75 snack. Change?', answer: '$0.25', options: shuffle(['$0.25', '$0.15', '$0.35', '$0.30']) },
+    { text: 'Sally: 9 $1 bills, 12 dimes, 5 pennies. Total?', answer: '$10.25', options: shuffle(['$10.25', '$10.15', '$10.35', '$9.25']) },
+    { text: '2 slices of pizza at $0.80 each. Total cost?', answer: '$1.60', options: shuffle(['$1.60', '$1.40', '$1.80', '$1.50']) },
+    { text: '$5 bill + 3 quarters + 2 nickels = ?', answer: '$5.85', options: shuffle(['$5.85', '$5.80', '$5.75', '$5.95']) },
+    { text: 'Mia has $6.00 and buys 2 folders at $0.75 each. Left?', answer: '$4.50', options: shuffle(['$4.50', '$4.75', '$5.00', '$4.25']) },
+    { text: 'Eggs ($2.85) + Toast ($0.65) = ?', answer: '$3.50', options: shuffle(['$3.50', '$3.40', '$3.60', '$3.55']) },
+    { text: '$10 bill + 2 dimes + 3 pennies = ?', answer: '$10.23', options: shuffle(['$10.23', '$10.32', '$10.53', '$10.08']) },
+    { text: 'A calculator costs $5.00 and a pencil costs $0.50. Total?', answer: '$5.50', options: shuffle(['$5.50', '$5.25', '$5.75', '$6.00']) },
+    { text: 'You pay $5.00 for a $3.25 item. Change?', answer: '$1.75', options: shuffle(['$1.75', '$1.50', '$2.00', '$1.25']) },
+    { text: 'Chicken ($7.75) + Sweet Potato ($2.45) = ?', answer: '$10.20', options: shuffle(['$10.20', '$10.10', '$10.30', '$9.20']) },
+    { text: 'Earl: $10 bill, 1 dime, 5 pennies. Total?', answer: '$10.15', options: shuffle(['$10.15', '$10.25', '$10.50', '$10.05']) },
+    { text: '4 quarters + 3 dimes + 2 nickels + 6 pennies = ?', answer: '$1.46', options: shuffle(['$1.46', '$1.36', '$1.56', '$1.41']) },
+  ]);
 }
 
 function generateMathBossQuestions() {
@@ -1694,7 +1949,7 @@ function showDamageFloat(text, type) {
 }
 
 function bossVictory() {
-  const bossNames = { math: 'the Measurement Dragon', math157: 'the Time Titan', reading: 'the Vocabulary Villain', science: 'the Cosmic Commander' };
+  const bossNames = { math: 'the Measurement Dragon', math157: 'the Time Titan', math129: 'the Money Monster', reading: 'the Vocabulary Villain', science: 'the Cosmic Commander' };
   const bossName = bossNames[bossState.subject] || 'the Boss';
   launchConfetti();
   document.getElementById('boss-victory-title').textContent = 'VICTORY!';
@@ -1710,7 +1965,7 @@ function bossVictory() {
 }
 
 function bossDefeat() {
-  const defeatNames = { math: 'The dragon', math157: 'The Time Titan', reading: 'The villain', science: 'The commander' };
+  const defeatNames = { math: 'The dragon', math157: 'The Time Titan', math129: 'The Money Monster', reading: 'The villain', science: 'The commander' };
   const bossName = defeatNames[bossState.subject] || 'The boss';
   document.getElementById('boss-victory-title').textContent = 'DEFEATED...';
   document.getElementById('boss-victory-sub').textContent = `${bossName} was too strong this time!`;
@@ -1739,19 +1994,19 @@ function showParentMenu() {
   if (choice === '1') {
     bestScores = { math: {}, reading: {}, science: {} };
     localStorage.setItem('bryceLearning', JSON.stringify(bestScores));
-    bossForceUnlocked = { math: false, math157: false, reading: false, science: false };
+    bossForceUnlocked = { math: false, math157: false, math129: false, reading: false, science: false };
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateAllStars();
     updateBossCards();
     alert('All stars have been reset!');
   } else if (choice === '2') {
-    const unlockKey = currentSubject === 'math' && currentMathUnit === '15.7' ? 'math157' : currentSubject;
+    const unlockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
     bossForceUnlocked[unlockKey] = true;
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateBossCards();
     alert('Boss Battle unlocked!');
   } else if (choice === '3') {
-    const lockKey = currentSubject === 'math' && currentMathUnit === '15.7' ? 'math157' : currentSubject;
+    const lockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
     bossForceUnlocked[lockKey] = false;
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateBossCards();

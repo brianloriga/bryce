@@ -1333,6 +1333,61 @@ body {
 .time-convert-visual .time-input.correct { border-color: var(--success); background: #dcfce7; }
 .time-convert-visual .time-input.wrong { border-color: var(--error); background: #fee2e2; }
 
+/* ============ MONEY CANVAS ============ */
+.money-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 18px;
+}
+
+.money-canvas-wrap canvas {
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: #f8fafc;
+}
+
+.menu-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0 18px;
+  font-family: 'Fredoka', sans-serif;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: default;
+}
+
+.menu-item .menu-emoji { font-size: 1.3rem; }
+.menu-item .menu-name { flex: 1; color: var(--text); }
+.menu-item .menu-price { color: var(--subject-dark); font-weight: 700; }
+
+.menu-order-summary {
+  text-align: center;
+  padding: 10px;
+  background: var(--subject-light);
+  border-radius: var(--radius);
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--subject-dark);
+  margin-bottom: 12px;
+}
+
+@media (max-width: 500px) {
+  .menu-card-grid { grid-template-columns: 1fr; }
+}
+
 /* ============ CONSTELLATION CANVAS ============ */
 .constellation-card { text-align: center; }
 
