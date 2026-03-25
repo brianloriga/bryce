@@ -2225,7 +2225,7 @@ function startBossArcade() {
     particles: [],
     stars: Array.from({ length: 60 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.5 + 0.5, a: Math.random() * Math.PI * 2, s: Math.random() * 0.015 + 0.005 })),
     questions, qIndex: 0, phase: 'intro', phaseTimer: 0,
-    spawnTimer: 0, spawnRate: 90, projSpeed: 2.5,
+    spawnTimer: 0, spawnRate: 50, projSpeed: 3,
     totalCorrect: 0, maxCombo: 0, combo: 0,
     frameId: null, running: true, lastTime: 0,
     touchId: null
@@ -2269,7 +2269,7 @@ function arcadeMouseMove(e) { if (!arcadeGame || !arcadeGame._mouseDown) return;
 function arcadeMouseUp() { if (arcadeGame) arcadeGame._mouseDown = false; }
 
 function arcadeUpdate(g, dt) {
-  if (g.phase === 'intro') { g.phaseTimer -= dt; if (g.phaseTimer <= 0) { g.phase = 'play'; g.phaseTimer = 200 + Math.random() * 60; hideArcadeMsg(); } return; }
+  if (g.phase === 'intro') { g.phaseTimer -= dt; if (g.phaseTimer <= 0) { g.phase = 'play'; g.phaseTimer = 400 + Math.random() * 120; hideArcadeMsg(); } return; }
   if (g.phase === 'victory' || g.phase === 'defeat') return;
   if (g.phase === 'question') return;
 
@@ -2433,14 +2433,14 @@ function arcadeAnswer(idx) {
 
   g.qIndex++;
   const diffPct = 1 - g.boss.hp / g.boss.maxHp;
-  g.spawnRate = Math.max(30, 90 - diffPct * 50);
-  g.projSpeed = 2.5 + diffPct * 2;
+  g.spawnRate = Math.max(20, 50 - diffPct * 25);
+  g.projSpeed = 3 + diffPct * 2.5;
 
   setTimeout(() => {
     document.getElementById('arcade-question-overlay').classList.add('hidden');
     if (g.phase !== 'victory' && g.phase !== 'defeat') {
       g.phase = 'play';
-      g.phaseTimer = 140 + Math.random() * 80;
+      g.phaseTimer = 280 + Math.random() * 160;
     }
   }, 800);
 }
