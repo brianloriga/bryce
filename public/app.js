@@ -16,6 +16,7 @@ if (typeof bossForceUnlocked !== 'object') bossForceUnlocked = { math: false, ma
 if (bossForceUnlocked.science === undefined) bossForceUnlocked.science = false;
 if (bossForceUnlocked.math157 === undefined) bossForceUnlocked.math157 = false;
 if (bossForceUnlocked.math129 === undefined) bossForceUnlocked.math129 = false;
+if (bossForceUnlocked.math125 === undefined) bossForceUnlocked.math125 = false;
 
 const QUESTIONS_PER_ROUND = 9;
 const PARENT_PASSCODE = '01131984';
@@ -23,7 +24,8 @@ const PARENT_PASSCODE = '01131984';
 const MATH_GAMES_15_1 = ['numberline', 'tools', 'ruler', 'convert'];
 const MATH_GAMES_15_7 = ['readclock', 'elapsedtime', 'timeconvert', 'timeword'];
 const MATH_GAMES_12_9 = ['countmoney', 'menumath', 'makechange', 'moneyword'];
-const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7, ...MATH_GAMES_12_9];
+const MATH_GAMES_12_5 = ['tenthmoreless', 'placevalue', 'decimalword', 'decimaltable'];
+const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7, ...MATH_GAMES_12_9, ...MATH_GAMES_12_5];
 const READING_GAMES = ['vocabulary', 'comprehension', 'textfeatures', 'chronology'];
 const SCIENCE_GAMES = ['constellation', 'moonphases', 'daynight', 'spacevocab'];
 
@@ -243,7 +245,7 @@ function switchTab(subject) {
 function switchMathUnit(unit) {
   currentMathUnit = unit;
   document.querySelectorAll('.unit-pill').forEach(p => p.classList.toggle('active', p.dataset.unit === unit));
-  ['15-1', '15-7', '12-9'].forEach(g => {
+  ['15-1', '15-7', '12-9', '12-5'].forEach(g => {
     const el = document.getElementById('math-grid-' + g);
     if (el) el.classList.toggle('hidden', unit !== g.replace('-', '.'));
   });
@@ -299,15 +301,15 @@ function updateAllStars() {
 // ===================== BOSS CARDS =====================
 function isBossUnlocked(subject) {
   if (bossForceUnlocked[subject]) return true;
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, reading: READING_GAMES, science: SCIENCE_GAMES };
   const games = gamesMap[subject] || [];
-  const scoreKey = (subject === 'math157' || subject === 'math129') ? 'math' : subject;
+  const scoreKey = (subject === 'math157' || subject === 'math129' || subject === 'math125') ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   return games.every(g => (scores[g] || 0) >= 3);
 }
 
 function updateBossCards() {
-  ['math', 'math157', 'math129', 'reading', 'science'].forEach(s => updateBossCard(s));
+  ['math', 'math157', 'math129', 'math125', 'reading', 'science'].forEach(s => updateBossCard(s));
 }
 
 function updateBossCard(subject) {
@@ -318,17 +320,18 @@ function updateBossCard(subject) {
   const checklist = document.getElementById(subject + '-boss-checklist');
   if (!card) return;
 
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, reading: READING_GAMES, science: SCIENCE_GAMES };
   const labelsMap = {
     math: { numberline: 'Number Lines', tools: 'Right Tool', ruler: 'Ruler', convert: 'Converter' },
     math157: { readclock: 'Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Converter', timeword: 'Problems' },
     math129: { countmoney: 'Count', menumath: 'Menu', makechange: 'Change', moneyword: 'Problems' },
+    math125: { tenthmoreless: '0.1 +/-', placevalue: 'Place Value', decimalword: 'Problems', decimaltable: 'Table' },
     reading: { vocabulary: 'Vocabulary', comprehension: 'Comprehension', textfeatures: 'Text Features', chronology: 'Chronology' },
     science: { constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Vocabulary' }
   };
   const games = gamesMap[subject] || [];
   const labels = labelsMap[subject] || {};
-  const scoreKey = (subject === 'math157' || subject === 'math129') ? 'math' : subject;
+  const scoreKey = (subject === 'math157' || subject === 'math129' || subject === 'math125') ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   const unlocked = isBossUnlocked(subject);
 
@@ -341,6 +344,7 @@ function updateBossCard(subject) {
     math:    { emoji: '🐉', name: 'BOSS BATTLE', desc: 'Defeat the Measurement Dragon!' },
     math157: { emoji: '⏰', name: 'TIME BATTLE', desc: 'Defeat the Time Titan!' },
     math129: { emoji: '💰', name: 'MONEY BATTLE', desc: 'Defeat the Money Monster!' },
+    math125: { emoji: '🔢', name: 'DECIMAL BATTLE', desc: 'Defeat the Decimal Demon!' },
     reading: { emoji: '📚', name: 'READING TEST', desc: 'Prove your reading skills!' },
     science: { emoji: '🛸', name: 'SPACE BATTLE', desc: 'Defeat the Cosmic Commander!' }
   };
@@ -380,7 +384,8 @@ function startGame(type) {
     vocabulary: 'Vocabulary', comprehension: 'Comprehension', textfeatures: 'Text Features', chronology: 'Chronology',
     constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Space Vocabulary',
     readclock: 'Read the Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Time Converter', timeword: 'Time Problems',
-    countmoney: 'Count the Money', menumath: 'Menu Math', makechange: 'Make Change', moneyword: 'Money Problems'
+    countmoney: 'Count the Money', menumath: 'Menu Math', makechange: 'Make Change', moneyword: 'Money Problems',
+    tenthmoreless: '0.1 More / Less', placevalue: 'Place Value', decimalword: 'Decimal Problems', decimaltable: 'Complete the Table'
   };
   document.getElementById('game-label').textContent = labels[type] || type;
   showScreen('game-screen');
@@ -412,6 +417,10 @@ function generateQuestions(type) {
     case 'menumath': return generateMenuMathQuestions();
     case 'makechange': return generateMakeChangeQuestions();
     case 'moneyword': return generateMoneyWordQuestions();
+    case 'tenthmoreless': return generateTenthMoreLessQuestions();
+    case 'placevalue': return generatePlaceValueQuestions();
+    case 'decimalword': return generateDecimalWordQuestions();
+    case 'decimaltable': return generateDecimalTableQuestions();
     default: return [];
   }
 }
@@ -868,6 +877,91 @@ function generateMoneyWordQuestions() {
   return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
 }
 
+// ---- DECIMAL 12.5 QUESTION GENERATORS ----
+function generateTenthMoreLessQuestions() {
+  const nums = [1.3, 2.7, 0.52, 3.9, 5.45, 6.2, 0.8, 4.06, 7.1, 10.26, 1.45, 8.3, 0.4, 2.85, 3.55, 9.0, 6.78, 11.5];
+  const qs = [];
+  shuffle(nums).slice(0, QUESTIONS_PER_ROUND).forEach(n => {
+    const more = +(n + 0.1).toFixed(2);
+    const less = +(n - 0.1).toFixed(2);
+    const askMore = Math.random() > 0.5;
+    const correct = askMore ? more : less;
+    const wrong1 = +(n + 0.01).toFixed(2);
+    const wrong2 = Math.max(0.01, +(n - 0.01).toFixed(2));
+    const wrong3 = askMore ? +(n + 1).toFixed(2) : Math.max(0.01, +(n - 1).toFixed(2));
+    const opts = shuffle([correct, wrong1, wrong2, wrong3]);
+    qs.push({
+      type: 'tenth_moreless',
+      number: n,
+      direction: askMore ? 'more' : 'less',
+      answer: String(correct),
+      options: opts.map(String),
+      correctIndex: opts.indexOf(correct)
+    });
+  });
+  return qs;
+}
+
+function generatePlaceValueQuestions() {
+  const nums = [3.55, 1.45, 6.0, 2.37, 10.26, 0.4, 5.9, 0.52, 7.83, 4.06, 2.85, 8.14, 9.7, 3.02, 11.5, 0.68, 4.91, 6.33];
+  const qs = [];
+  shuffle(nums).slice(0, QUESTIONS_PER_ROUND).forEach(n => {
+    const askMore = Math.random() > 0.5;
+    const correct = askMore ? +(n + 0.1).toFixed(2) : +(n - 0.1).toFixed(2);
+    const wrong1 = +(n + 0.01).toFixed(2);
+    const wrong2 = askMore ? +(n + 1).toFixed(2) : Math.max(0.01, +(n - 1).toFixed(2));
+    const wrong3 = Math.max(0.01, +(n - 0.01).toFixed(2));
+    const opts = shuffle([correct, wrong1, wrong2, wrong3]);
+    qs.push({
+      type: 'placevalue_mc',
+      number: n,
+      direction: askMore ? 'more' : 'less',
+      answer: String(correct),
+      options: opts.map(String),
+      correctIndex: opts.indexOf(correct)
+    });
+  });
+  return qs;
+}
+
+function generateDecimalWordQuestions() {
+  const pool = [
+    { question: 'Branko found a dime on his walk. He added the dime to the $0.25 he had. How much money does Branko have now?', options: ['$0.35', '$0.15', '$0.26', '$1.25'], correctIndex: 0 },
+    { question: 'Tosha walks 0.8 mile to school. Her walk home is 0.1 less. How many miles is her walk home?', options: ['0.7 miles', '0.9 miles', '0.71 miles', '0.18 miles'], correctIndex: 0 },
+    { question: 'The pharmacist needs 0.1 milliliter more to reach 328.2 mL. How much does she have now?', options: ['328.1 mL', '328.3 mL', '327.2 mL', '328.19 mL'], correctIndex: 0 },
+    { question: 'Hank weighs 36.15 kg. George weighs 0.1 kg more than Hank. How much does George weigh?', options: ['36.25 kg', '36.16 kg', '37.15 kg', '36.05 kg'], correctIndex: 0 },
+    { question: 'Lucy weighs 0.1 kg less than Hank (36.15 kg). What does Lucy weigh?', options: ['36.05 kg', '36.14 kg', '35.15 kg', '36.25 kg'], correctIndex: 0 },
+    { question: 'A pack of gum costs $0.99. The price went up $0.10. What is the new price?', options: ['$1.09', '$1.00', '$0.109', '$1.99'], correctIndex: 0 },
+    { question: 'Fred rides 5.45 miles on the bike path. He rides 0.1 mile less on the way back. How far was his ride back?', options: ['5.35 miles', '5.44 miles', '4.45 miles', '5.55 miles'], correctIndex: 0 },
+    { question: 'Iva spends $0.11 more than her brother. Her brother spends $5.89. How much does Iva spend?', options: ['$6.00', '$5.90', '$5.78', '$6.89'], correctIndex: 0 },
+    { question: 'Wanda walked 3.55 km on Monday. On Tuesday she walked 0.1 km more. How far did she walk on Tuesday?', options: ['3.65 km', '3.56 km', '4.55 km', '3.45 km'], correctIndex: 0 },
+    { question: 'Wanda walked 0.1 km less on Wednesday than Monday (3.55 km). How far did she walk on Wednesday?', options: ['3.45 km', '3.54 km', '2.55 km', '3.65 km'], correctIndex: 0 },
+    { question: 'A plant grew 2.4 cm this week. Last week it grew 0.1 cm more. How much did it grow last week?', options: ['2.5 cm', '2.3 cm', '2.41 cm', '3.4 cm'], correctIndex: 0 },
+    { question: 'A bottle holds 1.6 liters. Another bottle holds 0.1 liter less. How much does the smaller bottle hold?', options: ['1.5 liters', '1.59 liters', '0.6 liters', '1.7 liters'], correctIndex: 0 },
+    { question: 'The temperature is 72.3°F. It goes up 0.1°F. What is the new temperature?', options: ['72.4°F', '72.31°F', '73.3°F', '72.2°F'], correctIndex: 0 },
+    { question: 'A runner completed a lap in 4.08 minutes. The next lap was 0.1 minute less. What was the time?', options: ['3.98 minutes', '4.07 minutes', '3.08 minutes', '4.18 minutes'], correctIndex: 0 },
+    { question: 'Mia measured a ribbon at 9.0 inches. She cut 0.1 inch off. How long is it now?', options: ['8.9 inches', '8.99 inches', '8.0 inches', '9.1 inches'], correctIndex: 0 },
+    { question: 'A book weighs 0.5 kg. A heavier book weighs 0.1 kg more. How much does the heavier book weigh?', options: ['0.6 kg', '0.51 kg', '1.5 kg', '0.4 kg'], correctIndex: 0 },
+    { question: 'Jake ran 3.02 miles. His sister ran 0.1 mile more. How far did his sister run?', options: ['3.12 miles', '3.03 miles', '4.02 miles', '2.92 miles'], correctIndex: 0 },
+    { question: 'A pencil is 7.5 inches long. After sharpening, it is 0.1 inch shorter. How long is it now?', options: ['7.4 inches', '7.49 inches', '6.5 inches', '7.6 inches'], correctIndex: 0 }
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND).map(q => ({ type: 'science_mc', ...q }));
+}
+
+function generateDecimalTableQuestions() {
+  const nums = [3.9, 2.85, 6.0, 2.37, 10.26, 0.4, 5.9, 0.52, 1.45, 6.2, 7.83, 4.06, 8.3, 3.55, 11.5, 9.0, 0.68, 4.91];
+  const qs = [];
+  shuffle(nums).slice(0, QUESTIONS_PER_ROUND).forEach(n => {
+    qs.push({
+      type: 'decimal_table',
+      number: n,
+      answerMore: +(n + 0.1).toFixed(2),
+      answerLess: +(n - 0.1).toFixed(2)
+    });
+  });
+  return qs;
+}
+
 // ===================== READING: VOCABULARY =====================
 function generateVocabularyQuestions() {
   const pool = [
@@ -1133,6 +1227,9 @@ function renderQuestion() {
     case 'moon_visual': renderMoonVisual(body, q); break;
     case 'science_mc': renderScienceMC(body, q); break;
     case 'shopping_budget': renderShoppingBudget(body, q); break;
+    case 'tenth_moreless': renderTenthMoreLess(body, q); break;
+    case 'placevalue_mc': renderPlaceValue(body, q); break;
+    case 'decimal_table': renderDecimalTable(body, q); break;
   }
 }
 
@@ -1363,6 +1460,79 @@ function renderShoppingBudget(body, q) {
   body.innerHTML = `<div class="question-card"><div class="question-text">You have exactly <strong>${moneyToStr(q.budget)}</strong> to spend. Which combination of items could you buy?</div>
     <table class="supply-table"><thead><tr><th>Supply</th><th>Price</th></tr></thead><tbody>${tableHTML}</tbody></table>
     <div class="mc-options">${optionsHTML}</div></div>`;
+}
+
+// ---- RENDER DECIMAL 12.5 ----
+function drawDecimalNumberLine(canvas, number, direction) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = 500; canvas.height = 120;
+  const n = number;
+  const base = Math.floor(n * 10 - 4) / 10;
+  const ticks = 10;
+  const padL = 40, padR = 40, y = 70;
+  const w = canvas.width - padL - padR;
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + w, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padL - 8, y - 6); ctx.lineTo(padL, y); ctx.lineTo(padL - 8, y + 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(padL + w + 8, y - 6); ctx.lineTo(padL + w, y); ctx.lineTo(padL + w + 8, y + 6); ctx.stroke();
+  ctx.font = '12px Fredoka'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
+  for (let i = 0; i <= ticks; i++) {
+    const x = padL + (i / ticks) * w;
+    const val = +(base + i * 0.1).toFixed(2);
+    ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); ctx.stroke();
+    ctx.fillText(String(val), x, y + 22);
+  }
+  const numX = padL + ((n - base) / (ticks * 0.1)) * w;
+  ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 14px Fredoka';
+  ctx.beginPath(); ctx.arc(numX, y, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillText(String(n), numX, y - 14);
+  const target = direction === 'more' ? +(n + 0.1).toFixed(2) : +(n - 0.1).toFixed(2);
+  const targetX = padL + ((target - base) / (ticks * 0.1)) * w;
+  if (targetX >= padL && targetX <= padL + w) {
+    ctx.fillStyle = direction === 'more' ? '#22c55e' : '#ef4444';
+    ctx.font = 'bold 12px Fredoka';
+    ctx.fillText(direction === 'more' ? '+0.1' : '-0.1', (numX + targetX) / 2, y - 30);
+    ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(numX, y - 10);
+    ctx.quadraticCurveTo((numX + targetX) / 2, y - 35, targetX, y - 10); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillText('?', targetX, y - 14);
+  }
+}
+
+function renderTenthMoreLess(body, q) {
+  const canvasHTML = `<div class="decimal-numberline-wrap"><canvas id="decimal-nl-canvas"></canvas></div>`;
+  const optionsHTML = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<button type="button" class="mc-option" data-value="${i}" onclick="selectMC(this)">
+      <span class="mc-letter">${letter}</span><span class="mc-text">${opt}</span></button>`;
+  }).join('');
+  body.innerHTML = `<div class="question-card"><div class="question-text">What number is <strong>0.1 ${q.direction}</strong> than <strong>${q.number}</strong>?</div>${canvasHTML}<div class="mc-options">${optionsHTML}</div></div>`;
+  setTimeout(() => {
+    const c = document.getElementById('decimal-nl-canvas');
+    if (c) drawDecimalNumberLine(c, q.number, q.direction);
+  }, 50);
+}
+
+function renderPlaceValue(body, q) {
+  const n = q.number;
+  const ones = Math.floor(n);
+  const tenths = Math.floor((n * 10) % 10);
+  const hundredths = Math.round((n * 100) % 10);
+  const highlightCol = 1;
+  const tableHTML = `<table class="place-value-chart"><thead><tr><th>Ones</th><th>Tenths</th><th>Hundredths</th></tr></thead><tbody><tr><td>${ones}</td><td class="pv-highlight">${tenths}</td><td>${hundredths}</td></tr></tbody></table>`;
+  const optionsHTML = q.options.map((opt, i) => {
+    const letter = String.fromCharCode(65 + i);
+    return `<button type="button" class="mc-option" data-value="${i}" onclick="selectMC(this)">
+      <span class="mc-letter">${letter}</span><span class="mc-text">${opt}</span></button>`;
+  }).join('');
+  body.innerHTML = `<div class="question-card"><div class="question-text">Using place value, find <strong>0.1 ${q.direction}</strong> than <strong>${q.number}</strong></div>${tableHTML}<div class="question-text" style="font-size:0.85rem;color:#64748b;margin-top:4px">The <strong>tenths</strong> digit changes by 1</div><div class="mc-options">${optionsHTML}</div></div>`;
+}
+
+function renderDecimalTable(body, q) {
+  body.innerHTML = `<div class="question-card"><div class="question-text">Complete the table for <strong>${q.number}</strong></div>
+    <div class="decimal-table-wrap"><table><thead><tr><th>0.1 Less</th><th>Given Number</th><th>0.1 More</th></tr></thead>
+    <tbody><tr><td><input type="text" id="dt-less" inputmode="decimal" autocomplete="off"></td><td style="font-weight:700;font-size:1.1rem">${q.number}</td><td><input type="text" id="dt-more" inputmode="decimal" autocomplete="off"></td></tr></tbody></table></div></div>`;
 }
 
 // ---- RENDER CONSTELLATION (interactive canvas) ----
@@ -1635,6 +1805,9 @@ function checkAnswer() {
     case 'moon_visual':
     case 'science_mc':
     case 'shopping_budget': correct = checkScienceMC(q); break;
+    case 'tenth_moreless': correct = checkScienceMC(q); break;
+    case 'placevalue_mc': correct = checkScienceMC(q); break;
+    case 'decimal_table': correct = checkDecimalTable(q); break;
   }
 
   if (correct) {
@@ -1748,6 +1921,21 @@ function checkTimeConvert(q) {
     el.parentElement.appendChild(hint);
   }
   return ok;
+}
+
+function checkDecimalTable(q) {
+  const lessVal = document.getElementById('dt-less');
+  const moreVal = document.getElementById('dt-more');
+  if (!lessVal || !moreVal) return false;
+  const less = parseFloat(lessVal.value);
+  const more = parseFloat(moreVal.value);
+  const correctLess = Math.abs(less - q.answerLess) < 0.005;
+  const correctMore = Math.abs(more - q.answerMore) < 0.005;
+  lessVal.style.borderColor = correctLess ? '#22c55e' : '#ef4444';
+  moreVal.style.borderColor = correctMore ? '#22c55e' : '#ef4444';
+  if (!correctLess) lessVal.value = q.answerLess;
+  if (!correctMore) moreVal.value = q.answerMore;
+  return correctLess && correctMore;
 }
 
 function checkConstellation(q) {
@@ -1864,10 +2052,10 @@ const BOSS_PLAYER_HEARTS = 5;
 let bossState = null;
 
 function startBoss() {
-  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
+  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : 'math') : currentSubject;
   if (!isBossUnlocked(bossSubject)) return;
 
-  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
+  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, math125: generateDecimalBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
   bossState = {
     subject: bossSubject,
     hp: BOSS_MAX_HP,
@@ -1884,6 +2072,7 @@ function startBoss() {
     math:    { name: 'Measurement Dragon', sprite: '🐉' },
     math157: { name: 'The Time Titan', sprite: '⏰' },
     math129: { name: 'The Money Monster', sprite: '💰' },
+    math125: { name: 'The Decimal Demon', sprite: '🔢' },
     reading: { name: 'The Vocabulary Villain', sprite: '📕' },
     science: { name: 'The Cosmic Commander', sprite: '🛸' }
   };
@@ -1895,7 +2084,7 @@ function startBoss() {
   startBossBgAnimation();
   renderBossHud();
   renderBossMonster();
-  const heroSprites = { math: '⚔️', math157: '⚔️', math129: '⚔️', reading: '📖', science: '🔬' };
+  const heroSprites = { math: '⚔️', math157: '⚔️', math129: '⚔️', math125: '⚔️', reading: '📖', science: '🔬' };
   document.getElementById('boss-hero-sprite').textContent = heroSprites[bossSubject] || '⚔️';
   nextBossRound();
 }
@@ -1988,6 +2177,26 @@ function generateMathBossQuestions() {
     qs.push({ text: c.q, answer: c.a, options: shuffle([c.a, ...c.wrong.slice(0, 3)]) });
   }
   return shuffle(qs).slice(0, BOSS_TOTAL_ROUNDS);
+}
+
+function generateDecimalBossQuestions() {
+  const pool = [];
+  for (let i = 0; i < 8; i++) {
+    const n = +(Math.random() * 10 + 0.5).toFixed(2);
+    const askMore = Math.random() > 0.5;
+    const correct = askMore ? +(n + 0.1).toFixed(2) : +(n - 0.1).toFixed(2);
+    const w1 = +(n + 0.01).toFixed(2), w2 = +(n - 0.01).toFixed(2), w3 = askMore ? +(n + 1).toFixed(2) : +(n - 1).toFixed(2);
+    const opts = shuffle([correct, w1, w2, w3]);
+    pool.push({ text: `What is 0.1 ${askMore ? 'more' : 'less'} than ${n}?`, options: opts.map(String), answer: String(correct) });
+  }
+  pool.push({ text: 'A plant grew 2.4 cm this week. Last week it grew 0.1 cm more. How much did it grow last week?', options: ['2.5 cm', '2.3 cm', '2.41 cm', '3.4 cm'], answer: '2.5 cm' });
+  pool.push({ text: 'Tosha walks 0.8 mile to school. Her walk home is 0.1 less. How far?', options: ['0.7 miles', '0.9 miles', '0.71 miles', '0.18 miles'], answer: '0.7 miles' });
+  pool.push({ text: 'Fred rides 5.45 miles. He rides 0.1 mile less on the way back. How far?', options: ['5.35 miles', '5.44 miles', '4.45 miles', '5.55 miles'], answer: '5.35 miles' });
+  pool.push({ text: 'A pack of gum was $0.99. The price went up $0.10. New price?', options: ['$1.09', '$1.00', '$0.109', '$1.99'], answer: '$1.09' });
+  pool.push({ text: 'Wanda walked 3.55 km on Monday. 0.1 km more on Tuesday. How far?', options: ['3.65 km', '3.56 km', '4.55 km', '3.45 km'], answer: '3.65 km' });
+  pool.push({ text: 'George weighs 0.1 kg more than Hank (36.15 kg). What does George weigh?', options: ['36.25 kg', '36.16 kg', '37.15 kg', '36.05 kg'], answer: '36.25 kg' });
+  pool.push({ text: 'Mia measured a ribbon at 9.0 inches. She cut 0.1 inch off. How long?', options: ['8.9 inches', '8.99 inches', '8.0 inches', '9.1 inches'], answer: '8.9 inches' });
+  return shuffle(pool).slice(0, BOSS_TOTAL_ROUNDS);
 }
 
 function generateReadingBossQuestions() {
@@ -2155,7 +2364,7 @@ function showDamageFloat(text, type) {
 }
 
 function bossVictory() {
-  const bossNames = { math: 'the Measurement Dragon', math157: 'the Time Titan', math129: 'the Money Monster', reading: 'the Vocabulary Villain', science: 'the Cosmic Commander' };
+  const bossNames = { math: 'the Measurement Dragon', math157: 'the Time Titan', math129: 'the Money Monster', math125: 'the Decimal Demon', reading: 'the Vocabulary Villain', science: 'the Cosmic Commander' };
   const bossName = bossNames[bossState.subject] || 'the Boss';
   stopBossBgAnimation();
   playSound('victory');
@@ -2173,7 +2382,7 @@ function bossVictory() {
 }
 
 function bossDefeat() {
-  const defeatNames = { math: 'The dragon', math157: 'The Time Titan', math129: 'The Money Monster', reading: 'The villain', science: 'The commander' };
+  const defeatNames = { math: 'The dragon', math157: 'The Time Titan', math129: 'The Money Monster', math125: 'The Decimal Demon', reading: 'The villain', science: 'The commander' };
   const bossName = defeatNames[bossState.subject] || 'The boss';
   stopBossBgAnimation();
   playSound('defeat');
@@ -2204,19 +2413,19 @@ function showParentMenu() {
   if (choice === '1') {
     bestScores = { math: {}, reading: {}, science: {} };
     localStorage.setItem('bryceLearning', JSON.stringify(bestScores));
-    bossForceUnlocked = { math: false, math157: false, math129: false, reading: false, science: false };
+    bossForceUnlocked = { math: false, math157: false, math129: false, math125: false, reading: false, science: false };
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateAllStars();
     updateBossCards();
     alert('All stars have been reset!');
   } else if (choice === '2') {
-    const unlockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
+    const unlockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : 'math') : currentSubject;
     bossForceUnlocked[unlockKey] = true;
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateBossCards();
     alert('Boss Battle unlocked!');
   } else if (choice === '3') {
-    const lockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : 'math') : currentSubject;
+    const lockKey = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : 'math') : currentSubject;
     bossForceUnlocked[lockKey] = false;
     localStorage.setItem('bossForceUnlocked', JSON.stringify(bossForceUnlocked));
     updateBossCards();

@@ -45,6 +45,7 @@
           <button class="unit-pill active" data-unit="15.1" onclick="switchMathUnit('15.1')">📏 15.1 &amp; 15.2</button>
           <button class="unit-pill" data-unit="15.7" onclick="switchMathUnit('15.7')">⏰ 15.7 Time</button>
           <button class="unit-pill" data-unit="12.9" onclick="switchMathUnit('12.9')">💵 12.9 Money</button>
+          <button class="unit-pill" data-unit="12.5" onclick="switchMathUnit('12.5')">🔢 12.5 Decimals</button>
         </div>
 
         <!-- 15.1 & 15.2 grid -->
@@ -156,6 +157,44 @@
                 <div class="boss-card-title" id="math129-boss-title">BOSS BATTLE</div>
                 <div class="boss-card-desc" id="math129-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
                 <div class="boss-card-checklist" id="math129-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 12.5 grid -->
+        <div id="math-grid-12-5" class="activity-grid hidden">
+          <button class="activity-card" onclick="startGame('tenthmoreless')">
+            <div class="card-icon">↕️</div>
+            <div class="card-title">0.1 More / Less</div>
+            <div class="card-desc">Find one-tenth more or less</div>
+            <div class="card-stars" id="stars-tenthmoreless"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('placevalue')">
+            <div class="card-icon">📊</div>
+            <div class="card-title">Place Value</div>
+            <div class="card-desc">Use place-value charts</div>
+            <div class="card-stars" id="stars-placevalue"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('decimalword')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Decimal Problems</div>
+            <div class="card-desc">Solve real-world decimal puzzles</div>
+            <div class="card-stars" id="stars-decimalword"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('decimaltable')">
+            <div class="card-icon">📋</div>
+            <div class="card-title">Complete the Table</div>
+            <div class="card-desc">Fill in 0.1 more &amp; 0.1 less</div>
+            <div class="card-stars" id="stars-decimaltable"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="math125-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="math125-boss-icon">🔒</span>
+                <div class="boss-card-title" id="math125-boss-title">DECIMAL BATTLE</div>
+                <div class="boss-card-desc" id="math125-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="math125-boss-checklist"></div>
               </div>
             </button>
           </div>
