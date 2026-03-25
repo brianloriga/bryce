@@ -331,6 +331,26 @@
       </div>
     </div>
 
+    <!-- ==================== BOSS ARCADE SCREEN (12.5 interactive) ==================== -->
+    <div id="boss-arcade-screen" class="screen">
+      <canvas id="boss-arcade-canvas"></canvas>
+      <div class="arcade-hud">
+        <button class="arcade-flee-btn" onclick="arcadeQuit()">X</button>
+        <div class="arcade-boss-hp-wrap">
+          <div class="arcade-boss-label">Decimal Demon</div>
+          <div class="arcade-hp-bar"><div class="arcade-hp-fill" id="arcade-boss-hp"></div></div>
+        </div>
+        <div class="arcade-player-hp-wrap">
+          <div class="arcade-hearts" id="arcade-hearts"></div>
+        </div>
+      </div>
+      <div class="arcade-question-overlay hidden" id="arcade-question-overlay">
+        <div class="arcade-q-text" id="arcade-q-text"></div>
+        <div class="arcade-q-options" id="arcade-q-options"></div>
+      </div>
+      <div class="arcade-msg hidden" id="arcade-msg"></div>
+    </div>
+
     <!-- ==================== BOSS BATTLE SCREEN (shared) ==================== -->
     <div id="boss-screen" class="screen">
       <div class="boss-arena">

@@ -270,7 +270,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 
-  const isGameScreen = ['game-screen', 'boss-screen', 'boss-victory-screen'].includes(id);
+  const isGameScreen = ['game-screen', 'boss-screen', 'boss-arcade-screen', 'boss-victory-screen'].includes(id);
   const isHomeScreen = id.endsWith('-home');
   document.getElementById('top-nav').classList.toggle('hidden', isGameScreen);
   if (isHomeScreen) document.getElementById('top-nav').classList.remove('hidden');
@@ -278,6 +278,7 @@ function showScreen(id) {
 
 function goHome() {
   stopBossBgAnimation();
+  if (arcadeGame) { arcadeGame.running = false; arcadeCleanup(); }
   setSubjectCSS(currentSubject);
   showScreen(currentSubject + '-home');
   updateAllStars();
@@ -2055,6 +2056,8 @@ function startBoss() {
   const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : 'math') : currentSubject;
   if (!isBossUnlocked(bossSubject)) return;
 
+  if (bossSubject === 'math125') { startBossArcade(); return; }
+
   const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, math125: generateDecimalBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
   bossState = {
     subject: bossSubject,
@@ -2197,6 +2200,305 @@ function generateDecimalBossQuestions() {
   pool.push({ text: 'George weighs 0.1 kg more than Hank (36.15 kg). What does George weigh?', options: ['36.25 kg', '36.16 kg', '37.15 kg', '36.05 kg'], answer: '36.25 kg' });
   pool.push({ text: 'Mia measured a ribbon at 9.0 inches. She cut 0.1 inch off. How long?', options: ['8.9 inches', '8.99 inches', '8.0 inches', '9.1 inches'], answer: '8.9 inches' });
   return shuffle(pool).slice(0, BOSS_TOTAL_ROUNDS);
+}
+
+// ============================================================
+// BOSS ARCADE — Interactive dodge-and-attack for Unit 12.5
+// ============================================================
+let arcadeGame = null;
+
+function startBossArcade() {
+  showScreen('boss-arcade-screen');
+  const canvas = document.getElementById('boss-arcade-canvas');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const questions = generateDecimalBossQuestions();
+
+  const g = {
+    ctx, canvas, W, H,
+    hero: { x: W / 2, y: H - 160, w: 50, h: 50, hp: 5, maxHp: 5, invincible: 0, targetX: W / 2 },
+    boss: { x: W / 2, y: 80, hp: 100, maxHp: 100, w: 60, h: 60, phase: 0, hitFlash: 0 },
+    projectiles: [],
+    blasts: [],
+    particles: [],
+    stars: Array.from({ length: 60 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.5 + 0.5, a: Math.random() * Math.PI * 2, s: Math.random() * 0.015 + 0.005 })),
+    questions, qIndex: 0, phase: 'intro', phaseTimer: 0,
+    spawnTimer: 0, spawnRate: 90, projSpeed: 2.5,
+    totalCorrect: 0, maxCombo: 0, combo: 0,
+    frameId: null, running: true, lastTime: 0,
+    touchId: null
+  };
+  arcadeGame = g;
+
+  arcadeUpdateHud(g);
+  showArcadeMsg('GET READY!');
+  g.phase = 'intro'; g.phaseTimer = 120;
+
+  canvas.addEventListener('touchstart', arcadeTouchStart, { passive: false });
+  canvas.addEventListener('touchmove', arcadeTouchMove, { passive: false });
+  canvas.addEventListener('touchend', arcadeTouchEnd, { passive: false });
+  canvas.addEventListener('mousedown', arcadeMouseDown);
+  canvas.addEventListener('mousemove', arcadeMouseMove);
+  window.addEventListener('mouseup', arcadeMouseUp);
+
+  g.lastTime = performance.now();
+  function loop(now) {
+    if (!g.running) return;
+    const dt = Math.min((now - g.lastTime) / 16.67, 3);
+    g.lastTime = now;
+    arcadeUpdate(g, dt);
+    arcadeDraw(g);
+    g.frameId = requestAnimationFrame(loop);
+  }
+  g.frameId = requestAnimationFrame(loop);
+}
+
+function arcadeQuit() {
+  if (arcadeGame) { arcadeGame.running = false; cancelAnimationFrame(arcadeGame.frameId); }
+  arcadeCleanup();
+  goHome();
+}
+
+function arcadeTouchStart(e) { e.preventDefault(); if (!arcadeGame) return; const t = e.changedTouches[0]; arcadeGame.touchId = t.identifier; arcadeGame.hero.targetX = t.clientX - arcadeGame.canvas.getBoundingClientRect().left; }
+function arcadeTouchMove(e) { e.preventDefault(); if (!arcadeGame) return; for (const t of e.changedTouches) { if (t.identifier === arcadeGame.touchId) { arcadeGame.hero.targetX = t.clientX - arcadeGame.canvas.getBoundingClientRect().left; } } }
+function arcadeTouchEnd(e) { e.preventDefault(); if (!arcadeGame) return; for (const t of e.changedTouches) { if (t.identifier === arcadeGame.touchId) arcadeGame.touchId = null; } }
+function arcadeMouseDown(e) { if (!arcadeGame) return; arcadeGame.hero.targetX = e.offsetX; arcadeGame._mouseDown = true; }
+function arcadeMouseMove(e) { if (!arcadeGame || !arcadeGame._mouseDown) return; arcadeGame.hero.targetX = e.offsetX; }
+function arcadeMouseUp() { if (arcadeGame) arcadeGame._mouseDown = false; }
+
+function arcadeUpdate(g, dt) {
+  if (g.phase === 'intro') { g.phaseTimer -= dt; if (g.phaseTimer <= 0) { g.phase = 'play'; g.phaseTimer = 200 + Math.random() * 60; hideArcadeMsg(); } return; }
+  if (g.phase === 'victory' || g.phase === 'defeat') return;
+  if (g.phase === 'question') return;
+
+  const h = g.hero, b = g.boss;
+  h.x += (h.targetX - h.x) * 0.15 * dt;
+  h.x = Math.max(h.w / 2, Math.min(g.W - h.w / 2, h.x));
+  if (h.invincible > 0) h.invincible -= dt;
+  if (b.hitFlash > 0) b.hitFlash -= dt;
+  b.phase += 0.02 * dt;
+  b.x = g.W / 2 + Math.sin(b.phase) * (g.W * 0.3);
+
+  g.spawnTimer -= dt;
+  if (g.spawnTimer <= 0) {
+    g.spawnTimer = g.spawnRate;
+    const spread = Math.random() * 30 - 15;
+    g.projectiles.push({ x: b.x + spread, y: b.y + b.h / 2, vy: g.projSpeed, r: 6, color: `hsl(${Math.random()*40+10},90%,55%)` });
+    if (b.hp < 50) g.projectiles.push({ x: b.x - spread, y: b.y + b.h / 2, vy: g.projSpeed * 0.8, r: 5, color: `hsl(${Math.random()*40},90%,60%)` });
+  }
+
+  for (let i = g.projectiles.length - 1; i >= 0; i--) {
+    const p = g.projectiles[i];
+    p.y += p.vy * dt;
+    if (p.y > g.H + 20) { g.projectiles.splice(i, 1); continue; }
+    if (h.invincible <= 0 && Math.abs(p.x - h.x) < h.w / 2 + p.r && Math.abs(p.y - h.y) < h.h / 2 + p.r) {
+      g.projectiles.splice(i, 1);
+      h.hp--; h.invincible = 60; g.combo = 0;
+      playSound('miss');
+      for (let k = 0; k < 8; k++) g.particles.push({ x: h.x, y: h.y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, life: 30, color: '#ef4444' });
+      arcadeUpdateHud(g);
+      if (h.hp <= 0) { arcadeDefeat(g); return; }
+    }
+  }
+
+  for (let i = g.blasts.length - 1; i >= 0; i--) {
+    const bl = g.blasts[i];
+    bl.y -= 6 * dt;
+    if (bl.y < b.y) {
+      g.blasts.splice(i, 1);
+      b.hp = Math.max(0, b.hp - bl.dmg);
+      b.hitFlash = 15;
+      playSound('hit');
+      for (let k = 0; k < 12; k++) g.particles.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5, life: 25, color: '#fbbf24' });
+      arcadeUpdateHud(g);
+      if (b.hp <= 0) { arcadeVictory(g); return; }
+    }
+  }
+
+  for (let i = g.particles.length - 1; i >= 0; i--) {
+    const p = g.particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    if (p.life <= 0) g.particles.splice(i, 1);
+  }
+
+  g.phaseTimer -= dt;
+  if (g.phaseTimer <= 0 && g.qIndex < g.questions.length) {
+    g.phase = 'question';
+    arcadeShowQuestion(g);
+  }
+}
+
+function arcadeDraw(g) {
+  const { ctx, W, H } = g;
+  ctx.fillStyle = '#0c0f1a'; ctx.fillRect(0, 0, W, H);
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0c0f1a'); grad.addColorStop(0.4, '#1a1040'); grad.addColorStop(1, '#0f172a');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  g.stars.forEach(s => {
+    s.a += s.s;
+    ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(s.a));
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  const b = g.boss;
+  if (b.hp > 0) {
+    ctx.save(); ctx.translate(b.x, b.y);
+    if (b.hitFlash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 30; }
+    ctx.font = `${b.w}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('👿', 0, Math.sin(b.phase * 2) * 5);
+    ctx.restore();
+  }
+
+  const h = g.hero;
+  ctx.save(); ctx.translate(h.x, h.y);
+  if (h.invincible > 0 && Math.floor(h.invincible) % 6 < 3) { ctx.globalAlpha = 0.3; }
+  ctx.fillStyle = '#3b82f6';
+  ctx.beginPath(); ctx.moveTo(0, -h.h / 2); ctx.lineTo(-h.w / 2, h.h / 2); ctx.lineTo(h.w / 2, h.h / 2); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#60a5fa';
+  ctx.beginPath(); ctx.moveTo(0, -h.h / 2 + 8); ctx.lineTo(-h.w / 4, h.h / 4); ctx.lineTo(h.w / 4, h.h / 4); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#93c5fd'; ctx.beginPath(); ctx.arc(0, -2, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore(); ctx.globalAlpha = 1;
+
+  g.projectiles.forEach(p => {
+    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,200,50,0.3)'; ctx.beginPath(); ctx.arc(p.x, p.y + p.r * 2, p.r * 0.8, 0, Math.PI * 2); ctx.fill();
+  });
+
+  g.blasts.forEach(bl => {
+    const grd = ctx.createLinearGradient(bl.x, bl.y + 20, bl.x, bl.y - 20);
+    grd.addColorStop(0, 'rgba(59,130,246,0)'); grd.addColorStop(0.5, 'rgba(96,165,250,0.9)'); grd.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx.fillStyle = grd; ctx.fillRect(bl.x - 6, bl.y - 20, 12, 40);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bl.x, bl.y, 4, 0, Math.PI * 2); ctx.fill();
+  });
+
+  g.particles.forEach(p => {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  if (g.phase === 'play' || g.phase === 'question') {
+    const barY = H - 6;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(20, barY - 4, W - 40, 8);
+    const qPct = g.qIndex / g.questions.length;
+    ctx.fillStyle = 'rgba(96,165,250,0.6)'; ctx.fillRect(20, barY - 4, (W - 40) * qPct, 8);
+  }
+}
+
+function arcadeShowQuestion(g) {
+  const q = g.questions[g.qIndex];
+  const overlay = document.getElementById('arcade-question-overlay');
+  document.getElementById('arcade-q-text').textContent = q.text;
+  document.getElementById('arcade-q-options').innerHTML = q.options.map((o, i) =>
+    `<button class="arcade-q-btn" onclick="arcadeAnswer(${i})">${o}</button>`
+  ).join('');
+  overlay.classList.remove('hidden');
+}
+
+function arcadeAnswer(idx) {
+  if (!arcadeGame || arcadeGame.phase !== 'question') return;
+  const g = arcadeGame;
+  const q = g.questions[g.qIndex];
+  const correct = q.options[idx] === q.answer;
+  const btns = document.querySelectorAll('.arcade-q-btn');
+  btns.forEach((btn, i) => {
+    btn.classList.add('disabled');
+    if (q.options[i] === q.answer) btn.classList.add('correct');
+    if (i === idx && !correct) btn.classList.add('wrong');
+  });
+
+  if (correct) {
+    g.combo++; g.totalCorrect++;
+    if (g.combo > g.maxCombo) g.maxCombo = g.combo;
+    const dmg = g.combo >= 3 ? 20 : 12;
+    playSound(g.combo >= 3 ? 'crit' : 'hit');
+    g.blasts.push({ x: g.hero.x, y: g.hero.y - 20, dmg });
+    if (g.combo >= 3) {
+      showArcadeMsg('CRITICAL HIT! x' + g.combo);
+      setTimeout(hideArcadeMsg, 800);
+    }
+  } else {
+    g.combo = 0;
+    g.hero.hp = Math.max(0, g.hero.hp - 1);
+    g.hero.invincible = 60;
+    playSound('miss');
+    for (let k = 0; k < 8; k++) g.particles.push({ x: g.hero.x, y: g.hero.y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, life: 30, color: '#ef4444' });
+    arcadeUpdateHud(g);
+    if (g.hero.hp <= 0) { setTimeout(() => arcadeDefeat(g), 600); }
+  }
+
+  g.qIndex++;
+  const diffPct = 1 - g.boss.hp / g.boss.maxHp;
+  g.spawnRate = Math.max(30, 90 - diffPct * 50);
+  g.projSpeed = 2.5 + diffPct * 2;
+
+  setTimeout(() => {
+    document.getElementById('arcade-question-overlay').classList.add('hidden');
+    if (g.phase !== 'victory' && g.phase !== 'defeat') {
+      g.phase = 'play';
+      g.phaseTimer = 140 + Math.random() * 80;
+    }
+  }, 800);
+}
+
+function arcadeVictory(g) {
+  g.phase = 'victory'; g.running = false;
+  showArcadeMsg('VICTORY!');
+  playSound('victory');
+  setTimeout(() => {
+    arcadeCleanup();
+    launchConfetti();
+    document.getElementById('boss-victory-title').textContent = 'VICTORY!';
+    document.getElementById('boss-victory-sub').textContent = 'You defeated the Decimal Demon!';
+    document.getElementById('boss-victory-emoji').textContent = '⚔️';
+    document.getElementById('boss-victory-stats').innerHTML =
+      `Correct: ${g.totalCorrect} / ${g.questions.length}<br>Max Combo: x${g.maxCombo}<br>Hearts Left: ${'❤️'.repeat(g.hero.hp)}${'🖤'.repeat(g.hero.maxHp - g.hero.hp)}`;
+    showScreen('boss-victory-screen');
+    setTimeout(launchConfetti, 800);
+  }, 1500);
+}
+
+function arcadeDefeat(g) {
+  g.phase = 'defeat'; g.running = false;
+  showArcadeMsg('DEFEATED...');
+  playSound('defeat');
+  setTimeout(() => {
+    arcadeCleanup();
+    document.getElementById('boss-victory-title').textContent = 'DEFEATED...';
+    document.getElementById('boss-victory-sub').textContent = 'The Decimal Demon was too strong!';
+    document.getElementById('boss-victory-emoji').textContent = '💔';
+    document.getElementById('boss-victory-stats').innerHTML =
+      `You dealt ${g.boss.maxHp - g.boss.hp} damage<br>Boss HP: ${g.boss.hp} / ${g.boss.maxHp}<br>Keep practicing and try again!`;
+    showScreen('boss-victory-screen');
+  }, 1500);
+}
+
+function arcadeCleanup() {
+  const c = document.getElementById('boss-arcade-canvas');
+  if (c) { c.removeEventListener('touchstart', arcadeTouchStart); c.removeEventListener('touchmove', arcadeTouchMove); c.removeEventListener('touchend', arcadeTouchEnd); c.removeEventListener('mousedown', arcadeMouseDown); c.removeEventListener('mousemove', arcadeMouseMove); }
+  window.removeEventListener('mouseup', arcadeMouseUp);
+  if (arcadeGame) { cancelAnimationFrame(arcadeGame.frameId); }
+  arcadeGame = null;
+}
+
+function arcadeUpdateHud(g) {
+  const bossHp = document.getElementById('arcade-boss-hp');
+  if (bossHp) bossHp.style.width = (g.boss.hp / g.boss.maxHp * 100) + '%';
+  const hearts = document.getElementById('arcade-hearts');
+  if (hearts) hearts.innerHTML = '❤️'.repeat(g.hero.hp) + '🖤'.repeat(g.hero.maxHp - g.hero.hp);
+}
+
+function showArcadeMsg(text) {
+  const el = document.getElementById('arcade-msg');
+  if (el) { el.textContent = text; el.classList.remove('hidden'); }
+}
+function hideArcadeMsg() {
+  const el = document.getElementById('arcade-msg');
+  if (el) el.classList.add('hidden');
 }
 
 function generateReadingBossQuestions() {
