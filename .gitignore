@@ -1,0 +1,6 @@
+node_modules/
+reading_frames/
+science_frames/
+time_frames/
+*.MOV
+*.mov
