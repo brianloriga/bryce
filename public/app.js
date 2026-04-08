@@ -17,6 +17,7 @@ if (bossForceUnlocked.science === undefined) bossForceUnlocked.science = false;
 if (bossForceUnlocked.math157 === undefined) bossForceUnlocked.math157 = false;
 if (bossForceUnlocked.math129 === undefined) bossForceUnlocked.math129 = false;
 if (bossForceUnlocked.math125 === undefined) bossForceUnlocked.math125 = false;
+if (bossForceUnlocked.math131 === undefined) bossForceUnlocked.math131 = false;
 
 const QUESTIONS_PER_ROUND = 9;
 const PARENT_PASSCODE = '01131984';
@@ -25,7 +26,8 @@ const MATH_GAMES_15_1 = ['numberline', 'tools', 'ruler', 'convert'];
 const MATH_GAMES_15_7 = ['readclock', 'elapsedtime', 'timeconvert', 'timeword'];
 const MATH_GAMES_12_9 = ['countmoney', 'menumath', 'makechange', 'moneyword'];
 const MATH_GAMES_12_5 = ['tenthmoreless', 'placevalue', 'decimalword', 'decimaltable'];
-const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7, ...MATH_GAMES_12_9, ...MATH_GAMES_12_5];
+const MATH_GAMES_13_1 = ['lineplot', 'stemleaf', 'moderange', 'dataword'];
+const MATH_GAMES = [...MATH_GAMES_15_1, ...MATH_GAMES_15_7, ...MATH_GAMES_12_9, ...MATH_GAMES_12_5, ...MATH_GAMES_13_1];
 const READING_GAMES = ['vocabulary', 'comprehension', 'textfeatures', 'chronology'];
 const SCIENCE_GAMES = ['constellation', 'moonphases', 'daynight', 'spacevocab'];
 
@@ -245,7 +247,7 @@ function switchTab(subject) {
 function switchMathUnit(unit) {
   currentMathUnit = unit;
   document.querySelectorAll('.unit-pill').forEach(p => p.classList.toggle('active', p.dataset.unit === unit));
-  ['15-1', '15-7', '12-9', '12-5'].forEach(g => {
+  ['15-1', '15-7', '12-9', '12-5', '13-1'].forEach(g => {
     const el = document.getElementById('math-grid-' + g);
     if (el) el.classList.toggle('hidden', unit !== g.replace('-', '.'));
   });
@@ -302,15 +304,15 @@ function updateAllStars() {
 // ===================== BOSS CARDS =====================
 function isBossUnlocked(subject) {
   if (bossForceUnlocked[subject]) return true;
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, math131: MATH_GAMES_13_1, reading: READING_GAMES, science: SCIENCE_GAMES };
   const games = gamesMap[subject] || [];
-  const scoreKey = (subject === 'math157' || subject === 'math129' || subject === 'math125') ? 'math' : subject;
+  const scoreKey = ['math157', 'math129', 'math125', 'math131'].includes(subject) ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   return games.every(g => (scores[g] || 0) >= 3);
 }
 
 function updateBossCards() {
-  ['math', 'math157', 'math129', 'math125', 'reading', 'science'].forEach(s => updateBossCard(s));
+  ['math', 'math157', 'math129', 'math125', 'math131', 'reading', 'science'].forEach(s => updateBossCard(s));
 }
 
 function updateBossCard(subject) {
@@ -321,18 +323,19 @@ function updateBossCard(subject) {
   const checklist = document.getElementById(subject + '-boss-checklist');
   if (!card) return;
 
-  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, reading: READING_GAMES, science: SCIENCE_GAMES };
+  const gamesMap = { math: MATH_GAMES_15_1, math157: MATH_GAMES_15_7, math129: MATH_GAMES_12_9, math125: MATH_GAMES_12_5, math131: MATH_GAMES_13_1, reading: READING_GAMES, science: SCIENCE_GAMES };
   const labelsMap = {
     math: { numberline: 'Number Lines', tools: 'Right Tool', ruler: 'Ruler', convert: 'Converter' },
     math157: { readclock: 'Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Converter', timeword: 'Problems' },
     math129: { countmoney: 'Count', menumath: 'Menu', makechange: 'Change', moneyword: 'Problems' },
     math125: { tenthmoreless: '0.1 +/-', placevalue: 'Place Value', decimalword: 'Problems', decimaltable: 'Table' },
+    math131: { lineplot: 'Line Plots', stemleaf: 'Stem & Leaf', moderange: 'Mode & Range', dataword: 'Problems' },
     reading: { vocabulary: 'Vocabulary', comprehension: 'Comprehension', textfeatures: 'Text Features', chronology: 'Chronology' },
     science: { constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Vocabulary' }
   };
   const games = gamesMap[subject] || [];
   const labels = labelsMap[subject] || {};
-  const scoreKey = (subject === 'math157' || subject === 'math129' || subject === 'math125') ? 'math' : subject;
+  const scoreKey = ['math157', 'math129', 'math125', 'math131'].includes(subject) ? 'math' : subject;
   const scores = bestScores[scoreKey] || {};
   const unlocked = isBossUnlocked(subject);
 
@@ -346,7 +349,9 @@ function updateBossCard(subject) {
     math157: { emoji: '⏰', name: 'TIME BATTLE', desc: 'Defeat the Time Titan!' },
     math129: { emoji: '💰', name: 'MONEY BATTLE', desc: 'Defeat the Money Monster!' },
     math125: { emoji: '🔢', name: 'DECIMAL BATTLE', desc: 'Defeat the Decimal Demon!' },
+    math131: { emoji: '📊', name: 'DATA BATTLE', desc: 'Defeat the Data Dragon!' },
     reading: { emoji: '📚', name: 'READING TEST', desc: 'Prove your reading skills!' },
+    math131: { emoji: '📊', name: 'DATA BATTLE', desc: 'Defeat the Data Dragon!' },
     science: { emoji: '🛸', name: 'SPACE BATTLE', desc: 'Defeat the Cosmic Commander!' }
   };
   const bi = bossInfo[subject] || bossInfo.math;
@@ -386,7 +391,8 @@ function startGame(type) {
     constellation: 'Constellations', moonphases: 'Moon Phases', daynight: 'Day & Night', spacevocab: 'Space Vocabulary',
     readclock: 'Read the Clock', elapsedtime: 'Elapsed Time', timeconvert: 'Time Converter', timeword: 'Time Problems',
     countmoney: 'Count the Money', menumath: 'Menu Math', makechange: 'Make Change', moneyword: 'Money Problems',
-    tenthmoreless: '0.1 More / Less', placevalue: 'Place Value', decimalword: 'Decimal Problems', decimaltable: 'Complete the Table'
+    tenthmoreless: '0.1 More / Less', placevalue: 'Place Value', decimalword: 'Decimal Problems', decimaltable: 'Complete the Table',
+    lineplot: 'Line Plots', stemleaf: 'Stem & Leaf', moderange: 'Mode & Range', dataword: 'Data Problems'
   };
   document.getElementById('game-label').textContent = labels[type] || type;
   showScreen('game-screen');
@@ -422,6 +428,10 @@ function generateQuestions(type) {
     case 'placevalue': return generatePlaceValueQuestions();
     case 'decimalword': return generateDecimalWordQuestions();
     case 'decimaltable': return generateDecimalTableQuestions();
+    case 'lineplot': return generateLinePlotQuestions();
+    case 'stemleaf': return generateStemLeafQuestions();
+    case 'moderange': return generateModeRangeQuestions();
+    case 'dataword': return generateDataWordQuestions();
     default: return [];
   }
 }
@@ -2053,12 +2063,12 @@ const BOSS_PLAYER_HEARTS = 5;
 let bossState = null;
 
 function startBoss() {
-  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : 'math') : currentSubject;
+  const bossSubject = currentSubject === 'math' ? (currentMathUnit === '15.7' ? 'math157' : currentMathUnit === '12.9' ? 'math129' : currentMathUnit === '12.5' ? 'math125' : currentMathUnit === '13.1' ? 'math131' : 'math') : currentSubject;
   if (!isBossUnlocked(bossSubject)) return;
 
   if (bossSubject === 'math125') { startBossArcade(); return; }
 
-  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, math125: generateDecimalBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
+  const bossQs = { math: generateMathBossQuestions, math157: generateTimeBossQuestions, math129: generateMoneyBossQuestions, math125: generateDecimalBossQuestions, math131: generateDataBossQuestions, reading: generateReadingBossQuestions, science: generateScienceBossQuestions };
   bossState = {
     subject: bossSubject,
     hp: BOSS_MAX_HP,
@@ -2076,6 +2086,7 @@ function startBoss() {
     math157: { name: 'The Time Titan', sprite: '⏰' },
     math129: { name: 'The Money Monster', sprite: '💰' },
     math125: { name: 'The Decimal Demon', sprite: '🔢' },
+    math131: { name: 'The Data Dragon', sprite: '📊' },
     reading: { name: 'The Vocabulary Villain', sprite: '📕' },
     science: { name: 'The Cosmic Commander', sprite: '🛸' }
   };
@@ -2087,7 +2098,7 @@ function startBoss() {
   startBossBgAnimation();
   renderBossHud();
   renderBossMonster();
-  const heroSprites = { math: '⚔️', math157: '⚔️', math129: '⚔️', math125: '⚔️', reading: '📖', science: '🔬' };
+  const heroSprites = { math: '⚔️', math157: '⚔️', math129: '⚔️', math125: '⚔️', math131: '⚔️', reading: '📖', science: '🔬' };
   document.getElementById('boss-hero-sprite').textContent = heroSprites[bossSubject] || '⚔️';
   nextBossRound();
 }
@@ -2180,6 +2191,185 @@ function generateMathBossQuestions() {
     qs.push({ text: c.q, answer: c.a, options: shuffle([c.a, ...c.wrong.slice(0, 3)]) });
   }
   return shuffle(qs).slice(0, BOSS_TOTAL_ROUNDS);
+}
+
+// ===================== MATH 13.1: DATA DISPLAYS =====================
+
+function makeLinePlotHTML(title, data) {
+  const maxCount = Math.max(...data.map(d => d.count));
+  let rows = '';
+  for (let row = maxCount; row >= 1; row--) {
+    rows += '<tr>' + data.map(d =>
+      `<td style="width:36px;text-align:center;padding:1px 2px;color:#1e40af;font-weight:700;font-size:1rem">${d.count >= row ? '✕' : '\u00a0'}</td>`
+    ).join('') + '</tr>';
+  }
+  const labelRow = '<tr>' + data.map(d =>
+    `<td style="width:36px;text-align:center;padding:3px 2px;border-top:2px solid #334155;font-size:0.8rem;font-weight:700">${d.label}</td>`
+  ).join('') + '</tr>';
+  return `<div style="margin:6px 0;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:8px;padding:8px 4px;text-align:center">
+    <div style="font-weight:700;font-size:0.8rem;color:#1e40af;margin-bottom:4px">${title}</div>
+    <table style="margin:0 auto;border-collapse:collapse;font-size:0.9rem">${rows}${labelRow}</table>
+  </div>`;
+}
+
+function makeStemLeafHTML(title, stems, key) {
+  const rows = stems.map(r =>
+    `<tr><td style="padding:3px 10px;text-align:center;font-weight:700;border-right:2px solid #334155">${r.stem}</td><td style="padding:3px 10px;text-align:left;font-family:monospace">${r.leaves}</td></tr>`
+  ).join('');
+  return `<div style="margin:6px 0;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:8px;padding:8px;text-align:center">
+    <div style="font-weight:700;font-size:0.8rem;color:#15803d;margin-bottom:4px">${title}</div>
+    <table style="margin:0 auto;border-collapse:collapse;font-size:0.9rem">
+      <thead><tr><th style="padding:3px 10px;text-align:center;border-bottom:2px solid #334155;border-right:2px solid #334155">Stem</th><th style="padding:3px 10px;text-align:left;border-bottom:2px solid #334155">Leaves</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:0.75rem;color:#64748b;margin-top:4px">Key: ${key}</div>
+  </div>`;
+}
+
+function makeDataSetHTML(data) {
+  return `<div style="margin:6px auto;background:#fef9c3;border-radius:8px;padding:8px 12px;text-align:center;font-size:1rem;font-weight:700;color:#1e293b;max-width:300px">${data}</div>`;
+}
+
+function generateLinePlotQuestions() {
+  const lp1 = makeLinePlotHTML("Mr. Cobey's Long Jump (ft)", [
+    {label:'3', count:2}, {label:'3½', count:3}, {label:'4', count:4}, {label:'4½', count:5}, {label:'5', count:2}
+  ]);
+  const lp2 = makeLinePlotHTML('Pencil Lengths (in.)', [
+    {label:'4¼', count:2}, {label:'4½', count:3}, {label:'4¾', count:2}, {label:'5', count:4}, {label:'5¼', count:2}
+  ]);
+  const lp3 = makeLinePlotHTML('Flower Heights (in.)', [
+    {label:'½', count:2}, {label:'1', count:3}, {label:'1½', count:4}, {label:'2', count:3}, {label:'2½', count:2}
+  ]);
+  const lp4 = makeLinePlotHTML('Caterpillar Lengths (in.)', [
+    {label:'2', count:3}, {label:'2¼', count:4}, {label:'2½', count:5}, {label:'2¾', count:3}, {label:'3', count:2}
+  ]);
+  const pool = [
+    { type:'science_mc', question: lp1 + 'What was the <strong>greatest</strong> distance jumped?', options:['3 ft','4½ ft','5 ft','4 ft'], correctIndex:2 },
+    { type:'science_mc', question: lp1 + 'How many students jumped <strong>4 feet or more</strong>?', options:['7','9','11','13'], correctIndex:2 },
+    { type:'science_mc', question: lp1 + 'How many students jumped <strong>exactly 4½ feet</strong>?', options:['2','3','4','5'], correctIndex:3 },
+    { type:'science_mc', question: lp1 + 'How many students jumped in <strong>all</strong>?', options:['12','14','16','18'], correctIndex:2 },
+    { type:'science_mc', question: lp1 + 'What was the <strong>least</strong> distance jumped?', options:['3 ft','3½ ft','4 ft','5 ft'], correctIndex:0 },
+    { type:'science_mc', question: lp2 + 'What was the <strong>most common</strong> pencil length?', options:['4¼ in','4½ in','4¾ in','5 in'], correctIndex:3 },
+    { type:'science_mc', question: lp2 + 'How many pencils were <strong>5 inches or longer</strong>?', options:['4','6','8','2'], correctIndex:1 },
+    { type:'science_mc', question: lp2 + 'How many pencils were measured in <strong>all</strong>?', options:['11','13','15','17'], correctIndex:1 },
+    { type:'science_mc', question: lp2 + 'How many pencils were <strong>shorter than 4¾ inches</strong>?', options:['3','4','5','6'], correctIndex:2 },
+    { type:'science_mc', question: lp3 + 'What is the <strong>mode</strong> (most common height)?', options:['½ in','1 in','1½ in','2 in'], correctIndex:2 },
+    { type:'science_mc', question: lp3 + 'How many flowers were <strong>less than 1½ inches</strong> tall?', options:['3','4','5','7'], correctIndex:2 },
+    { type:'science_mc', question: lp3 + 'What is the <strong>range</strong> of flower heights?', options:['1 in','1½ in','2 in','2½ in'], correctIndex:2 },
+    { type:'science_mc', question: lp4 + 'What is the <strong>mode</strong> (most common length)?', options:['2 in','2¼ in','2½ in','2¾ in'], correctIndex:2 },
+    { type:'science_mc', question: lp4 + 'How many caterpillars were <strong>at least 2½ inches</strong>?', options:['5','8','10','12'], correctIndex:2 },
+    { type:'science_mc', question: lp4 + 'What was the <strong>greatest</strong> caterpillar length?', options:['2¼ in','2½ in','2¾ in','3 in'], correctIndex:3 },
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
+}
+
+function generateStemLeafQuestions() {
+  const sl1 = makeStemLeafHTML('Students in Each Class', [
+    {stem:'1', leaves:'2, 5, 9'},
+    {stem:'2', leaves:'0, 2, 4, 6'},
+    {stem:'3', leaves:'1, 1'},
+    {stem:'4', leaves:'1'},
+    {stem:'5', leaves:''},
+    {stem:'6', leaves:'5'},
+  ], '2 | 0 means 20');
+  const sl2 = makeStemLeafHTML("Brennan's Test Scores", [
+    {stem:'7', leaves:'5, 9'},
+    {stem:'8', leaves:'3, 7, 8, 8, 8'},
+    {stem:'9', leaves:'2, 5'},
+  ], '7 | 0 means 70');
+  const sl3 = makeStemLeafHTML('Local Tree Heights (ft)', [
+    {stem:'1', leaves:'0, 0, 0, 2, 7'},
+    {stem:'2', leaves:'3, 4, 9'},
+    {stem:'3', leaves:'3, 3'},
+    {stem:'4', leaves:'0, 8, 9'},
+  ], '1 | 0 means 10');
+  const sl4 = makeStemLeafHTML('Worm Lengths (cm)', [
+    {stem:'0', leaves:'9'},
+    {stem:'1', leaves:'2, 5, 8, 9'},
+    {stem:'2', leaves:'0, 1, 4'},
+    {stem:'3', leaves:'0, 1'},
+  ], '0 | 9 means 0.9');
+  const pool = [
+    { type:'science_mc', question: sl1 + 'What is the <strong>least</strong> number of students in a class?', options:['10','12','15','20'], correctIndex:1 },
+    { type:'science_mc', question: sl1 + 'What is the <strong>greatest</strong> number of students in a class?', options:['41','55','61','65'], correctIndex:3 },
+    { type:'science_mc', question: sl1 + 'How many classes have <strong>30 or more</strong> students?', options:['2','3','4','5'], correctIndex:2 },
+    { type:'science_mc', question: sl1 + 'How many values are in the <strong>20s</strong>?', options:['3','4','5','6'], correctIndex:1 },
+    { type:'science_mc', question: sl2 + 'What was the <strong>highest</strong> test score?', options:['92','95','97','98'], correctIndex:1 },
+    { type:'science_mc', question: sl2 + 'What was the <strong>lowest</strong> test score?', options:['70','73','75','79'], correctIndex:2 },
+    { type:'science_mc', question: sl2 + 'How many scores were in the <strong>80s</strong>?', options:['3','4','5','6'], correctIndex:2 },
+    { type:'science_mc', question: sl2 + 'What score appears most often (<strong>mode</strong>)?', options:['75','83','88','92'], correctIndex:2 },
+    { type:'science_mc', question: sl3 + 'How many trees are <strong>30 feet or taller</strong>?', options:['3','4','5','6'], correctIndex:2 },
+    { type:'science_mc', question: sl3 + 'What is the <strong>range</strong> of tree heights?', options:['29 ft','39 ft','49 ft','30 ft'], correctIndex:1 },
+    { type:'science_mc', question: sl3 + 'What is the <strong>mode</strong> of tree heights?', options:['10','12','17','33'], correctIndex:0 },
+    { type:'science_mc', question: sl4 + 'What is the <strong>shortest</strong> worm length?', options:['0.5 cm','0.9 cm','1.0 cm','1.2 cm'], correctIndex:1 },
+    { type:'science_mc', question: sl4 + 'How many worms are <strong>2.0 cm or longer</strong>?', options:['3','4','5','6'], correctIndex:2 },
+    { type:'science_mc', question: sl4 + 'What is the <strong>range</strong> of worm lengths?', options:['1.9 cm','2.2 cm','2.5 cm','3.1 cm'], correctIndex:1 },
+    { type:'science_mc', question: sl4 + 'How many worm measurements are in the <strong>1-stem</strong> (1.0–1.9 cm)?', options:['3','4','5','6'], correctIndex:1 },
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
+}
+
+function generateModeRangeQuestions() {
+  const pool = [
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('3, 5, 3, 7, 3, 9, 5'), options:['3','5','7','9'], correctIndex:0 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('2, 8, 5, 4, 9, 1'), options:['7','8','9','10'], correctIndex:1 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('10, 20, 20, 30, 40, 20'), options:['10','20','30','40'], correctIndex:1 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('15, 15, 17, 19, 15, 23'), options:['6','8','10','12'], correctIndex:1 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('4, 6, 4, 8, 4, 6, 10'), options:['4','6','8','10'], correctIndex:0 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('12, 17, 12, 19, 23'), options:['7','9','11','13'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('88, 92, 75, 88, 79, 88'), options:['75','79','88','92'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('5, 5, 5, 5, 5'), options:['0','5','10','25'], correctIndex:0 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('80, 85, 85, 90, 75'), options:['75','80','85','90'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('120, 125, 120, 130, 120'), options:['5','8','10','15'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('1¾, 2, 2, 2¼, 1½, 2'), options:['1½','1¾','2','2¼'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:<br><em>(Hint: greatest − least)</em>' + makeDataSetHTML('1½, 1¾, 2, 2¼, 3'), options:['½','1','1½','2'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('7, 9, 7, 8, 10, 7'), options:['7','8','9','10'], correctIndex:0 },
+    { type:'science_mc', question:'Find the <strong>range</strong>:' + makeDataSetHTML('7, 9, 7, 8, 10, 7'), options:['1','2','3','4'], correctIndex:2 },
+    { type:'science_mc', question:'Find the <strong>mode</strong>:' + makeDataSetHTML('25, 30, 35, 25, 40, 25'), options:['25','30','35','40'], correctIndex:0 },
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
+}
+
+function generateDataWordQuestions() {
+  const pool = [
+    { type:'science_mc', question:'A line plot shows pencil lengths (in.): 4½(1), 4¾(3), 5(5), 5¼(2), 5½(1). How many pencils are <strong>shorter than 5 inches</strong>?', options:['3','4','5','6'], correctIndex:1 },
+    { type:'science_mc', question:'Test scores: 72, 78, 78, 84, 88, 88, 88, 93. What is the <strong>mode</strong>?', options:['72','78','84','88'], correctIndex:3 },
+    { type:'science_mc', question:'A line plot shows flower heights: ½ in (2), 1 in (4), 1½ in (3), 2 in (2). What is the <strong>mode</strong>?', options:['½ in','1 in','1½ in','2 in'], correctIndex:1 },
+    { type:'science_mc', question:'Stem-leaf shows: 1|5,8; 2|3,5,5; 3|0,2. What is the <strong>range</strong>? (32 − 15 = ?)', options:['12','17','22','27'], correctIndex:1 },
+    { type:'science_mc', question:'A line plot shows long jumps: 3 ft(2), 3½ ft(4), 4 ft(3), 4½ ft(2), 5 ft(1). Which distance had the <strong>most students</strong>?', options:['3 ft','3½ ft','4 ft','4½ ft'], correctIndex:1 },
+    { type:'science_mc', question:'Data set: 2½, 3, 2½, 3¼, 2½, 3¼. What is the <strong>mode</strong>?', options:['2½','3','3¼','3½'], correctIndex:0 },
+    { type:'science_mc', question:"Bryce's running times (min): 8, 9, 9, 10, 9, 8. What is the <strong>range</strong>?", options:['1','2','3','4'], correctIndex:1 },
+    { type:'science_mc', question:'Data: 10, 12, 14, 14, 16. What is the <strong>range</strong>? (16 − 10 = ?)', options:['4','5','6','7'], correctIndex:2 },
+    { type:'science_mc', question:'A survey shows children have 1, 2, 2, 3, 3, 3, 4 pets. What is the <strong>mode</strong>?', options:['1','2','3','4'], correctIndex:2 },
+    { type:'science_mc', question:'A line plot shows: 5 students jumped 4 ft, 3 jumped 4½ ft, and 2 jumped 5 ft. How many jumped <strong>more than 4 ft</strong>?', options:['3','4','5','6'], correctIndex:2 },
+    { type:'science_mc', question:'Stem-leaf shows: 2|5,5,5; 3|2,7; 4|1. What is the <strong>mode</strong>?', options:['25','32','37','41'], correctIndex:0 },
+    { type:'science_mc', question:"Ms. Rivera's class heights (in.): 48, 50, 52, 50, 54, 50. What is the <strong>mode</strong>?", options:['48','50','52','54'], correctIndex:1 },
+    { type:'science_mc', question:'Data: 6, 8, 10, 8, 12. What is the <strong>range</strong>? (12 − 6 = ?)', options:['4','5','6','7'], correctIndex:2 },
+    { type:'science_mc', question:'A line plot shows: 4 read for 20 min, 6 for 25 min, 3 for 30 min. How many read for <strong>25 minutes or more</strong>?', options:['6','7','8','9'], correctIndex:3 },
+    { type:'science_mc', question:'Stem-leaf: 5|3,3,7; 6|0,2; 7|1. How many values are in the <strong>50s</strong>?', options:['2','3','4','5'], correctIndex:1 },
+  ];
+  return shuffle(pool).slice(0, QUESTIONS_PER_ROUND);
+}
+
+function generateDataBossQuestions() {
+  const pool = [
+    { text:'A line plot shows cat weights: 7 lbs(2), 7½ lbs(5), 8 lbs(4), 8½ lbs(3), 9 lbs(1). What is the mode?', answer:'7½ lbs', options: shuffle(['7 lbs','7½ lbs','8 lbs','8½ lbs']) },
+    { text:'Data: 15, 22, 15, 31, 15, 28. What is the mode?', answer:'15', options: shuffle(['15','22','28','31']) },
+    { text:'Data: 4, 7, 11, 4, 9, 4. What is the range? (11 − 4 = ?)', answer:'7', options: shuffle(['5','6','7','8']) },
+    { text:'Stem-leaf shows: 2|4,8; 3|1,5,9; 4|2,6. What is the lowest value?', answer:'24', options: shuffle(['21','24','28','31']) },
+    { text:'Line plot: homework times (min): 15(3), 20(5), 25(4), 30(2), 35(1). How many students took 25 min or MORE?', answer:'7', options: shuffle(['4','5','6','7']) },
+    { text:'Data: 5, 8, 5, 9, 5, 7. What is the range? (9 − 5 = ?)', answer:'4', options: shuffle(['3','4','5','6']) },
+    { text:'Stem-leaf: 1|2,5; 2|0,3,3,7; 3|1. How many values are in the 20s?', answer:'4', options: shuffle(['2','3','4','5']) },
+    { text:'Line plot shows plant heights: ½(1), 1(3), 1½(5), 2(3), 2½(1). What is the range? (2½ − ½ = ?)', answer:'2', options: shuffle(['1','1½','2','2½']) },
+    { text:'Data: 12, 18, 12, 24, 30, 12. What is the mode?', answer:'12', options: shuffle(['12','18','24','30']) },
+    { text:'Stem-leaf: 4|5,5,5,8; 5|0,2,6; 6|3. What is the mode?', answer:'45', options: shuffle(['45','48','50','63']) },
+    { text:'A line plot shows: 4 scored 8/10, 7 scored 9/10, 3 scored 10/10. How many scored 9 or more?', answer:'10', options: shuffle(['7','9','10','14']) },
+    { text:'Data: 3¼, 3½, 3¾, 3½, 4, 3½. What is the mode?', answer:'3½', options: shuffle(['3¼','3½','3¾','4']) },
+    { text:'Data: 45, 67, 45, 78, 89. What is the range? (89 − 45 = ?)', answer:'44', options: shuffle(['33','40','44','48']) },
+    { text:'Line plot: ant lengths (in.): 2/8(3), 3/8(5), 4/8(4), 5/8(2). How many ants were measured in all?', answer:'14', options: shuffle(['12','13','14','15']) },
+    { text:'A data set has mode 7 and range 5. If the least value is 4, what is the greatest?', answer:'9', options: shuffle(['7','8','9','11']) },
+  ];
+  return shuffle(pool).slice(0, BOSS_TOTAL_ROUNDS);
 }
 
 function generateDecimalBossQuestions() {

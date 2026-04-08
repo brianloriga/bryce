@@ -46,6 +46,7 @@
           <button class="unit-pill" data-unit="15.7" onclick="switchMathUnit('15.7')">⏰ 15.7 Time</button>
           <button class="unit-pill" data-unit="12.9" onclick="switchMathUnit('12.9')">💵 12.9 Money</button>
           <button class="unit-pill" data-unit="12.5" onclick="switchMathUnit('12.5')">🔢 12.5 Decimals</button>
+          <button class="unit-pill" data-unit="13.1" onclick="switchMathUnit('13.1')">📊 13.1 Data</button>
         </div>
 
         <!-- 15.1 & 15.2 grid -->
@@ -195,6 +196,44 @@
                 <div class="boss-card-title" id="math125-boss-title">DECIMAL BATTLE</div>
                 <div class="boss-card-desc" id="math125-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
                 <div class="boss-card-checklist" id="math125-boss-checklist"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 13.1 grid -->
+        <div id="math-grid-13-1" class="activity-grid hidden">
+          <button class="activity-card" onclick="startGame('lineplot')">
+            <div class="card-icon">📈</div>
+            <div class="card-title">Line Plots</div>
+            <div class="card-desc">Read &amp; interpret line plot data</div>
+            <div class="card-stars" id="stars-lineplot"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('stemleaf')">
+            <div class="card-icon">🌿</div>
+            <div class="card-title">Stem &amp; Leaf</div>
+            <div class="card-desc">Organize data in stem-and-leaf plots</div>
+            <div class="card-stars" id="stars-stemleaf"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('moderange')">
+            <div class="card-icon">📉</div>
+            <div class="card-title">Mode &amp; Range</div>
+            <div class="card-desc">Find the mode and range of data</div>
+            <div class="card-stars" id="stars-moderange"></div>
+          </button>
+          <button class="activity-card" onclick="startGame('dataword')">
+            <div class="card-icon">📝</div>
+            <div class="card-title">Data Problems</div>
+            <div class="card-desc">Solve real-world data puzzles</div>
+            <div class="card-stars" id="stars-dataword"></div>
+          </button>
+          <div class="boss-card-wrapper">
+            <button class="boss-card locked" id="math131-boss-card" onclick="startBoss()" disabled>
+              <div class="boss-card-inner">
+                <span class="boss-lock-icon" id="math131-boss-icon">🔒</span>
+                <div class="boss-card-title" id="math131-boss-title">DATA BATTLE</div>
+                <div class="boss-card-desc" id="math131-boss-desc">Get ⭐3+ in all 4 activities to unlock!</div>
+                <div class="boss-card-checklist" id="math131-boss-checklist"></div>
               </div>
             </button>
           </div>
