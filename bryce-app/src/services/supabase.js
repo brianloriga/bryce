@@ -83,6 +83,44 @@ export async function syncProgressToSupabase(kidId, scores) {
   if (error) throw error;
 }
 
+// ── Custom Unit helpers ───────────────────────────────────────
+
+export async function saveCustomUnit(title, questions, unitLabel = null) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Must be signed in to save units');
+
+  const { data, error } = await supabase
+    .from('custom_units')
+    .insert({
+      title,
+      questions,
+      unit_label: unitLabel,
+      subject: 'custom',
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCustomUnits() {
+  const { data, error } = await supabase
+    .from('custom_units')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function deleteCustomUnit(unitId) {
+  const { error } = await supabase
+    .from('custom_units')
+    .delete()
+    .eq('id', unitId);
+  if (error) throw error;
+}
+
 // ── Subscription helpers ─────────────────────────────────────
 
 export async function getSubscriptionStatus() {
