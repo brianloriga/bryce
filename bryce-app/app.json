@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "BryceLearning",
+    "slug": "bryce-learning",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.brycelearning.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to photograph textbook pages so the AI can generate practice questions.",
+        "NSPhotoLibraryUsageDescription": "Used to select textbook photos from your photo library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.brycelearning.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-camera",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to select textbook photos to generate practice questions."
+        }
+      ]
+    ]
+  }
+}
