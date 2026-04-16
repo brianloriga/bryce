@@ -14,18 +14,23 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
   const [loading, setLoading]   = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   async function handleSubmit() {
+    setErrorMsg('');
+    setSuccessMsg('');
+
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
+      setErrorMsg('Please enter your email and password.');
       return;
     }
     if (mode === 'signup' && password !== confirm) {
-      Alert.alert('Passwords do not match', 'Please re-enter your password.');
+      setErrorMsg('Passwords do not match.');
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Password too short', 'Password must be at least 6 characters.');
+      setErrorMsg('Password must be at least 6 characters.');
       return;
     }
 
@@ -33,17 +38,16 @@ export default function AuthScreen() {
     try {
       if (mode === 'signup') {
         await signUp(email.trim(), password);
-        Alert.alert(
-          'Check your email! 📬',
-          'We sent a confirmation link. Click it, then come back and sign in.',
-          [{ text: 'OK', onPress: () => setMode('signin') }]
-        );
+        setSuccessMsg('Account created! Check your email for a confirmation link, then sign in.');
+        setMode('signin');
+        setPassword(''); setConfirm('');
       } else {
         await signIn(email.trim(), password);
         // AuthContext listener will pick up the new session automatically
       }
     } catch (err) {
-      Alert.alert('Error', err.message ?? 'Something went wrong. Please try again.');
+      console.error('[AuthScreen] error:', err);
+      setErrorMsg(err.message ?? 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,6 +114,17 @@ export default function AuthScreen() {
                 />
               </>
             )}
+
+            {errorMsg ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
+              </View>
+            ) : null}
+            {successMsg ? (
+              <View style={styles.successBox}>
+                <Text style={styles.successText}>✅ {successMsg}</Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity
               style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
@@ -239,6 +254,28 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: '#fff',
+  },
+  errorBox: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  successBox: {
+    backgroundColor: '#dcfce7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  successText: {
+    color: '#16a34a',
+    fontSize: 14,
+    fontWeight: '500',
   },
   legalNote: {
     fontSize: 12,

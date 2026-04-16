@@ -69,7 +69,7 @@ export default function KidSelectScreen() {
           <TouchableOpacity
             key={kid.id}
             style={styles.kidCard}
-            onPress={() => selectKid(kid)}
+            onPress={() => { console.log('[KidCard] tapped:', kid.name); selectKid(kid); }}
             onLongPress={() => handleDeleteKid(kid)}
           >
             <Text style={styles.kidAvatar}>{kid.avatar}</Text>

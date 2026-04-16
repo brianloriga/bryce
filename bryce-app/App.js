@@ -76,20 +76,21 @@ function RootNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {showKidSelect
-        ? <Stack.Screen name="KidSelect" component={KidSelectScreen} />
-        : <Stack.Screen name="Main"      component={MainTabs} />
-      }
-      {/* These screens are always available to navigate to */}
-      <Stack.Screen
-        name="Auth"
-        component={AuthScreen}
-        options={{ presentation: 'modal' }}
-      />
-      <Stack.Screen
-        name="KidSelect"
-        component={KidSelectScreen}
-      />
+      {showKidSelect ? (
+        // Logged in but no kid selected — KidSelect is the only screen
+        <Stack.Screen name="KidSelect" component={KidSelectScreen} />
+      ) : (
+        // Guest or logged-in with active kid — full app available
+        <>
+          <Stack.Screen name="Main" component={MainTabs} />
+          <Stack.Screen
+            name="Auth"
+            component={AuthScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <Stack.Screen name="KidSelect" component={KidSelectScreen} />
+        </>
+      )}
     </Stack.Navigator>
   );
 }
