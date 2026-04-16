@@ -1,18 +1,98 @@
-import React, { useRef } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '../context/AuthContext';
+import { handleProgressUpdate } from '../services/progressSync';
 
-// Points at the live GitHub Pages deployment.
-// Once we have a local server or bundled assets, this can switch to file:// or localhost.
 const GAME_URL = 'https://brianloriga.github.io/bryce/';
+
+// ── WebView injection script ─────────────────────────────────
+// Intercepts localStorage writes so we can sync progress to Supabase.
+// Also pre-loads the kid's cloud scores into localStorage on first render.
+function buildInjectedScript(initialPayload) {
+  const payloadStr = initialPayload
+    ? JSON.stringify(initialPayload).replace(/'/g, "\\'")
+    : null;
+
+  return `
+(function() {
+  // 1. Pre-load cloud scores if available
+  ${payloadStr ? `
+  try {
+    var existing = window.localStorage.getItem('bryceLearning');
+    if (!existing) {
+      window.localStorage.setItem('bryceLearning', '${payloadStr}');
+    }
+  } catch(e) {}
+  ` : ''}
+
+  // 2. Intercept localStorage.setItem to notify React Native on every save
+  var _origSet = window.localStorage.setItem.bind(window.localStorage);
+  window.localStorage.setItem = function(key, value) {
+    _origSet(key, value);
+    if (key === 'bryceLearning') {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'progress_update',
+          data: value
+        }));
+      } catch(e) {}
+    }
+  };
+
+  // 3. Send current state on load (handles page refresh)
+  try {
+    var current = window.localStorage.getItem('bryceLearning');
+    if (current) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'progress_init',
+        data: current
+      }));
+    }
+  } catch(e) {}
+})();
+true; // Required by React Native WebView
+`;
+}
 
 export default function GameScreen() {
   const webViewRef = useRef(null);
+  const { activeKid, initialLocalStoragePayload } = useAuth();
+
+  // ── Handle messages from the WebView ────────────────────────
+  const onMessage = useCallback(async (event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'progress_update' || msg.type === 'progress_init') {
+        await handleProgressUpdate(msg.data);
+      }
+    } catch {
+      // Non-JSON messages from the web app (ads, etc.) are ignored
+    }
+  }, []);
+
+  // ── Reload WebView when active kid changes ───────────────────
+  useEffect(() => {
+    if (webViewRef.current) {
+      webViewRef.current.reload();
+    }
+  }, [activeKid?.id]);
+
+  const injectedScript = buildInjectedScript(initialLocalStoragePayload);
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+
+      {activeKid && (
+        <View style={styles.kidBanner}>
+          <Text style={styles.kidBannerText}>
+            {activeKid.avatar}  {activeKid.name}
+          </Text>
+        </View>
+      )}
+
       <WebView
         ref={webViewRef}
         source={{ uri: GAME_URL }}
@@ -21,13 +101,15 @@ export default function GameScreen() {
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2563eb" />
+            <Text style={styles.loadingText}>Loading BryceLearning…</Text>
           </View>
         )}
+        injectedJavaScriptBeforeContentLoaded={injectedScript}
+        onMessage={onMessage}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         javaScriptEnabled
         domStorageEnabled
-        // Allow localStorage to persist across sessions
         sharedCookiesEnabled
         allowsBackForwardNavigationGestures={false}
       />
@@ -40,6 +122,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#2563eb',
   },
+  kidBanner: {
+    backgroundColor: '#1d4ed8',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  kidBannerText: {
+    color: '#bfdbfe',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
   webView: {
     flex: 1,
   },
@@ -49,5 +143,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#eff6ff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: '#2563eb',
+    fontWeight: '600',
   },
 });

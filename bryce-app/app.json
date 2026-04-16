@@ -38,7 +38,8 @@
         {
           "photosPermission": "Used to select textbook photos to generate practice questions."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

@@ -41,13 +41,15 @@ This gets us to the App Store fastest while still feeling like a real native app
 **Goal:** Parents can create an account; progress syncs to the cloud.
 
 ### Steps
-- [ ] 2.1 Choose and set up auth provider — **Supabase** (free tier, Postgres, easy to self-host)
-- [ ] 2.2 Create Supabase project + schema (users, progress, units_unlocked)
-- [ ] 2.3 Build Sign Up / Log In screens (email + password to start)
-- [ ] 2.4 Replace `localStorage` in the web app with bridge calls to native storage
-- [ ] 2.5 Sync best scores and unlocked units to Supabase on save
-- [ ] 2.6 Load user progress from Supabase on app launch
-- [ ] 2.7 Add "parent profile" vs "child profile" concept (one parent account, multiple kids)
+- [x] 2.1 Choose and set up auth provider — **Supabase** (free tier, Postgres, easy to self-host)
+- [x] 2.2 Create Supabase project + schema (`kid_profiles`, `progress`, `subscriptions`, `custom_units`, `upsert_progress` RPC)
+- [x] 2.3 Build Sign Up / Log In screens (email + password)
+- [x] 2.4 WebView bridge intercepts `localStorage.setItem` and posts to React Native
+- [x] 2.5 Sync best scores to Supabase on every game save via `upsert_progress` RPC
+- [x] 2.6 Load user progress from Supabase, inject into WebView `localStorage` on app launch
+- [x] 2.7 Parent account with multiple kid profiles (avatar picker, add/delete, long-press to remove)
+- [x] 2.8 Auth-gated navigation: Guest → game direct; Logged in → KidSelect → game
+- [x] 2.9 Active kid banner shown above the game WebView
 
 **Output:** Progress saves to the cloud. Works across devices. Multiple kid profiles per family.
 
