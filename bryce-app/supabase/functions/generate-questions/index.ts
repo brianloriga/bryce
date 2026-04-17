@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno runtime; Node type checker does not understand Deno globals or https:// imports
 // Supabase Edge Function — generate-questions
 // Receives one or more base64 images, validates educational content,
 // then calls GPT-4o Vision to generate structured questions.

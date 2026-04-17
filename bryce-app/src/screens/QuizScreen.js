@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import Markdown from '@ronradtke/react-native-markdown-display';
-import Svg, { Circle, Path, Rect, Line, Polygon, Text as SvgText, G } from 'react-native-svg';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Animated,
@@ -23,99 +22,85 @@ function getStars(correct, total) {
   return 0;
 }
 
-// ── Geometry renderer ────────────────────────────────────────
+// ── Geometry renderer (pure React Native — no SVG dependency) ─
 function GeometryDisplay({ geometry }) {
   if (!geometry?.type) return null;
-  const W = 260;
 
+  // Pie → stacked horizontal strip showing proportions with labels
   if (geometry.type === 'pie') {
     const slices = geometry.slices ?? [];
-    const cx = W / 2, cy = 100, r = 80;
-    let startAngle = -Math.PI / 2;
-    const paths = slices.map((s, i) => {
-      const angle = (s.fraction ?? 0) * 2 * Math.PI;
-      const endAngle = startAngle + angle;
-      const x1 = cx + r * Math.cos(startAngle);
-      const y1 = cy + r * Math.sin(startAngle);
-      const x2 = cx + r * Math.cos(endAngle);
-      const y2 = cy + r * Math.sin(endAngle);
-      const large = angle > Math.PI ? 1 : 0;
-      const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
-      startAngle = endAngle;
-      return <Path key={i} d={d} fill={s.color ?? '#6366f1'} stroke="#0f172a" strokeWidth="2" />;
-    });
+    const total = slices.reduce((s, x) => s + (x.fraction ?? 0), 0) || 1;
     return (
       <View style={geoStyles.container}>
-        <Svg width={W} height={210}>
-          {paths}
-          {slices.map((s, i) => {
-            const midAngle = slices.slice(0, i).reduce((a, x) => a + (x.fraction ?? 0), 0) * 2 * Math.PI
-              + (s.fraction ?? 0) * Math.PI - Math.PI / 2;
-            const lx = cx + (r * 0.65) * Math.cos(midAngle);
-            const ly = cy + (r * 0.65) * Math.sin(midAngle);
-            return (
-              <SvgText key={i} x={lx} y={ly + 5} textAnchor="middle"
-                fontSize="13" fontWeight="bold" fill="#fff">
-                {s.label ?? ''}
-              </SvgText>
-            );
-          })}
-        </Svg>
+        <View style={geoStyles.pieStrip}>
+          {slices.map((s, i) => (
+            <View
+              key={i}
+              style={[
+                geoStyles.pieSegment,
+                { flex: (s.fraction ?? 0) / total, backgroundColor: s.color ?? '#6366f1' },
+                i === 0 && { borderTopLeftRadius: 10, borderBottomLeftRadius: 10 },
+                i === slices.length - 1 && { borderTopRightRadius: 10, borderBottomRightRadius: 10 },
+              ]}
+            />
+          ))}
+        </View>
+        <View style={geoStyles.pieLegend}>
+          {slices.map((s, i) => (
+            <View key={i} style={geoStyles.legendItem}>
+              <View style={[geoStyles.legendDot, { backgroundColor: s.color ?? '#6366f1' }]} />
+              <Text style={geoStyles.legendText}>
+                {s.label ?? ''} ({Math.round((s.fraction ?? 0) * 100)}%)
+              </Text>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
 
+  // Bar chart → View-based bars with labels
   if (geometry.type === 'bar') {
     const bars = geometry.bars ?? [];
     const maxVal = geometry.maxValue ?? Math.max(...bars.map(b => b.value ?? 0), 1);
-    const barW = Math.min(40, (W - 40) / Math.max(bars.length, 1) - 8);
-    const chartH = 100;
+    const CHART_H = 90;
     return (
       <View style={geoStyles.container}>
-        <Svg width={W} height={chartH + 40}>
+        <View style={[geoStyles.barChart, { height: CHART_H + 32 }]}>
           {bars.map((b, i) => {
-            const bh = Math.max(4, ((b.value ?? 0) / maxVal) * chartH);
-            const x = 20 + i * (barW + 8);
-            const y = chartH - bh;
+            const barH = Math.max(4, ((b.value ?? 0) / maxVal) * CHART_H);
             return (
-              <G key={i}>
-                <Rect x={x} y={y} width={barW} height={bh} fill="#6366f1" rx="4" />
-                <SvgText x={x + barW / 2} y={chartH + 16} textAnchor="middle"
-                  fontSize="11" fill="#94a3b8">{b.label ?? ''}</SvgText>
-                <SvgText x={x + barW / 2} y={y - 4} textAnchor="middle"
-                  fontSize="11" fontWeight="bold" fill="#e2e8f0">{b.value}</SvgText>
-              </G>
+              <View key={i} style={geoStyles.barCol}>
+                <Text style={geoStyles.barValue}>{b.value}</Text>
+                <View style={[geoStyles.bar, { height: barH }]} />
+                <Text style={geoStyles.barLabel} numberOfLines={1}>{b.label ?? ''}</Text>
+              </View>
             );
           })}
-          <Line x1="16" y1={chartH} x2={W - 16} y2={chartH} stroke="#334155" strokeWidth="1" />
-        </Svg>
+        </View>
+        <View style={geoStyles.barBaseline} />
       </View>
     );
   }
 
+  // Shape → styled View approximation
   if (geometry.type === 'shape') {
     const kind = geometry.kind ?? 'rectangle';
     const filled = geometry.shaded !== false;
-    const fill = filled ? '#6366f1' : '#1e293b';
-    const stroke = '#818cf8';
+    const bg = filled ? '#6366f1' : 'transparent';
+    const border = { borderWidth: 2.5, borderColor: '#818cf8' };
+    const shapeStyle = kind === 'circle'
+      ? { width: 100, height: 100, borderRadius: 50, ...border, backgroundColor: bg }
+      : kind === 'rectangle'
+        ? { width: 140, height: 80, borderRadius: 6, ...border, backgroundColor: bg }
+        : { width: 100, height: 86, ...border, backgroundColor: bg, borderRadius: 4 };
     return (
       <View style={geoStyles.container}>
-        <Svg width={W} height={120}>
-          {kind === 'circle' && (
-            <Circle cx={W / 2} cy={60} r={50} fill={fill} stroke={stroke} strokeWidth="2.5" />
-          )}
-          {kind === 'rectangle' && (
-            <Rect x={60} y={20} width={140} height={80} fill={fill} stroke={stroke} strokeWidth="2.5" rx="4" />
-          )}
-          {kind === 'triangle' && (
-            <Polygon points={`${W / 2},15 ${W - 50},105 50,105`}
-              fill={fill} stroke={stroke} strokeWidth="2.5" />
-          )}
+        <View style={[geoStyles.shapeWrapper, shapeStyle]}>
           {geometry.label ? (
-            <SvgText x={W / 2} y={60} textAnchor="middle" dy="5"
-              fontSize="14" fontWeight="bold" fill="#fff">{geometry.label}</SvgText>
+            <Text style={geoStyles.shapeLabel}>{geometry.label}</Text>
           ) : null}
-        </Svg>
+        </View>
       </View>
     );
   }
@@ -124,7 +109,24 @@ function GeometryDisplay({ geometry }) {
 }
 
 const geoStyles = StyleSheet.create({
-  container: { alignItems: 'center', marginBottom: 16, marginTop: 4 },
+  container:   { alignItems: 'center', marginBottom: 16, marginTop: 4 },
+  // Pie
+  pieStrip:    { flexDirection: 'row', width: 260, height: 32, borderRadius: 10, overflow: 'hidden', marginBottom: 10 },
+  pieSegment:  { height: '100%' },
+  pieLegend:   { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot:   { width: 10, height: 10, borderRadius: 5 },
+  legendText:  { fontSize: 12, color: '#94a3b8' },
+  // Bar
+  barChart:    { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingHorizontal: 8 },
+  barCol:      { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
+  bar:         { width: '80%', backgroundColor: '#6366f1', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  barValue:    { fontSize: 11, fontWeight: '700', color: '#e2e8f0', marginBottom: 2 },
+  barLabel:    { fontSize: 10, color: '#94a3b8', marginTop: 4, textAlign: 'center' },
+  barBaseline: { width: 260, height: 1, backgroundColor: '#334155', marginTop: 2 },
+  // Shape
+  shapeWrapper:{ alignItems: 'center', justifyContent: 'center' },
+  shapeLabel:  { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
 
 // ── Markdown styles for dark theme ──────────────────────────
