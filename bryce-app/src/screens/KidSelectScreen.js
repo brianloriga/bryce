@@ -148,7 +148,7 @@ export default function KidSelectScreen() {
           </>
         ) : (
           <View style={styles.headerCenter}>
-            <Text style={styles.appBadge}>BryceLearning</Text>
+            <Text style={styles.appBadge}>SnapStudy</Text>
           </View>
         )}
       </View>

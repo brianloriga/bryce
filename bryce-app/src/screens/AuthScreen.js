@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, Image, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -8,8 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { signIn, signUp } from '../services/supabase';
 
-export default function AuthScreen() {
-  const [mode, setMode]         = useState('signin'); // 'signin' | 'signup'
+export default function AuthScreen({ route }) {
+  const [mode, setMode]         = useState(route?.params?.initialMode ?? 'signin'); // 'signin' | 'signup'
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
@@ -64,8 +64,15 @@ export default function AuthScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.logo}>📚</Text>
-            <Text style={styles.appName}>BryceLearning</Text>
+            <Image
+              source={require('../../assets/appicon.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appName}>
+              <Text style={styles.namePart1}>Snap</Text>
+              <Text style={styles.namePart2}>Study</Text>
+            </Text>
             <Text style={styles.tagline}>
               {mode === 'signup'
                 ? 'Create a parent account to get started!'
@@ -175,7 +182,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0d0d1a',
   },
   kav: { flex: 1 },
   scroll: {
@@ -189,28 +196,33 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   logo: {
-    fontSize: 56,
-    marginBottom: 8,
+    width: 90,
+    height: 90,
+    marginBottom: 10,
   },
   appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#fff',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 0.5,
     marginBottom: 6,
   },
+  namePart1: { color: '#4ade80' },
+  namePart2: { color: '#c084fc' },
   tagline: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 22,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1a1a2e',
     borderRadius: 20,
     padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
     marginBottom: 20,
@@ -218,34 +230,39 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1e293b',
+    color: '#fff',
     marginBottom: 20,
   },
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#475569',
+    color: 'rgba(255,255,255,0.55)',
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
     fontSize: 16,
-    color: '#1e293b',
+    color: '#fff',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   submitBtn: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 15,
+    backgroundColor: '#16a34a',
+    borderRadius: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
   },
   submitBtnDisabled: {
     opacity: 0.6,
@@ -256,30 +273,34 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   errorBox: {
-    backgroundColor: '#fee2e2',
+    backgroundColor: 'rgba(220,38,38,0.15)',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.3)',
   },
   errorText: {
-    color: '#dc2626',
+    color: '#fca5a5',
     fontSize: 14,
     fontWeight: '500',
   },
   successBox: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: 'rgba(22,163,74,0.15)',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(22,163,74,0.3)',
   },
   successText: {
-    color: '#16a34a',
+    color: '#86efac',
     fontSize: 14,
     fontWeight: '500',
   },
   legalNote: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: 'rgba(255,255,255,0.4)',
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 18,
@@ -292,17 +313,17 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.6)',
   },
   switchLink: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: '#c084fc',
     textDecorationLine: 'underline',
   },
   guestNote: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
   },
 });

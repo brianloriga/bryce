@@ -1,6 +1,6 @@
-# BryceLearning — iOS App Roadmap
+# SnapStudy — iOS App Roadmap
 
-> **Goal:** Turn BryceLearning into a native iOS app with a subscription model where parents can photograph textbook pages and the AI generates practice questions for their kids.
+> **Goal:** Turn SnapStudy into a native iOS app with a subscription model where parents can photograph textbook pages and the AI generates practice questions for their kids.
 
 ---
 
@@ -32,7 +32,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [x] 1.9 Verified project builds cleanly (`npx expo export --platform web` ✅)
 - [ ] 1.10 Test on physical device via Expo Go app
 
-**Output:** App opens, shows the existing BryceLearning game inside a native shell.
+**Output:** App opens, shows the existing SnapStudy game inside a native shell.
 
 ---
 
@@ -70,6 +70,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [x] 3.8 Scanning loading state with spinner and status message
 - [x] 3.9 Multi-page scanning (up to 6 pages per unit, thumbnail strip UI)
 - [x] 3.10 Image content validation (GPT rejects non-educational images with explanation)
+- [ ] 3.11 Auto-remove rejected images — when an image fails content validation, automatically delete it from the staging array instead of leaving it highlighted with an error card
 
 **To activate Phase 3:**
 1. Get an OpenAI API key at platform.openai.com
@@ -97,8 +98,8 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [ ] 4.1 Create Apple App Store Connect account + app listing
 - [ ] 4.2 Set up **RevenueCat** (handles App Store receipt validation, webhooks)
 - [ ] 4.3 Define subscription products in App Store Connect:
-  - `com.brycelearning.monthly` — $4.99/month
-  - `com.brycelearning.yearly` — $39.99/year (save 33%)
+  - `com.snapstudy.monthly` — $4.99/month
+  - `com.snapstudy.yearly` — $39.99/year (save 33%)
 - [ ] 4.4 Build Paywall screen (show features, pricing, restore purchases)
 - [ ] 4.5 Gate "Scan a Textbook" feature behind subscription check
 - [ ] 4.6 Free tier: all built-in units playable, no scanning
@@ -143,6 +144,125 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [ ] 6.4 Submit for App Store Review
 - [ ] 6.5 Respond to any review feedback
 - [ ] 6.6 Launch! 🚀
+
+---
+
+## Phase 7 — Growth, Hardening & Engagement
+
+**Goal:** Make SnapStudy resilient, secure, and worth coming back to every day.
+
+> Items are grouped by priority. Bug fixes and security should be resolved before or alongside Phase 5/6; UX and growth features are post-launch priorities.
+
+---
+
+### 7.A — Bug Fixes (Ship Blockers)
+
+- [ ] 7.1 Guard QuizScreen against zero-question units — show a friendly error instead of dividing by zero
+- [ ] 7.2 Clear `setTimeout` in QuizScreen `handleAnswer` on component unmount to prevent ghost state updates
+- [ ] 7.3 Clamp `correctIndex` in QuizScreen to valid range so an out-of-bounds value never silently marks the wrong answer correct
+- [ ] 7.4 Replace hardcoded "Bryce" in ScanScreen success copy with the active kid's name (or a generic fallback)
+- [ ] 7.5 Clear parent PIN from device storage on sign-out so it doesn't carry over to another account on the same device
+- [ ] 7.6 Rename `@brycelearning_parent_pin` AsyncStorage key to `@snapstudy_parent_pin` for brand consistency
+
+---
+
+### 7.B — Security & Safety
+
+- [ ] 7.7 Add per-user rate limiting to the `generate-questions` Edge Function (e.g. max 20 scans/day per user) to prevent OpenAI credit abuse
+- [ ] 7.8 Upgrade PIN storage from AsyncStorage to `expo-secure-store` (already a dependency) so the PIN is encrypted at rest on Android
+- [ ] 7.9 Add a Privacy Policy page and data-handling disclosure covering image data sent to OpenAI (student worksheets may contain names/school details)
+- [ ] 7.10 Wire `getSubscriptionStatus()` into ScanScreen — free users should see a paywall or scan limit instead of unlimited free AI calls
+- [ ] 7.11 Remove development `console.log` statements that expose user IDs and Supabase keys before App Store submission
+
+---
+
+### 7.C — UX & Polish
+
+- [ ] 7.12 Show a visible error state (with retry button) on HomeScreen when unit loading fails — currently shows a blank screen silently
+- [ ] 7.13 Show a visible error state on KidSelectScreen when kid profiles fail to load
+- [ ] 7.14 Wire up Privacy Policy, Terms of Service, and Restore Purchases rows in AccountScreen (or hide until Phase 4 is live)
+- [ ] 7.15 Add a functional "Upgrade" button in AccountScreen — open the paywall or show a "coming soon" sheet
+- [ ] 7.16 Add a brief first-run onboarding flow for new parents (2–3 slides: scan a page → review questions → kids play)
+- [ ] 7.17 Add a search / filter bar to HomeScreen for parents with many saved units
+- [ ] 7.18 Allow units to be assigned to a specific child so siblings with different grade levels see their own content
+
+---
+
+### 7.D — Engagement & Retention
+
+- [ ] 7.19 Save quiz results for custom units to Supabase — track score history, improvement over time, and last-played date per kid
+- [ ] 7.20 Kid-level progress dashboard for parents — simple summary of scores and activity across all units
+- [ ] 7.21 Streak tracking — reward kids for studying on consecutive days with a visual streak counter
+- [ ] 7.22 Push notifications — optional daily "time to study!" reminder, configurable per kid
+- [ ] 7.23 Offline mode — cache loaded units locally so kids can take a quiz without Wi-Fi
+- [ ] 7.24 Unit sharing — let parents share a unit with another SnapStudy family (premium feature, great for classrooms)
+
+---
+
+**Output:** A stable, secure app that keeps kids coming back and gives parents real insight into their child's progress.
+
+---
+
+## Phase 8 — Boss Battles, Mini-Games & À La Carte Purchases
+
+**Goal:** Reward kids who finish a quiz with an unlockable boss battle or mini-game. Parents choose which games attach to each unit. Individual games are purchasable à la carte — a second monetization track alongside the subscription.
+
+> This revives the best mechanic from the original web game and turns it into a native, extensible game engine.
+
+---
+
+### 8.A — Boss Battle Reward System
+
+- [ ] 8.1 After a quiz is completed with 2+ stars, show a "Boss Unlocked!" celebration screen with the boss name and artwork
+- [ ] 8.2 Boss battle is a timed rapid-fire quiz pulling 10–15 random questions from the same unit — harder, faster, no going back
+- [ ] 8.3 Boss has an animated health bar that depletes on correct answers and ticks back up on wrong ones — visual tension
+- [ ] 8.4 Defeating the boss awards a trophy/badge saved to the kid's profile in Supabase
+- [ ] 8.5 Trophies visible on the kid's HomeScreen card and on the progress dashboard (Phase 7.20)
+- [ ] 8.6 Parent can toggle boss battles on/off per unit (some kids may find them stressful)
+
+---
+
+### 8.B — Mini-Game Library
+
+> Each mini-game is a self-contained native component that receives the unit's questions/answers as props and reports a score back. New games can be added without changing the quiz or unit data model.
+
+- [ ] 8.7 **Word Scramble** — scrambled answer words, kid taps letters to unassemble; uses correct answer text from unit
+- [ ] 8.8 **Flash Cards** — flip card animation; kid self-rates "Got it / Not yet"; tracks retention over sessions
+- [ ] 8.9 **Speed Round** — 60-second blitz, one question at a time, counts how many answered correctly under pressure
+- [ ] 8.10 **Match-Up** — drag-and-drop matching of questions to answers (great for vocab/definition units)
+- [ ] 8.11 **True or False** — simplified binary version; good for younger kids or warmup before a full quiz
+- [ ] 8.12 **Memory Flip** — tile-flip matching pairs of question + answer cards (concentration-style)
+
+---
+
+### 8.C — Parent Game Selector
+
+- [ ] 8.13 On the unit detail screen, parent can assign a "reward game" that unlocks after the quiz (boss battle or any mini-game)
+- [ ] 8.14 Parent can queue multiple games in order (e.g., quiz → speed round → boss battle)
+- [ ] 8.15 "Surprise me" option — app randomly picks an unlocked game as the reward each time
+- [ ] 8.16 Per-unit game settings are stored alongside the unit in Supabase `custom_units` (extend the table with a `reward_config` JSON column)
+
+---
+
+### 8.D — À La Carte In-App Purchases
+
+> Parents who don't want a subscription can buy individual games as one-time purchases. Subscribers get all games included.
+
+- [ ] 8.17 Define individual IAP products in App Store Connect:
+  - `com.snapstudy.game.bossbattle` — Boss Battle engine — $1.99 one-time
+  - `com.snapstudy.game.speedround` — Speed Round — $0.99 one-time
+  - `com.snapstudy.game.matchup` — Match-Up — $0.99 one-time
+  - `com.snapstudy.game.flashcards` — Flash Cards — $0.99 one-time
+  - `com.snapstudy.game.bundle` — All Mini-Games Bundle — $3.99 one-time
+- [ ] 8.18 Gate each mini-game behind its purchase (or active subscription) using RevenueCat entitlements
+- [ ] 8.19 "Try it free" — each game allows one free play per unit so kids can see what they're missing before parents buy
+- [ ] 8.20 Restore purchases button surfaces per-game purchase history (Apple requires this)
+- [ ] 8.21 Game Store screen inside the app — preview each game with a short GIF/animation and a buy/try button
+- [ ] 8.22 Gifting — parent can share a game purchase code with another family (nice-to-have, App Store supports this)
+
+---
+
+**Output:** Kids have a reason to finish every quiz and come back for more. Parents have flexible, low-friction ways to pay for exactly what they want. Each new game added to the library is a new revenue stream with zero new infrastructure.
 
 ---
 

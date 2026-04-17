@@ -100,6 +100,7 @@ export default function AccountScreen() {
   const [pinState, setPinState]       = useState('checking'); // 'checking' | 'locked' | 'setup1' | 'setup2' | 'unlocked'
   const [setupPin, setSetupPin]       = useState('');
   const [pinError, setPinError]       = useState('');
+  const [hasPin, setHasPin]           = useState(false);
 
   // Re-lock every time Account tab is focused
   useFocusEffect(
@@ -110,8 +111,8 @@ export default function AccountScreen() {
 
   async function checkPin() {
     const saved = await getParentPin();
+    setHasPin(!!saved);
     if (!saved) {
-      // No PIN set yet — unlock but prompt to set one
       setPinState('unlocked');
     } else {
       setPinState('locked');
@@ -144,6 +145,7 @@ export default function AccountScreen() {
     }
     await setParentPin(entered);
     setSetupPin('');
+    setHasPin(true);
     setPinState('unlocked');
     setPinError('');
   }
@@ -249,18 +251,24 @@ export default function AccountScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* No PIN set — prompt */}
-        {!isLoggedIn ? null : (
+        {/* PIN banner — set or reset */}
+        {isLoggedIn && (
           <TouchableOpacity
-            style={styles.pinBanner}
+            style={[styles.pinBanner, hasPin && styles.pinBannerSet]}
             onPress={() => setPinState('setup1')}
           >
-            <Text style={styles.pinBannerEmoji}>🔑</Text>
+            <Text style={styles.pinBannerEmoji}>{hasPin ? '🔐' : '🔑'}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.pinBannerTitle}>Set a Parent PIN</Text>
-              <Text style={styles.pinBannerDesc}>Prevent kids from changing account settings</Text>
+              <Text style={[styles.pinBannerTitle, hasPin && styles.pinBannerTitleSet]}>
+                {hasPin ? 'Reset Parent PIN' : 'Set a Parent PIN'}
+              </Text>
+              <Text style={[styles.pinBannerDesc, hasPin && styles.pinBannerDescSet]}>
+                {hasPin
+                  ? 'Change your existing 4-digit PIN'
+                  : 'Prevent kids from changing account settings'}
+              </Text>
             </View>
-            <Text style={styles.pinBannerArrow}>›</Text>
+            <Text style={[styles.pinBannerArrow, hasPin && styles.pinBannerArrowSet]}>›</Text>
           </TouchableOpacity>
         )}
 
@@ -327,7 +335,7 @@ export default function AccountScreen() {
           <View style={styles.planBadge}>
             <Text style={styles.planBadgeText}>FREE PLAN</Text>
           </View>
-          <Text style={styles.planTitle}>BryceLearning Basic</Text>
+          <Text style={styles.planTitle}>SnapStudy Basic</Text>
           <Text style={styles.planDesc}>All built-in units included. Upgrade for AI scanning.</Text>
           <TouchableOpacity style={styles.upgradeBtn}>
             <Text style={styles.upgradeBtnText}>⚡  Upgrade — $4.99/month</Text>
@@ -378,6 +386,7 @@ const styles = StyleSheet.create({
   },
   lockBtnText: { fontSize: 13, fontWeight: '600', color: '#475569' },
 
+  // PIN banner — no PIN set (yellow)
   pinBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: '#fefce8', borderRadius: 14,
@@ -388,6 +397,11 @@ const styles = StyleSheet.create({
   pinBannerTitle: { fontSize: 14, fontWeight: '700', color: '#92400e' },
   pinBannerDesc:  { fontSize: 12, color: '#a16207', marginTop: 1 },
   pinBannerArrow: { fontSize: 20, color: '#a16207' },
+  // PIN banner — PIN already set (green)
+  pinBannerSet:       { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' },
+  pinBannerTitleSet:  { color: '#14532d' },
+  pinBannerDescSet:   { color: '#166534' },
+  pinBannerArrowSet:  { color: '#16a34a' },
 
   profileCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

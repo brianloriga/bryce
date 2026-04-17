@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "BryceLearning",
-    "slug": "bryce-learning",
+    "name": "SnapStudy",
+    "slug": "snap-study",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.brycelearning.app",
+      "bundleIdentifier": "com.snapstudy.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Used to photograph textbook pages so the AI can generate practice questions.",
         "NSPhotoLibraryUsageDescription": "Used to select textbook photos from your photo library."
@@ -26,7 +26,7 @@
         "backgroundColor": "#2563eb"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.brycelearning.app"
+      "package": "com.snapstudy.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

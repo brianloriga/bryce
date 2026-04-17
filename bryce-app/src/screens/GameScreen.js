@@ -127,7 +127,7 @@ export default function GameScreen() {
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2563eb" />
-            <Text style={styles.loadingText}>Loading BryceLearning…</Text>
+            <Text style={styles.loadingText}>Loading SnapStudy…</Text>
           </View>
         )}
         injectedJavaScriptBeforeContentLoaded={injectedScript}

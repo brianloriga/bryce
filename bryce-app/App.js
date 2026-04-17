@@ -8,12 +8,13 @@ import { SafeAreaProvider }         from 'react-native-safe-area-context';
 import { Ionicons }                 from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import HomeScreen     from './src/screens/HomeScreen';
-import ScanScreen     from './src/screens/ScanScreen';
-import AccountScreen  from './src/screens/AccountScreen';
-import AuthScreen     from './src/screens/AuthScreen';
+import HomeScreen      from './src/screens/HomeScreen';
+import ScanScreen      from './src/screens/ScanScreen';
+import AccountScreen   from './src/screens/AccountScreen';
+import AuthScreen      from './src/screens/AuthScreen';
+import WelcomeScreen   from './src/screens/WelcomeScreen';
 import KidSelectScreen from './src/screens/KidSelectScreen';
-import QuizScreen     from './src/screens/QuizScreen';
+import QuizScreen      from './src/screens/QuizScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -43,7 +44,7 @@ function MainTabs() {
           shadowRadius: 12,
           elevation: 20,
         },
-        tabBarActiveTintColor: '#60a5fa',
+        tabBarActiveTintColor: '#4ade80',
         tabBarInactiveTintColor: 'rgba(255,255,255,0.35)',
         tabBarLabelStyle: {
           fontSize: 11, fontWeight: '700', letterSpacing: 0.3,
@@ -71,13 +72,28 @@ function RootNavigator() {
     return (
       <View style={styles.splash}>
         <Text style={styles.splashLogo}>📚</Text>
-        <Text style={styles.splashName}>BryceLearning</Text>
-        <ActivityIndicator color="#60a5fa" style={{ marginTop: 24 }} />
+        <Text style={styles.splashName}>SnapStudy</Text>
+        <ActivityIndicator color="#4ade80" style={{ marginTop: 24 }} />
       </View>
     );
   }
 
-  const initialRoute = (isLoggedIn && !activeKid) ? 'KidSelect' : 'Main';
+  // ── Not logged in: show Welcome → Auth flow ──────────────────
+  if (!isLoggedIn) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ presentation: 'card', animationEnabled: true }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // ── Logged in: show KidSelect first if no active kid ─────────
+  const initialRoute = activeKid ? 'Main' : 'KidSelect';
 
   return (
     <Stack.Navigator
@@ -85,9 +101,8 @@ function RootNavigator() {
       initialRouteName={initialRoute}
     >
       <Stack.Screen name="Main"      component={MainTabs} />
-      <Stack.Screen name="Auth"      component={AuthScreen}     options={{ presentation: 'modal' }} />
       <Stack.Screen name="KidSelect" component={KidSelectScreen} />
-      <Stack.Screen name="Quiz"      component={QuizScreen}     options={{ gestureEnabled: false }} />
+      <Stack.Screen name="Quiz"      component={QuizScreen} options={{ gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }

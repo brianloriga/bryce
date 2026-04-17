@@ -1,4 +1,4 @@
-# BryceLearning — Changelog
+# SnapStudy — Changelog
 
 All notable changes to this project are tracked here.
 
@@ -191,6 +191,25 @@ All notable changes to this project are tracked here.
 
 #### Fixed
 - Edge Function returning non-2xx — was being blocked by Supabase JWT verification layer before the function even ran; fixed with `--no-verify-jwt` deploy flag
+
+---
+
+### UI Polish + Branding — 2026-04-17 (continued)
+
+#### Added
+- **WelcomeScreen** — new landing screen shown to unauthenticated users:
+  - App icon, "SnapStudy" name, "Sign In" and "Create Account" buttons
+  - Floating animated bubble background (green/purple palette)
+  - Auth navigator (Welcome → Auth) conditionally replaces the main navigator when logged out
+- **AuthScreen** redesigned — dark theme matching WelcomeScreen; app icon displayed; green submit button; purple toggle link
+- **App renamed to SnapStudy** — updated everywhere: `app.json` name/slug/bundleID/package, `package.json`, all screen text
+- **Green/purple color scheme** applied globally: tab bar active tint → green (`#4ade80`), loading spinner → green, AuthScreen accents → green/purple
+
+#### Noted (pending implementation)
+- When an image fails content validation (non-educational content detected by AI), the rejected image(s) should be **automatically removed** from the staging array rather than leaving them highlighted with an error — tracked in Roadmap `3.11`
+- Boss battle + mini-game reward system planned — kids unlock a boss battle or mini-game after finishing a quiz with 2+ stars; parents choose the reward game per unit; individual games purchasable à la carte — tracked in Roadmap Phase 8
+
+---
 
 #### Current State (end of session 2026-04-17)
 - ✅ Expo Go accessible via QR code (iOS Camera app → opens in Expo Go)
