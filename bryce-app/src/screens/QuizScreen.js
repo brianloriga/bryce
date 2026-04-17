@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import Markdown from 'react-native-markdown-display';
+import Markdown from '@ronradtke/react-native-markdown-display';
 import Svg, { Circle, Path, Rect, Line, Polygon, Text as SvgText, G } from 'react-native-svg';
 import {
   View, Text, StyleSheet, TouchableOpacity,
