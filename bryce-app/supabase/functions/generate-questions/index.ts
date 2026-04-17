@@ -15,14 +15,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `You are a helpful educational assistant.
+const SYSTEM_PROMPT = `You are a helpful educational assistant for children aged 5–12.
+
+CONTENT RULES — these are absolute and must never be violated:
+- All output must be completely appropriate for young children (ages 5–12)
+- Never use profanity, crude language, slang, insults, or any offensive terms
+- Never include violent, sexual, scary, or disturbing content of any kind
+- Never reference drugs, alcohol, weapons, or adult themes
+- Use simple, encouraging, and positive language at all times
 
 Carefully examine the image(s) provided. First determine whether they contain educational or textbook content. Educational content includes: printed text from books or worksheets, math problems or equations, science diagrams or charts, vocabulary lists, reading passages, study notes, or any other academic material meant for studying.
 
-If the image does NOT contain educational content — for example it shows a person's face, an animal, food, a landscape, a building exterior, furniture, a selfie, or any non-academic scene — respond ONLY with this JSON and nothing else:
+If the image does NOT contain educational content — for example it shows a person's face, an animal, food, a landscape, a building exterior, furniture, everyday objects, or any non-academic scene — respond ONLY with this JSON and nothing else:
 {
   "valid": false,
-  "reason": "Brief, friendly explanation (e.g. 'This looks like a photo of a person rather than a textbook or worksheet page. Please take a photo of an actual book or study material.')"
+  "reason": "Brief, friendly explanation using simple language (e.g. 'This looks like a photo of a desk rather than a textbook page. Please take a clear photo of an open book or worksheet.')"
 }
 
 If the image DOES contain educational content, generate 9 multiple-choice practice questions appropriate for the grade level shown in the material.
@@ -31,8 +38,9 @@ Rules for questions:
 - Each question must have exactly 4 answer options (A, B, C, D)
 - Only one option is correct
 - Questions should test understanding, not just memory
-- Keep questions clear and concise
+- Keep questions clear, concise, and child-friendly
 - If multiple pages are provided, spread the questions across all the content
+- Never ask questions about inappropriate topics regardless of what appears in the image
 
 Return ONLY this JSON and nothing else:
 {
@@ -46,6 +54,32 @@ Return ONLY this JSON and nothing else:
     }
   ]
 }`;
+
+// Server-side profanity guard — last line of defense before sending to client
+const BANNED = [
+  /\bf+u+c+k+\w*/gi, /\bs+h+i+t+\w*/gi, /\bb+i+t+c+h+\w*/gi,
+  /\bc+u+n+t+\w*/gi, /\bd+i+c+k+\w*/gi,  /\bp+u+s+s+y+\w*/gi,
+  /\bw+h+o+r+e+\w*/gi, /\bs+l+u+t+\w*/gi, /\bp+o+r+n+\w*/gi,
+  /\bn+i+g+g+[ae]+\w*/gi, /\bf+a+g+g+o+t+\w*/gi,
+];
+
+function serverSanitize(text: string): string {
+  let out = text;
+  for (const p of BANNED) { out = out.replace(p, '[removed]'); p.lastIndex = 0; }
+  return out;
+}
+
+function sanitizeResponse(obj: Record<string, unknown>): Record<string, unknown> {
+  if (obj.valid === false) {
+    return { valid: false, reason: serverSanitize(String(obj.reason ?? '')) };
+  }
+  const questions = (obj.questions as Array<Record<string, unknown>> ?? []).map(q => ({
+    question:     serverSanitize(String(q.question ?? '')),
+    options:      (q.options as string[] ?? []).map(serverSanitize),
+    correctIndex: q.correctIndex,
+  }));
+  return { valid: true, title: serverSanitize(String(obj.title ?? '')), questions };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -119,9 +153,10 @@ serve(async (req) => {
       throw new Error('AI did not return valid JSON. Please try again.');
     }
     const parsed = JSON.parse(jsonMatch[0]);
+    const safe   = sanitizeResponse(parsed);
 
     return new Response(
-      JSON.stringify(parsed),
+      JSON.stringify(safe),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sanitizeUnit, sanitizeReason } from '../utils/profanityFilter';
 
 // Calls the Supabase Edge Function which securely calls GPT-4o Vision.
 // The OpenAI API key never touches the client.
@@ -25,9 +26,7 @@ export async function generateQuestionsFromImage(base64Images) {
 
   // Image failed content validation — attach flag so UI can show inline error
   if (data?.valid === false) {
-    const err = new Error(
-      data.reason ?? 'This image cannot be used. Please take a photo of an actual textbook or worksheet page.'
-    );
+    const err = new Error(sanitizeReason(data.reason));
     err.isValidationError = true;
     throw err;
   }
@@ -37,7 +36,7 @@ export async function generateQuestionsFromImage(base64Images) {
     throw new Error('AI returned an unexpected format. Please try again.');
   }
 
-  const questions = data.questions.map((q, i) => ({
+  const rawQuestions = data.questions.map((q, i) => ({
     question:     q.question     ?? `Question ${i + 1}`,
     options:      Array.isArray(q.options) && q.options.length === 4
                     ? q.options
@@ -45,8 +44,11 @@ export async function generateQuestionsFromImage(base64Images) {
     correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
   }));
 
-  return {
+  // Sanitize ALL AI-generated text before returning to the UI
+  const sanitized = sanitizeUnit({
     title:     data.title ?? 'New Unit',
-    questions: questions.slice(0, 9),
-  };
+    questions: rawQuestions.slice(0, 9),
+  });
+
+  return sanitized;
 }
