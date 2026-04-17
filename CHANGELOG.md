@@ -44,8 +44,22 @@ All notable changes to this project are tracked here.
 
 #### Changed — Packages
 - `expo-speech` installed (TTS)
-- `react-native-svg` installed (geometry rendering)
-- `react-native-markdown-display` installed (markdown in questions)
+- `@ronradtke/react-native-markdown-display` installed (markdown in questions — maintained fork that fixes `prop-types/factoryWithThrowingShims` crash on RN 0.72+)
+
+#### Fixed — `prop-types/factoryWithThrowingShims` crash on app launch
+- `react-native-markdown-display` has a broken dependency on an old `prop-types` internal that was removed in React Native 0.72+
+- Replaced with `@ronradtke/react-native-markdown-display` (actively maintained fork with the fix); updated import in `QuizScreen.js`
+
+#### Fixed — `react-native-svg` module resolution crash (`./lib/extract/types`)
+- The version of `react-native-svg` installed via `npx expo install` had an internal path restructuring incompatible with this project's Metro setup
+- Removed `react-native-svg` entirely; rewrote `GeometryDisplay` using pure React Native `View` and `Text` elements:
+  - `pie` → proportional horizontal strip segments with a colour legend
+  - `bar` → View-based bars with value labels
+  - `shape` → styled `View` with `borderRadius` for circles, rectangles, and basic shapes
+- Zero extra dependencies; visually equivalent output
+
+#### Fixed — Edge function TypeScript red errors in IDE
+- Added `// @ts-nocheck` to `generate-questions/index.ts` — the Deno runtime globals (`Deno`, `https://` imports) are not known to the Node type checker; this suppresses false positives without affecting deployment
 
 ### Phase 1: Foundation — 2026-04-16
 

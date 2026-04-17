@@ -327,7 +327,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 | 7.B–D | Security hardening, UX polish, engagement features | 🔄 In progress |
 | **Theme + Avatar** | Dark/light mode system, colour+initial avatars, edit profile | ✅ Done |
 | **7.C Polish** | "Lesson" rename, Go to Learn button, keyboard-aware modals, crash fix | ✅ Done |
-| **7.D Rich Questions** | Visual emoji questions, hints, TTS, markdown, SVG geometry, per-question regenerate | ✅ Done |
+| **7.D Rich Questions** | Visual emoji questions, hints, TTS, markdown, geometry display, per-question regenerate | ✅ Done |
 | 6 | App Store Launch (free / no paywall) | Pending |
 | 8 | Boss battles, mini-games & à la carte purchases | Pending |
 | **4** | **Subscriptions** — added last after beta testing validates all functionality | **Last** |
