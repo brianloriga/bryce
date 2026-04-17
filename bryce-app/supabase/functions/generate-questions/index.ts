@@ -9,6 +9,7 @@
 //   npx supabase secrets set OPENAI_API_KEY=sk-...
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,12 +82,52 @@ function sanitizeResponse(obj: Record<string, unknown>): Record<string, unknown>
   return { valid: true, title: serverSanitize(String(obj.title ?? '')), questions };
 }
 
+const MAX_SCANS_PER_DAY = 20;
+
+function parseJwtUserId(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // ── Rate limiting ──────────────────────────────────────────
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace('Bearer ', '');
+    const userId = parseJwtUserId(jwt);
+
+    if (userId) {
+      const supabaseUrl  = Deno.env.get('SUPABASE_URL') ?? '';
+      const supabaseKey  = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+
+      const { count } = await supabase
+        .from('scan_logs')
+        .select('*', { count: 'exact', head: true })
+        .gte('scanned_at', todayStart.toISOString());
+
+      if ((count ?? 0) >= MAX_SCANS_PER_DAY) {
+        return new Response(
+          JSON.stringify({ error: `Daily scan limit reached (${MAX_SCANS_PER_DAY}/day). Try again tomorrow.` }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // ── End rate limiting ──────────────────────────────────────
+
     const body = await req.json();
 
     // Accept `images` array (new) or legacy `imageBase64` string
@@ -95,6 +136,8 @@ serve(async (req) => {
       : body.imageBase64
         ? [body.imageBase64]
         : [];
+
+    const questionCount: number = Math.min(Math.max(Number(body.questionCount) || 9, 5), 20);
 
     if (imageList.length === 0) {
       return new Response(
@@ -120,8 +163,8 @@ serve(async (req) => {
     userContent.push({
       type: 'text',
       text: imageList.length > 1
-        ? `These are ${imageList.length} pages from the same unit. Generate 9 practice questions covering the content across all pages.`
-        : 'Generate 9 practice questions from this page.',
+        ? `These are ${imageList.length} pages from the same unit. Generate exactly ${questionCount} practice questions spread evenly across all pages.`
+        : `Generate exactly ${questionCount} practice questions from this page.`,
     });
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -154,6 +197,16 @@ serve(async (req) => {
     }
     const parsed = JSON.parse(jsonMatch[0]);
     const safe   = sanitizeResponse(parsed);
+
+    // Log the scan for rate limiting (fire-and-forget)
+    if (userId) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+      supabase.from('scan_logs').insert({ user_id: userId }).then(() => {});
+    }
 
     return new Response(
       JSON.stringify(safe),

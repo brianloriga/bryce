@@ -1,23 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  TextInput, Alert, ActivityIndicator, Animated, Dimensions,
+  TextInput, Alert, ActivityIndicator, Animated, Dimensions, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { createKidProfile, deleteKidProfile } from '../services/supabase';
+import { createKidProfile, deleteKidProfile, updateKidProfile } from '../services/supabase';
+import { AVATAR_KEYS, getAvatarSource, getAvatarBg, DEFAULT_AVATAR } from '../utils/avatars';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-
-const AVATARS = ['🦁','🐯','🦊','🐼','🐨','🐸','🦄','🐲','🚀','⭐','🎮','🌈'];
-
-const AVATAR_COLORS = {
-  '🦁': '#fde68a', '🐯': '#fed7aa', '🦊': '#fca5a5', '🐼': '#d1d5db',
-  '🐨': '#a5b4fc', '🐸': '#86efac', '🦄': '#f5d0fe', '🐲': '#6ee7b7',
-  '🚀': '#bae6fd', '⭐': '#fef08a', '🎮': '#c4b5fd', '🌈': '#fbcfe8',
-};
 
 // Floating background bubbles config
 const BUBBLES = [
@@ -72,12 +66,18 @@ export default function KidSelectScreen() {
   const route      = useRoute();
   const mode       = route.params?.mode ?? 'select'; // 'select' | 'manage'
 
-  const { kidProfiles, selectKid, reloadKids } = useAuth();
+  const { kidProfiles, selectKid, reloadKids, kidLoadError } = useAuth();
 
   const [showAdd, setShowAdd]     = useState(false);
   const [newName, setNewName]     = useState('');
-  const [newAvatar, setNewAvatar] = useState('🦁');
+  const [newAvatar, setNewAvatar] = useState(DEFAULT_AVATAR);
   const [saving, setSaving]       = useState(false);
+
+  // Edit existing kid
+  const [editKid, setEditKid]       = useState(null); // kid object being edited
+  const [editName, setEditName]     = useState('');
+  const [editAvatar, setEditAvatar] = useState(DEFAULT_AVATAR);
+  const [editSaving, setEditSaving] = useState(false);
 
   // Content fade/slide in on mount
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -107,7 +107,7 @@ export default function KidSelectScreen() {
     try {
       await createKidProfile(newName.trim(), newAvatar);
       await reloadKids();
-      setNewName(''); setNewAvatar('🦁'); setShowAdd(false);
+      setNewName(''); setNewAvatar(DEFAULT_AVATAR); setShowAdd(false);
     } catch (err) {
       Alert.alert('Error', err.message);
     } finally {
@@ -129,6 +129,51 @@ export default function KidSelectScreen() {
           },
         },
       ]
+    );
+  }
+
+  function openEdit(kid) {
+    setEditKid(kid);
+    setEditName(kid.name);
+    setEditAvatar(kid.avatar ?? DEFAULT_AVATAR);
+  }
+
+  function closeEdit() {
+    setEditKid(null);
+    setEditName('');
+    setEditAvatar(DEFAULT_AVATAR);
+  }
+
+  async function handleSaveEdit() {
+    if (!editName.trim()) {
+      Alert.alert('Name required', "Please enter the child's name.");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await updateKidProfile(editKid.id, { name: editName.trim(), avatar: editAvatar });
+      await reloadKids();
+      closeEdit();
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  if (kidLoadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <BubbleBackground />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorEmoji}>😕</Text>
+          <Text style={styles.errorTitle}>Couldn't load profiles</Text>
+          <Text style={styles.errorDesc}>{kidLoadError}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={reloadKids}>
+            <Text style={styles.retryBtnText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -173,8 +218,10 @@ export default function KidSelectScreen() {
               <KidBubble
                 key={kid.id}
                 kid={kid}
+                mode={mode}
                 onPress={() => handleTapKid(kid)}
                 onLongPress={() => confirmDelete(kid)}
+                onEdit={() => openEdit(kid)}
               />
             ))}
 
@@ -205,17 +252,17 @@ export default function KidSelectScreen() {
 
               <Text style={styles.fieldLabel}>Choose an avatar</Text>
               <View style={styles.avatarGrid}>
-                {AVATARS.map(a => (
+                {AVATAR_KEYS.map(key => (
                   <TouchableOpacity
-                    key={a}
+                    key={key}
                     style={[
                       styles.avatarOption,
-                      { backgroundColor: AVATAR_COLORS[a] ?? '#e2e8f0' },
-                      newAvatar === a && styles.avatarSelected,
+                      { backgroundColor: getAvatarBg(key) },
+                      newAvatar === key && styles.avatarSelected,
                     ]}
-                    onPress={() => setNewAvatar(a)}
+                    onPress={() => setNewAvatar(key)}
                   >
-                    <Text style={styles.avatarEmoji}>{a}</Text>
+                    <Image source={getAvatarSource(key)} style={styles.avatarImg} resizeMode="contain" />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -240,31 +287,107 @@ export default function KidSelectScreen() {
 
         </Animated.View>
       </ScrollView>
+
+      {/* Edit profile modal */}
+      <Modal
+        visible={!!editKid}
+        transparent
+        animationType="slide"
+        onRequestClose={closeEdit}
+      >
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeEdit}>
+          <TouchableOpacity activeOpacity={1} style={styles.editSheet}>
+            <View style={styles.editHandle} />
+
+            <View style={styles.editHeader}>
+              <Text style={styles.editTitle}>Edit Profile</Text>
+              <TouchableOpacity onPress={closeEdit}>
+                <Ionicons name="close" size={22} color="#7c3aed" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Current avatar preview */}
+            <View style={styles.editPreviewRow}>
+              <View style={[styles.editPreview, { backgroundColor: getAvatarBg(editAvatar) }]}>
+                <Image source={getAvatarSource(editAvatar)} style={styles.editPreviewImg} resizeMode="contain" />
+              </View>
+              <TextInput
+                style={styles.editNameInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Child's name"
+                placeholderTextColor="#a78bfa"
+                autoFocus={false}
+              />
+            </View>
+
+            <Text style={styles.editAvatarLabel}>Choose avatar</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+              <View style={styles.avatarGrid}>
+                {AVATAR_KEYS.map(key => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.avatarOption,
+                      { backgroundColor: getAvatarBg(key) },
+                      editAvatar === key && styles.avatarSelected,
+                    ]}
+                    onPress={() => setEditAvatar(key)}
+                  >
+                    <Image source={getAvatarSource(key)} style={styles.avatarImg} resizeMode="contain" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.saveBtn, editSaving && { opacity: 0.6 }]}
+              onPress={handleSaveEdit}
+              disabled={editSaving}
+            >
+              {editSaving
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>Save Changes</Text>
+              }
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
-function KidBubble({ kid, onPress, onLongPress }) {
+function KidBubble({ kid, mode, onPress, onLongPress, onEdit }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   function handlePress() {
+    if (mode === 'manage') {
+      onEdit();
+      return;
+    }
     Animated.sequence([
       Animated.spring(scaleAnim, { toValue: 0.88, useNativeDriver: true, speed: 50 }),
       Animated.spring(scaleAnim, { toValue: 1,    useNativeDriver: true, speed: 30 }),
     ]).start(() => onPress());
   }
 
-  const bgColor = AVATAR_COLORS[kid.avatar] ?? '#e2e8f0';
+  const bgColor = getAvatarBg(kid.avatar);
 
   return (
     <TouchableOpacity
       style={styles.kidBubbleWrap}
       onPress={handlePress}
       onLongPress={onLongPress}
-      activeOpacity={1}
+      activeOpacity={0.85}
     >
       <Animated.View style={[styles.kidBubble, { backgroundColor: bgColor, transform: [{ scale: scaleAnim }] }]}>
-        <Text style={styles.kidEmoji}>{kid.avatar}</Text>
+        <Image source={getAvatarSource(kid.avatar)} style={styles.kidAvatarImg} resizeMode="contain" />
+        {mode === 'manage' && (
+          <View style={styles.editBadge}>
+            <Ionicons name="pencil" size={11} color="#fff" />
+          </View>
+        )}
       </Animated.View>
       <Text style={styles.kidName} numberOfLines={1}>{kid.name}</Text>
     </TouchableOpacity>
@@ -306,13 +429,14 @@ const styles = StyleSheet.create({
   },
   kidBubbleWrap: { alignItems: 'center', width: 100 },
   kidBubble: {
-    width: 90, height: 90, borderRadius: 45,
+    width: 90, height: 90, borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2, shadowRadius: 12, elevation: 6,
     marginBottom: 8,
+    overflow: 'hidden',
   },
-  kidEmoji: { fontSize: 44 },
+  kidAvatarImg: { width: 90, height: 90 },
   kidName: {
     fontSize: 14, fontWeight: '700', color: '#1e1b4b',
     textAlign: 'center', maxWidth: 90,
@@ -347,14 +471,15 @@ const styles = StyleSheet.create({
     fontSize: 18, fontWeight: '600', color: '#1e1b4b',
     borderWidth: 2, borderColor: '#ddd6fe', marginBottom: 16,
   },
-  avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   avatarOption: {
-    width: 50, height: 50, borderRadius: 14,
+    width: 60, height: 60, borderRadius: 16,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: 'transparent',
+    overflow: 'hidden',
   },
   avatarSelected: { borderColor: '#7c3aed' },
-  avatarEmoji:    { fontSize: 26 },
+  avatarImg:      { width: 52, height: 52 },
 
   saveBtn: {
     backgroundColor: '#7c3aed', borderRadius: 14,
@@ -367,4 +492,64 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12, color: '#c4b5fd', textAlign: 'center', marginTop: 20,
   },
+
+  // Edit pencil badge on bubble
+  editBadge: {
+    position: 'absolute', bottom: 4, right: 4,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: '#7c3aed',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+  },
+
+  // Edit profile modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end',
+  },
+  editSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, paddingBottom: 40,
+  },
+  editHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#e2e8f0', alignSelf: 'center', marginBottom: 20,
+  },
+  editHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 20,
+  },
+  editTitle: { fontSize: 20, fontWeight: '800', color: '#1e1b4b' },
+
+  editPreviewRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20,
+  },
+  editPreview: {
+    width: 64, height: 64, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    flexShrink: 0,
+  },
+  editPreviewImg: { width: 64, height: 64 },
+  editNameInput: {
+    flex: 1, backgroundColor: '#f5f3ff', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 18, fontWeight: '600', color: '#1e1b4b',
+    borderWidth: 2, borderColor: '#ddd6fe',
+  },
+  editAvatarLabel: {
+    fontSize: 12, fontWeight: '700', color: '#7c3aed',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10,
+  },
+
+  errorContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32,
+  },
+  errorEmoji: { fontSize: 56, marginBottom: 16 },
+  errorTitle: { fontSize: 22, fontWeight: '800', color: '#1e1b4b', marginBottom: 8 },
+  errorDesc:  { fontSize: 14, color: '#7c3aed', textAlign: 'center', marginBottom: 28, lineHeight: 20 },
+  retryBtn: {
+    backgroundColor: '#7c3aed', borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 28,
+  },
+  retryBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

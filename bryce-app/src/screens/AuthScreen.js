@@ -9,12 +9,13 @@ import { StatusBar } from 'expo-status-bar';
 import { signIn, signUp } from '../services/supabase';
 
 export default function AuthScreen({ route }) {
-  const [mode, setMode]         = useState(route?.params?.initialMode ?? 'signin'); // 'signin' | 'signup'
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [mode, setMode]             = useState(route?.params?.initialMode ?? 'signin'); // 'signin' | 'signup'
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [confirm, setConfirm]       = useState('');
+  const [consentChecked, setConsent] = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [errorMsg, setErrorMsg]     = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   async function handleSubmit() {
@@ -27,6 +28,10 @@ export default function AuthScreen({ route }) {
     }
     if (mode === 'signup' && password !== confirm) {
       setErrorMsg('Passwords do not match.');
+      return;
+    }
+    if (mode === 'signup' && !consentChecked) {
+      setErrorMsg('Please confirm you are a parent or guardian to create an account.');
       return;
     }
     if (password.length < 6) {
@@ -119,6 +124,18 @@ export default function AuthScreen({ route }) {
                   onChangeText={setConfirm}
                   secureTextEntry
                 />
+                <TouchableOpacity
+                  style={styles.consentRow}
+                  onPress={() => setConsent(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.checkbox, consentChecked && styles.checkboxChecked]}>
+                    {consentChecked && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.consentText}>
+                    I confirm I am a parent or guardian (18+) creating this account for my child's use.
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
 
@@ -297,6 +314,25 @@ const styles = StyleSheet.create({
     color: '#86efac',
     fontSize: 14,
     fontWeight: '500',
+  },
+  consentRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    gap: 12, marginBottom: 16, marginTop: 4,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'transparent',
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: '#16a34a', borderColor: '#16a34a',
+  },
+  checkmark: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  consentText: {
+    flex: 1, fontSize: 13,
+    color: 'rgba(255,255,255,0.65)', lineHeight: 19,
   },
   legalNote: {
     fontSize: 12,

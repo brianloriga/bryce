@@ -1,13 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, TextInput, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { getCustomUnits, deleteCustomUnit } from '../services/supabase';
+import { useTheme } from '../context/ThemeContext';
+import { getCustomUnits, deleteCustomUnit, getQuizResultsForKid } from '../services/supabase';
+import { getAvatarSource, getAvatarBg } from '../utils/avatars';
 
 const CARD_COLORS = [
   '#2563eb', '#7c3aed', '#db2777',
@@ -17,12 +20,16 @@ const CARD_COLORS = [
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { activeKid, isLoggedIn } = useAuth();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [units, setUnits]         = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [units, setUnits]           = useState([]);
+  const [resultsMap, setResultsMap] = useState({});
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError]   = useState(null);
+  const [search, setSearch]         = useState('');
 
-  // Reload units every time the tab comes into focus
   useFocusEffect(
     useCallback(() => {
       loadUnits();
@@ -31,11 +38,24 @@ export default function HomeScreen() {
 
   async function loadUnits() {
     if (!isLoggedIn) { setLoading(false); setUnits([]); return; }
+    setLoadError(null);
     try {
-      const data = await getCustomUnits();
+      const [data, results] = await Promise.all([
+        getCustomUnits(),
+        activeKid?.id ? getQuizResultsForKid(activeKid.id) : Promise.resolve([]),
+      ]);
       setUnits(data);
+      const map = {};
+      for (const r of results) {
+        const key = r.unit_id ?? r.unit_title;
+        if (!map[key] || r.stars > map[key].stars || (r.stars === map[key].stars && r.score > map[key].score)) {
+          map[key] = { stars: r.stars, score: r.score, total: r.total, attempts: 0 };
+        }
+        map[key].attempts = (map[key].attempts ?? 0) + 1;
+      }
+      setResultsMap(map);
     } catch (err) {
-      console.warn('[HomeScreen] loadUnits error:', err.message);
+      setLoadError(err.message ?? 'Could not load units');
     } finally {
       setLoading(false);
     }
@@ -68,36 +88,58 @@ export default function HomeScreen() {
     );
   }
 
-  // ── Loading ─────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
+        <StatusBar style={theme.statusBar} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color={theme.accent} />
         </View>
       </SafeAreaView>
     );
   }
 
-  // ── Main render ─────────────────────────────────────────────
+  const filteredUnits = search.trim()
+    ? units.filter(u => u.title.toLowerCase().includes(search.toLowerCase()))
+    : units;
+
+  if (loadError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style={theme.statusBar} />
+        <View style={styles.center}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
+          <Text style={styles.errorTitle}>Couldn't load units</Text>
+          <Text style={styles.errorDesc}>{loadError}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); loadUnits(); }}>
+            <Text style={styles.retryBtnText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" />
+      <StatusBar style={theme.statusBar} />
       <ScrollView
-        contentContainerStyle={[styles.content, units.length === 0 && styles.contentEmpty]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563eb" />}
+        contentContainerStyle={[styles.content, filteredUnits.length === 0 && styles.contentEmpty]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
           {activeKid ? (
-            <View style={styles.kidBadge}>
-              <Text style={styles.kidBadgeEmoji}>{activeKid.avatar}</Text>
-              <Text style={styles.kidBadgeName}>{activeKid.name}</Text>
+            <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(activeKid.avatar) }]}>
+              <Image
+                source={getAvatarSource(activeKid.avatar)}
+                style={styles.avatarImg}
+                resizeMode="contain"
+              />
             </View>
           ) : null}
           <Text style={styles.greeting}>
-            {activeKid ? `Hi, ${activeKid.name}! 👋` : 'Welcome!'}
+            {activeKid ? `Hi, ${activeKid.name}!` : 'Welcome!'}
           </Text>
           <Text style={styles.greetingSub}>
             {units.length > 0
@@ -106,12 +148,29 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        {/* Search bar */}
+        {units.length > 2 && (
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={18} color={theme.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search units…"
+              placeholderTextColor={theme.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              clearButtonMode="while-editing"
+              returnKeyType="search"
+            />
+          </View>
+        )}
+
         {/* Unit cards */}
-        {units.length > 0 ? (
+        {filteredUnits.length > 0 ? (
           <View style={styles.unitList}>
-            {units.map((unit, i) => {
-              const color = CARD_COLORS[i % CARD_COLORS.length];
+            {filteredUnits.map((unit, i) => {
+              const color  = CARD_COLORS[i % CARD_COLORS.length];
               const qCount = unit.questions?.length ?? 0;
+              const best   = resultsMap[unit.id] ?? resultsMap[unit.title] ?? null;
               return (
                 <TouchableOpacity
                   key={unit.id}
@@ -120,33 +179,59 @@ export default function HomeScreen() {
                   onLongPress={() => confirmDelete(unit)}
                   activeOpacity={0.88}
                 >
-                  <View style={styles.unitCardLeft}>
-                    <Text style={styles.unitCardTitle} numberOfLines={2}>{unit.title}</Text>
-                    <Text style={styles.unitCardMeta}>{qCount} question{qCount !== 1 ? 's' : ''}</Text>
+                  <View style={styles.unitCardTop}>
+                    <View style={styles.unitCardLeft}>
+                      <Text style={styles.unitCardTitle} numberOfLines={2}>{unit.title}</Text>
+                      <Text style={styles.unitCardMeta}>{qCount} question{qCount !== 1 ? 's' : ''}</Text>
+                    </View>
+                    <View style={styles.playBtn}>
+                      <Ionicons name="play" size={22} color="#fff" />
+                    </View>
                   </View>
-                  <View style={styles.playBtn}>
-                    <Text style={styles.playBtnText}>▶</Text>
+
+                  <View style={styles.scoreStrip}>
+                    {best ? (
+                      <>
+                        <Text style={styles.scoreStars}>
+                          {[1,2,3].map(n => n <= best.stars ? '⭐' : '☆').join('')}
+                        </Text>
+                        <Text style={styles.scoreText}>
+                          Best: {best.score}/{best.total}
+                        </Text>
+                        <Text style={styles.attemptsText}>
+                          {best.attempts} attempt{best.attempts !== 1 ? 's' : ''}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={styles.notPlayedText}>Not played yet — give it a try!</Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               );
             })}
           </View>
         ) : (
-          /* Empty state */
           <View style={styles.empty}>
             <View style={styles.emptyIconCircle}>
-              <Text style={styles.emptyIcon}>📚</Text>
+              <Ionicons name={search ? 'search' : 'book-outline'} size={44} color={theme.textMuted} />
             </View>
-            <Text style={styles.emptyTitle}>No units yet</Text>
+            <Text style={styles.emptyTitle}>{search ? 'No matches' : 'No units yet'}</Text>
             <Text style={styles.emptyDesc}>
-              {isLoggedIn
-                ? 'A parent can tap the Scan tab to photograph a textbook page.\nQuestions will appear here instantly.'
-                : 'Sign in to view your study units.'}
+              {search
+                ? `No units found for "${search}"`
+                : isLoggedIn
+                  ? 'Tap the Scan tab to photograph a textbook page.\nQuestions will appear here instantly.'
+                  : 'Sign in to view your study units.'}
             </Text>
+            {search ? (
+              <TouchableOpacity style={styles.clearSearchBtn} onPress={() => setSearch('')}>
+                <Text style={styles.clearSearchText}>Clear search</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         )}
 
-        {units.length > 0 && (
+        {filteredUnits.length > 0 && (
           <Text style={styles.hintText}>Hold a unit to delete it</Text>
         )}
       </ScrollView>
@@ -154,83 +239,98 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe:         { flex: 1, backgroundColor: '#f1f5f9' },
-  center:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content:      { padding: 20, paddingBottom: 40 },
-  contentEmpty: { flex: 1 },
+function createStyles(t) {
+  return StyleSheet.create({
+    safe:         { flex: 1, backgroundColor: t.bg },
+    center:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    content:      { padding: 20, paddingBottom: 40 },
+    contentEmpty: { flex: 1 },
 
-  header: {
-    marginBottom: 28,
-    paddingTop: 8,
-  },
-  kidBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#dbeafe', borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
-    alignSelf: 'flex-start', marginBottom: 12,
-  },
-  kidBadgeEmoji: { fontSize: 16 },
-  kidBadgeName:  { fontSize: 13, fontWeight: '700', color: '#1d4ed8' },
+    // Header
+    header: { marginBottom: 24, paddingTop: 8, alignItems: 'flex-start' },
+    avatarCircle: {
+      width: 88, height: 88, borderRadius: 22,
+      alignItems: 'center', justifyContent: 'center',
+      marginBottom: 14,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 10,
+      elevation: 4,
+    },
+    avatarImg: { width: 88, height: 88 },
+    greeting:    { fontSize: 32, fontWeight: '800', color: t.text, marginBottom: 4 },
+    greetingSub: { fontSize: 15, color: t.textSub },
 
-  greeting:    { fontSize: 32, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
-  greetingSub: { fontSize: 15, color: '#64748b' },
+    // Search
+    searchBar: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: t.bgCard, borderRadius: 14,
+      borderWidth: 1, borderColor: t.border,
+      paddingHorizontal: 14, paddingVertical: 11,
+      marginBottom: 20,
+    },
+    searchInput: { flex: 1, fontSize: 15, color: t.text },
 
-  unitList: { gap: 14 },
+    // Cards
+    unitList: { gap: 14 },
+    unitCard: {
+      borderRadius: 20, padding: 20, flexDirection: 'column',
+      shadowColor: t.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 5,
+    },
+    unitCardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+    unitCardLeft: { flex: 1, marginRight: 12 },
+    unitCardTitle: {
+      fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 4, lineHeight: 26,
+    },
+    unitCardMeta: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+    playBtn: {
+      width: 48, height: 48, borderRadius: 24,
+      backgroundColor: 'rgba(255,255,255,0.25)',
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
 
-  unitCard: {
-    borderRadius: 20,
-    padding: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  unitCardLeft: { flex: 1, marginRight: 12 },
-  unitCardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 6,
-    lineHeight: 26,
-  },
-  unitCardMeta: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.75)',
-  },
-  playBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  playBtnText: { fontSize: 18, color: '#fff', marginLeft: 3 },
+    // Score strip
+    scoreStrip: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)', paddingTop: 12,
+    },
+    scoreStars:    { fontSize: 16 },
+    scoreText:     { fontSize: 13, fontWeight: '700', color: '#fff' },
+    attemptsText:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginLeft: 'auto' },
+    notPlayedText: { fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' },
 
-  // Empty state
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-  },
-  emptyIconCircle: {
-    width: 100, height: 100, borderRadius: 50,
-    backgroundColor: '#e2e8f0',
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 20,
-  },
-  emptyIcon:  { fontSize: 48 },
-  emptyTitle: { fontSize: 24, fontWeight: '800', color: '#1e293b', marginBottom: 10 },
-  emptyDesc:  {
-    fontSize: 15, color: '#64748b', textAlign: 'center', lineHeight: 24,
-  },
+    // Empty
+    empty: {
+      flex: 1, alignItems: 'center', justifyContent: 'center',
+      paddingHorizontal: 24, paddingTop: 60,
+    },
+    emptyIconCircle: {
+      width: 100, height: 100, borderRadius: 50,
+      backgroundColor: t.bgCard,
+      borderWidth: 1, borderColor: t.border,
+      alignItems: 'center', justifyContent: 'center', marginBottom: 20,
+    },
+    emptyTitle: { fontSize: 24, fontWeight: '800', color: t.text, marginBottom: 10 },
+    emptyDesc:  { fontSize: 15, color: t.textSub, textAlign: 'center', lineHeight: 24 },
+    hintText:   { fontSize: 12, color: t.textMuted, textAlign: 'center', marginTop: 20 },
 
-  hintText: {
-    fontSize: 12, color: '#cbd5e1', textAlign: 'center', marginTop: 20,
-  },
-});
+    // Error
+    errorEmoji: { fontSize: 48, marginBottom: 12 },
+    errorTitle: { fontSize: 20, fontWeight: '800', color: t.text, marginBottom: 6 },
+    errorDesc:  { fontSize: 14, color: t.textSub, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+    retryBtn: {
+      backgroundColor: t.accent, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 28,
+    },
+    retryBtnText: { fontSize: 15, fontWeight: '700', color: '#000' },
+
+    // Clear search
+    clearSearchBtn:  { marginTop: 16 },
+    clearSearchText: { fontSize: 14, color: t.accent, fontWeight: '600' },
+  });
+}

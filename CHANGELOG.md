@@ -211,6 +211,61 @@ All notable changes to this project are tracked here.
 
 ---
 
+### Bug Fixes Batch — 2026-04-17
+
+#### Fixed
+- **3.11** Auto-remove rejected images — when GPT-4o content validation rejects an image, the staging array is now cleared automatically so the parent can immediately add different images without manually removing them
+- **7.1** QuizScreen zero-question guard — units with no questions now show a friendly "No questions yet" screen instead of crashing with a divide-by-zero error
+- **7.2** QuizScreen `setTimeout` cleanup — the 1.4 s auto-advance timeout is now stored in a ref and cancelled on component unmount, preventing ghost state updates if the user navigates away mid-quiz
+- **7.3** QuizScreen `correctIndex` clamping — `safeCorrectIndex` clamps the stored value to the valid option range so an out-of-bounds value can never silently mark the wrong answer correct
+- **7.4** Replaced hardcoded "Bryce" in ScanScreen success screen and how-it-works steps with `activeKid?.name ?? 'Your child'` so it works for any family
+- **7.5** Parent PIN cleared on sign-out — `clearParentPin()` is now called before `signOut()` so a PIN set by one account can't carry over to another account on the same device
+- **7.6** Renamed AsyncStorage key from `@brycelearning_parent_pin` → `@snapstudy_parent_pin` for brand consistency
+
+---
+
+### Phase 7 — Security, Polish & Engagement — 2026-04-17
+
+#### Security (7.B)
+- **7.7** Edge Function rate limiting — max 20 scans/day per user; JWT user ID extracted server-side, daily count checked against new `scan_logs` table in Supabase; returns HTTP 429 with a clear message if exceeded
+- **7.8** PIN storage upgraded from AsyncStorage → `expo-secure-store` — PIN is now encrypted at rest on-device (important on Android)
+- **7.11** Removed all `console.log` statements that exposed user IDs, Supabase keys, and debug info from `supabase.js` and `AuthContext.js`
+
+#### UX & Polish (7.C)
+- **7.12** HomeScreen error state — network failures now show a friendly "Couldn't load units" screen with a **Try Again** button instead of a silent blank screen
+- **7.13** KidSelectScreen error state — profile load failures now surface with a **Try Again** button; `kidLoadError` exposed from `AuthContext`
+- **7.15** Upgrade button in AccountScreen now shows a beta alert: "All features are free during testing — subscriptions unlock at public launch"
+- **7.17** Search / filter bar on HomeScreen — appears automatically when a parent has 3+ units; filters by title in real-time; empty state adapts to show "No matches" with a clear-search button
+
+#### Engagement (7.D)
+- **7.19** Quiz results saved to Supabase — every completed quiz writes score, total, stars, kid ID, unit ID, and timestamp to a new `quiz_results` table (fire-and-forget, never blocks the results screen)
+
+#### Schema additions (run in Supabase SQL Editor)
+- `quiz_results` table — tracks per-kid quiz history for future progress dashboard
+- `scan_logs` table — powers daily scan rate limiting in the Edge Function
+
+---
+
+### Phase 5 — Polish & COPPA Compliance — 2026-04-17
+
+#### Added
+- **OnboardingScreen** — 3-slide animated intro shown once to new parents after first login:
+  - Slide 1 (green): "Scan any textbook" — explains the core camera feature
+  - Slide 2 (purple): "One account, every kid" — explains multi-profile support
+  - Slide 3 (blue): "Watch them shine" — explains quiz progress and stars
+  - Animated pill dots indicate current slide; accent color shifts per slide
+  - Skip button + Next/Let's Go button; completion stored in AsyncStorage (`@snapstudy_onboarding_done`)
+- **PrivacyPolicyScreen** — full COPPA-compliant privacy policy covering data collection, children's privacy, OpenAI image processing disclosure, and data deletion rights
+- **TermsScreen** — Terms of Service covering parental consent requirement, content upload rules, subscription terms, and educational disclaimer
+- **Parental consent checkbox** on AuthScreen signup — "I confirm I am a parent or guardian (18+)" must be checked before account creation; blocks submit with a clear error if unchecked
+- **Haptic feedback** in QuizScreen — `expo-haptics` success vibration on correct answers, error vibration on wrong answers
+- Wired **Privacy Policy** and **Terms of Service** rows in AccountScreen About section — now navigate to the real screens
+
+#### Dependencies added
+- `expo-haptics`
+
+---
+
 #### Current State (end of session 2026-04-17)
 - ✅ Expo Go accessible via QR code (iOS Camera app → opens in Expo Go)
 - ✅ Kid select → main app navigation works
@@ -219,6 +274,47 @@ All notable changes to this project are tracked here.
 - ✅ Modern dark tab bar with vector icons
 - ⏳ AI scanning end-to-end test pending (needs physical camera on device)
 - ⏳ Phase 4 Subscriptions not started
+
+---
+
+### Phase 7 — Theme System, Avatar Overhaul & Profile Editing — 2026-04-17
+
+#### Added — Dark / Light Mode
+
+- **ThemeContext** (`src/context/ThemeContext.js`) — global theme provider with full `dark` and `light` color palettes; preference persisted in AsyncStorage (`@snapstudy_theme`); `useTheme()` hook exposes `{ theme, toggleTheme, isDark }` to every screen
+- **Appearance section in AccountScreen** — sun/moon icon + `Switch` toggle lets the user flip between Dark and Light mode live; preference survives restarts
+- **Themed tab bar** in `App.js` — background, active/inactive tint, and border all adapt to the active theme
+
+#### Changed — Screen Theming
+
+- **HomeScreen** — fully themed via `createStyles(theme)` + `useMemo`; background, cards, search bar, empty state, error state, badges, and activity indicator all respect theme
+- **AccountScreen** — fully themed; PIN pad keys, banners, profile card, kid list, subscription card, and About rows all use theme tokens; Sign Out button uses solid danger red with white text in dark mode for legibility; Manage Profiles button gets accent-tinted background + white text in dark mode
+- **ScanScreen** — fully themed; all previously hardcoded dark colors (`#0d0d1a`, `#1a1a2e`, `rgba(255,255,255,...)`) replaced with theme tokens; hero buttons, thumbnail strip, picker, modal sheet, and preview/edit cards all adapt; thumbnail overlay colours intentionally stay black (overlaid on photos)
+- All `StatusBar style="light"` instances replaced with `style={theme.statusBar}` so status bar text is readable in both modes
+
+#### Added — PIN Removal
+
+- **Remove PIN lock** button — appears in AccountScreen below the green PIN banner whenever a PIN is set; taps trigger a confirmation alert then call `clearParentPin()` and update state immediately without requiring sign-out
+
+#### Added — Custom Avatar Images
+
+- **`src/utils/avatars.js`** — shared registry mapping 11 character keys (`bear`, `bunny`, `dino`, `dog`, `kitty`, `mermaid`, `owl`, `panda`, `red_dino`, `robot`, `unicorn`) to PNG assets in `child_icons/`; exports `getAvatarSource(key)`, `getAvatarBg(key)`, `AVATAR_KEYS`, `DEFAULT_AVATAR`
+- All emoji-based avatar references replaced with real illustrated character images from `bryce-app/child_icons/`
+
+#### Changed — Avatar Display
+
+- **KidSelectScreen** — avatar picker grid now shows the illustrated character images (60×60 rounded square); kid bubbles on the "Who's learning today?" screen show the character image (90×90 rounded square); bubble shape changed from circle to `borderRadius: 22` to match image art style
+- **HomeScreen** — kid badge (emoji + name) replaced with a large **88×88 rounded-square avatar image** above the greeting; only name and unit count shown below — cleaner and more prominent
+- **AccountScreen** — profile card and kid list rows both display the character image instead of emoji; all avatar containers use rounded-square borders matching the image art style
+- Avatar containers across all screens changed from circles to **rounded squares** (`borderRadius: 22/14/10`) to eliminate the "square image inside circle" layering artefact
+
+#### Added — Edit Kid Profile
+
+- **`updateKidProfile(kidId, { name, avatar })`** added to `supabase.js` — updates `kid_profiles` row via Supabase `.update()`
+- **Edit profile modal in KidSelectScreen** — in "Manage Profiles" mode, each kid bubble now shows a purple pencil badge; tapping the bubble opens a bottom-sheet modal with:
+  - Live avatar preview + name text input (pre-filled with current values)
+  - Full avatar picker grid to choose a new character
+  - "Save Changes" button calls `updateKidProfile` then reloads profiles
 
 ---
 

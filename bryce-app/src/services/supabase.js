@@ -4,8 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl  = process.env.EXPO_PUBLIC_SUPABASE_URL  ?? '';
 const supabaseKey  = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-// Debug: confirm keys loaded (remove before App Store submission)
-console.log('[Supabase] URL loaded:', !!supabaseUrl, '| Key loaded:', !!supabaseKey);
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
@@ -48,8 +46,7 @@ export async function getKidProfiles() {
 }
 
 export async function createKidProfile(name, avatar = '🦁') {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log('[createKidProfile] user:', user?.id ?? 'NULL', userError?.message ?? '');
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Must be signed in to create a kid profile');
 
   const { data, error } = await supabase
@@ -58,7 +55,17 @@ export async function createKidProfile(name, avatar = '🦁') {
     .select()
     .single();
 
-  console.log('[createKidProfile] result:', data, error?.message ?? '');
+  if (error) throw error;
+  return data;
+}
+
+export async function updateKidProfile(kidId, { name, avatar }) {
+  const { data, error } = await supabase
+    .from('kid_profiles')
+    .update({ name, avatar })
+    .eq('id', kidId)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 }
@@ -129,6 +136,25 @@ export async function deleteCustomUnit(unitId) {
     .delete()
     .eq('id', unitId);
   if (error) throw error;
+}
+
+// ── Quiz Result helpers ───────────────────────────────────────
+
+export async function saveQuizResult({ kidId, unitId, unitTitle, score, total, stars }) {
+  const { error } = await supabase
+    .from('quiz_results')
+    .insert({ kid_id: kidId, unit_id: unitId, unit_title: unitTitle, score, total, stars });
+  if (error) throw error;
+}
+
+export async function getQuizResultsForKid(kidId) {
+  const { data, error } = await supabase
+    .from('quiz_results')
+    .select('*')
+    .eq('kid_id', kidId)
+    .order('played_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
 }
 
 // ── Subscription helpers ─────────────────────────────────────

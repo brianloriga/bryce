@@ -70,7 +70,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [x] 3.8 Scanning loading state with spinner and status message
 - [x] 3.9 Multi-page scanning (up to 6 pages per unit, thumbnail strip UI)
 - [x] 3.10 Image content validation (GPT rejects non-educational images with explanation)
-- [ ] 3.11 Auto-remove rejected images — when an image fails content validation, automatically delete it from the staging array instead of leaving it highlighted with an error card
+- [x] 3.11 Auto-remove rejected images — when an image fails content validation, automatically delete it from the staging array instead of leaving it highlighted with an error card
 
 **To activate Phase 3:**
 1. Get an OpenAI API key at platform.openai.com
@@ -86,11 +86,14 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 > Small items that don't fit into a specific phase yet.
 
-- [ ] **Parent PIN reset without sign-out** — currently forgetting the PIN requires signing out. Add a "Forgot PIN" recovery flow that verifies the parent's email (Supabase magic link or OTP) before allowing a reset without losing the account.
+- [x] **Remove PIN without sign-out** — "Remove PIN lock" button now available in AccountScreen; clears the PIN immediately after a confirmation prompt
+- [ ] **Forgot PIN recovery flow** — forgetting the PIN still requires signing out. Add an email-based recovery flow (Supabase magic link or OTP) so parents can reset without losing their account.
 
 ---
 
-## Phase 4 — Subscription
+## Phase 4 — Subscription ⏳ DEFERRED (moved to last)
+
+> **Why deferred:** Internal testing and beta distribution will run without a paywall so all functionality can be validated end-to-end. Subscriptions will be layered in after Phase 8 once the app is stable and battle-tested.
 
 **Goal:** Free tier for built-in units; paid tier ($4.99/month) unlocks AI scanning + unlimited custom units.
 
@@ -120,14 +123,14 @@ This gets us to the App Store fastest while still feeling like a real native app
 **Goal:** App is safe for children and looks great.
 
 ### Steps
-- [ ] 5.1 Add parental consent gate (parent must create account, not child)
-- [ ] 5.2 Write Privacy Policy (no data collected from under-13 without parent consent)
-- [ ] 5.3 Write Terms of Service
-- [ ] 5.4 Add app icon (1024x1024) and splash screen
-- [ ] 5.5 Add onboarding flow (3-screen intro for new parents)
+- [x] 5.1 Add parental consent gate — "I confirm I am a parent or guardian (18+)" checkbox on signup
+- [x] 5.2 Write Privacy Policy — COPPA-compliant, covers OpenAI image processing, data deletion rights
+- [x] 5.3 Write Terms of Service — parental account requirement, content rules, subscription terms
+- [x] 5.4 Add app icon and splash screen — using `assets/appicon.png` across icon, adaptive icon, and splash (swap for final artwork before App Store submission)
+- [x] 5.5 Add onboarding flow — 3-slide animated intro, shown once per install
 - [ ] 5.6 Test on real iPhone device via TestFlight
 - [ ] 5.7 Fix any UI issues on different screen sizes (SE, 15 Pro Max)
-- [ ] 5.8 Add haptic feedback on correct/wrong answers
+- [x] 5.8 Add haptic feedback on correct/wrong answers (expo-haptics)
 
 **Output:** App feels polished and passes App Store child safety review.
 
@@ -157,40 +160,40 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 ### 7.A — Bug Fixes (Ship Blockers)
 
-- [ ] 7.1 Guard QuizScreen against zero-question units — show a friendly error instead of dividing by zero
-- [ ] 7.2 Clear `setTimeout` in QuizScreen `handleAnswer` on component unmount to prevent ghost state updates
-- [ ] 7.3 Clamp `correctIndex` in QuizScreen to valid range so an out-of-bounds value never silently marks the wrong answer correct
-- [ ] 7.4 Replace hardcoded "Bryce" in ScanScreen success copy with the active kid's name (or a generic fallback)
-- [ ] 7.5 Clear parent PIN from device storage on sign-out so it doesn't carry over to another account on the same device
-- [ ] 7.6 Rename `@brycelearning_parent_pin` AsyncStorage key to `@snapstudy_parent_pin` for brand consistency
+- [x] 7.1 Guard QuizScreen against zero-question units — show a friendly error instead of dividing by zero
+- [x] 7.2 Clear `setTimeout` in QuizScreen `handleAnswer` on component unmount to prevent ghost state updates
+- [x] 7.3 Clamp `correctIndex` in QuizScreen to valid range so an out-of-bounds value never silently marks the wrong answer correct
+- [x] 7.4 Replace hardcoded "Bryce" in ScanScreen success copy with the active kid's name (or a generic fallback)
+- [x] 7.5 Clear parent PIN from device storage on sign-out so it doesn't carry over to another account on the same device
+- [x] 7.6 Rename `@brycelearning_parent_pin` AsyncStorage key to `@snapstudy_parent_pin` for brand consistency
 
 ---
 
 ### 7.B — Security & Safety
 
-- [ ] 7.7 Add per-user rate limiting to the `generate-questions` Edge Function (e.g. max 20 scans/day per user) to prevent OpenAI credit abuse
-- [ ] 7.8 Upgrade PIN storage from AsyncStorage to `expo-secure-store` (already a dependency) so the PIN is encrypted at rest on Android
-- [ ] 7.9 Add a Privacy Policy page and data-handling disclosure covering image data sent to OpenAI (student worksheets may contain names/school details)
-- [ ] 7.10 Wire `getSubscriptionStatus()` into ScanScreen — free users should see a paywall or scan limit instead of unlimited free AI calls
-- [ ] 7.11 Remove development `console.log` statements that expose user IDs and Supabase keys before App Store submission
+- [x] 7.7 Add per-user rate limiting to the `generate-questions` Edge Function — max 20 scans/day, HTTP 429 on exceed
+- [x] 7.8 Upgrade PIN storage from AsyncStorage to `expo-secure-store` — PIN encrypted at rest on Android
+- [x] 7.9 Privacy Policy screen — covers OpenAI image processing, COPPA, data deletion (done in Phase 5)
+- [ ] 7.10 Wire `getSubscriptionStatus()` into ScanScreen — deferred to Phase 4
+- [x] 7.11 Remove development `console.log` statements that expose user IDs and Supabase keys
 
 ---
 
 ### 7.C — UX & Polish
 
-- [ ] 7.12 Show a visible error state (with retry button) on HomeScreen when unit loading fails — currently shows a blank screen silently
-- [ ] 7.13 Show a visible error state on KidSelectScreen when kid profiles fail to load
-- [ ] 7.14 Wire up Privacy Policy, Terms of Service, and Restore Purchases rows in AccountScreen (or hide until Phase 4 is live)
-- [ ] 7.15 Add a functional "Upgrade" button in AccountScreen — open the paywall or show a "coming soon" sheet
-- [ ] 7.16 Add a brief first-run onboarding flow for new parents (2–3 slides: scan a page → review questions → kids play)
-- [ ] 7.17 Add a search / filter bar to HomeScreen for parents with many saved units
-- [ ] 7.18 Allow units to be assigned to a specific child so siblings with different grade levels see their own content
+- [x] 7.12 Show a visible error state (with retry button) on HomeScreen when unit loading fails
+- [x] 7.13 Show a visible error state on KidSelectScreen when kid profiles fail to load
+- [x] 7.14 Wire up Privacy Policy and Terms of Service rows in AccountScreen (done in Phase 5)
+- [x] 7.15 Upgrade button shows beta alert — "All features free during testing"
+- [x] 7.16 First-run onboarding flow — 3-slide animated intro (done in Phase 5)
+- [x] 7.17 Search / filter bar on HomeScreen — appears at 3+ units, filters by title
+- [ ] 7.18 Allow units to be assigned to a specific child so siblings see their own content
 
 ---
 
 ### 7.D — Engagement & Retention
 
-- [ ] 7.19 Save quiz results for custom units to Supabase — track score history, improvement over time, and last-played date per kid
+- [x] 7.19 Save quiz results to Supabase — `quiz_results` table tracks score, stars, kid, unit, and timestamp
 - [ ] 7.20 Kid-level progress dashboard for parents — simple summary of scores and activity across all units
 - [ ] 7.21 Streak tracking — reward kids for studying on consecutive days with a visual streak counter
 - [ ] 7.22 Push notifications — optional daily "time to study!" reminder, configurable per kid
@@ -295,13 +298,29 @@ This gets us to the App Store fastest while still feeling like a real native app
 ## UI Redesign Progress
 
 > Phase 5 is the full redesign pass, but individual screens are being improved as bugs are fixed.
-> - KidSelectScreen ✅ redesigned (2026-04-17) — larger cards, colored avatars, Account header link
-> - HomeScreen (Play tab) ✅ rebuilt (2026-04-17) — native custom-unit cards, replaces WebView game
+> - KidSelectScreen ✅ redesigned (2026-04-17) — larger cards, colored avatars, Account header link; ✅ updated with real character images + edit-profile modal
+> - HomeScreen (Play tab) ✅ rebuilt (2026-04-17) — native custom-unit cards, replaces WebView game; ✅ themed + large avatar image above greeting
 > - QuizScreen ✅ new (2026-04-17) — dark native quiz with animated progress bar and star results
-> - Tab bar ✅ redesigned (2026-04-17) — dark navy, Ionicons vector icons, modern look
-> - ScanScreen ✅ updated (2026-04-17) — multi-page strip, content validation, camera/library prompt
-> - AccountScreen — flagged for redesign in Phase 5
-> - AuthScreen — flagged for redesign in Phase 5
+> - Tab bar ✅ redesigned (2026-04-17) — adapts to active theme (dark/light)
+> - ScanScreen ✅ updated (2026-04-17) — multi-page strip, content validation, camera/library prompt; ✅ fully themed
+> - AccountScreen ✅ redesigned (2026-04-17) — full dark/light theme, PIN pad themed, Appearance toggle, Remove PIN
+> - AuthScreen ✅ redesigned (2026-04-17) — dark theme matching WelcomeScreen
+
+---
+
+## Revised Phase Order
+
+| Phase | Description | Status |
+|---|---|---|
+| 3.11 + 7.A | Bug fixes — auto-remove rejected images, QuizScreen guards, PIN/branding cleanup | ✅ Done |
+| 5 | Polish & COPPA compliance | 🔄 Mostly done (5.6, 5.7 pending — device testing) |
+| 7.B–D | Security hardening, UX polish, engagement features | 🔄 In progress |
+| **Theme + Avatar** | Dark/light mode system, custom character images, edit profile | ✅ Done |
+| 6 | App Store Launch (free / no paywall) | Pending |
+| 8 | Boss battles, mini-games & à la carte purchases | Pending |
+| **4** | **Subscriptions** — added last after beta testing validates all functionality | **Last** |
+
+> Goal: internal testers and beta users get the full app experience unblocked. RevenueCat + Apple IAP review also takes the longest, so starting it last is practical.
 
 ---
 

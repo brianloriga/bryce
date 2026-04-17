@@ -80,6 +80,47 @@ CREATE POLICY "Parents manage own units" ON custom_units
   FOR ALL USING (auth.uid() = parent_id);
 
 
+-- ── Quiz Results ─────────────────────────────────────────────
+-- Records every quiz attempt for history, improvement tracking, and the
+-- progress dashboard (Phase 7.20). unit_id may be null if the unit is deleted.
+CREATE TABLE IF NOT EXISTS quiz_results (
+  id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  kid_id      UUID        REFERENCES kid_profiles(id) ON DELETE CASCADE NOT NULL,
+  unit_id     UUID        REFERENCES custom_units(id) ON DELETE SET NULL,
+  unit_title  TEXT        NOT NULL,
+  score       INTEGER     NOT NULL,
+  total       INTEGER     NOT NULL,
+  stars       INTEGER     NOT NULL CHECK (stars >= 0 AND stars <= 3),
+  played_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE quiz_results ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Parents manage kid quiz results" ON quiz_results
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM kid_profiles
+      WHERE kid_profiles.id = quiz_results.kid_id
+        AND kid_profiles.parent_id = auth.uid()
+    )
+  );
+
+
+-- ── Scan Logs (rate limiting) ─────────────────────────────────
+-- One row per AI scan request. The Edge Function checks this table
+-- to enforce a max of 20 scans per user per day.
+CREATE TABLE IF NOT EXISTS scan_logs (
+  id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID        REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  scanned_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE scan_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users view own scan logs" ON scan_logs
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users insert own scan logs" ON scan_logs
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+
 -- ── Helper Function: upsert_progress ─────────────────────────
 -- Called from the app to batch-update all game scores at once.
 CREATE OR REPLACE FUNCTION upsert_progress(

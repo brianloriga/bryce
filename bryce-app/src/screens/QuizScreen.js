@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Animated,
@@ -6,6 +7,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
+import { saveQuizResult } from '../services/supabase';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -21,6 +24,7 @@ export default function QuizScreen() {
   const navigation = useNavigation();
   const route      = useRoute();
   const { unit }   = route.params;
+  const { activeKid } = useAuth();
   const questions  = unit.questions ?? [];
 
   const [currentIndex, setCurrentIndex]   = useState(0);
@@ -29,9 +33,31 @@ export default function QuizScreen() {
   const [answered, setAnswered]           = useState(false);
   const [finished, setFinished]           = useState(false);
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim  = useRef(new Animated.Value(0)).current;
+  const answerTimeout = useRef(null);
+
+  useEffect(() => {
+    return () => { if (answerTimeout.current) clearTimeout(answerTimeout.current); };
+  }, []);
+
+  if (questions.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="light" />
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyEmoji}>📭</Text>
+          <Text style={styles.emptyTitle}>No questions yet</Text>
+          <Text style={styles.emptyDesc}>This unit doesn't have any questions. Try editing it from the Scan tab.</Text>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.emptyBtnText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const q = questions[currentIndex];
+  const safeCorrectIndex = Math.min(Math.max(q.correctIndex ?? 0, 0), (q.options?.length ?? 1) - 1);
 
   function animateProgress(toValue) {
     Animated.timing(progressAnim, {
@@ -46,16 +72,33 @@ export default function QuizScreen() {
     setSelectedIndex(index);
     setAnswered(true);
 
-    const isCorrect = index === q.correctIndex;
+    const isCorrect = index === safeCorrectIndex;
     const newScore = isCorrect ? score + 1 : score;
-    if (isCorrect) setScore(newScore);
+    if (isCorrect) {
+      setScore(newScore);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
 
     const nextIndex = currentIndex + 1;
     animateProgress(nextIndex / questions.length);
 
-    setTimeout(() => {
+    answerTimeout.current = setTimeout(() => {
       if (nextIndex >= questions.length) {
         setFinished(true);
+        // Fire-and-forget — don't block the results screen on network
+        if (activeKid?.id) {
+          const stars = getStars(newScore, questions.length);
+          saveQuizResult({
+            kidId:     activeKid.id,
+            unitId:    unit.id ?? null,
+            unitTitle: unit.title,
+            score:     newScore,
+            total:     questions.length,
+            stars,
+          }).catch(() => {});
+        }
       } else {
         setCurrentIndex(nextIndex);
         setSelectedIndex(null);
@@ -75,21 +118,21 @@ export default function QuizScreen() {
 
   function optionStyle(index) {
     if (!answered) return styles.optionBtn;
-    if (index === q.correctIndex) return [styles.optionBtn, styles.optionCorrect];
-    if (index === selectedIndex)  return [styles.optionBtn, styles.optionWrong];
+    if (index === safeCorrectIndex) return [styles.optionBtn, styles.optionCorrect];
+    if (index === selectedIndex)    return [styles.optionBtn, styles.optionWrong];
     return [styles.optionBtn, styles.optionDimmed];
   }
 
   function optionTextStyle(index) {
     if (!answered) return styles.optionText;
-    if (index === q.correctIndex || index === selectedIndex) return [styles.optionText, styles.optionTextLight];
+    if (index === safeCorrectIndex || index === selectedIndex) return [styles.optionText, styles.optionTextLight];
     return [styles.optionText, styles.optionTextDimmed];
   }
 
   function optionLetterStyle(index) {
     if (!answered) return styles.letterBadge;
-    if (index === q.correctIndex) return [styles.letterBadge, styles.letterBadgeCorrect];
-    if (index === selectedIndex)  return [styles.letterBadge, styles.letterBadgeWrong];
+    if (index === safeCorrectIndex) return [styles.letterBadge, styles.letterBadgeCorrect];
+    if (index === selectedIndex)    return [styles.letterBadge, styles.letterBadgeWrong];
     return [styles.letterBadge, styles.letterBadgeDimmed];
   }
 
@@ -271,4 +314,12 @@ const styles = StyleSheet.create({
   replayBtnText: { fontSize: 17, fontWeight: '700', color: '#fff' },
   homeBtn:       { paddingVertical: 14, alignItems: 'center' },
   homeBtnText:   { fontSize: 15, color: '#64748b', fontWeight: '600' },
+
+  // Empty state
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  emptyEmoji:     { fontSize: 56, marginBottom: 16 },
+  emptyTitle:     { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 8 },
+  emptyDesc:      { fontSize: 15, color: '#64748b', textAlign: 'center', lineHeight: 22, marginBottom: 28 },
+  emptyBtn:       { backgroundColor: '#1e293b', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 },
+  emptyBtnText:   { fontSize: 15, fontWeight: '700', color: '#94a3b8' },
 });

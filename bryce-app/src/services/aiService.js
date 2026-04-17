@@ -5,11 +5,11 @@ import { sanitizeUnit, sanitizeReason } from '../utils/profanityFilter';
 // The OpenAI API key never touches the client.
 //
 // base64Images — string (single page) or string[] (multiple pages)
-export async function generateQuestionsFromImage(base64Images) {
+export async function generateQuestionsFromImage(base64Images, questionCount = 9) {
   const images = Array.isArray(base64Images) ? base64Images : [base64Images];
 
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { images },
+    body: { images, questionCount },
   });
 
   if (error) {
@@ -47,7 +47,7 @@ export async function generateQuestionsFromImage(base64Images) {
   // Sanitize ALL AI-generated text before returning to the UI
   const sanitized = sanitizeUnit({
     title:     data.title ?? 'New Unit',
-    questions: rawQuestions.slice(0, 9),
+    questions: rawQuestions.slice(0, questionCount),
   });
 
   return sanitized;
