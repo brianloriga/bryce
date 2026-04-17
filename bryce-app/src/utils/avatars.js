@@ -1,44 +1,27 @@
-// Shared avatar image registry — used across KidSelect, Home, Account screens.
-// Avatar key is stored in the DB as a plain string (e.g. "dog", "panda").
+// Avatar system: a hex color stored in the DB + first letter of the child's name rendered on top.
+// The `avatar` field in kid_profiles now holds a hex color string (e.g. "#6366f1").
+// Legacy emoji / image-key values (anything not starting with "#") fall back to DEFAULT_COLOR.
 
-export const AVATAR_MAP = {
-  bear:     require('../../child_icons/snapstudy_avatar_bear_fixed2.png'),
-  bunny:    require('../../child_icons/snapstudy_avatar_bunny.png'),
-  dino:     require('../../child_icons/snapstudy_avatar_dino_fixed2.png'),
-  dog:      require('../../child_icons/snapstudy_avatar_dog.png'),
-  kitty:    require('../../child_icons/snapstudy_avatar_kitty.png'),
-  mermaid:  require('../../child_icons/snapstudy_avatar_mermaid.png'),
-  owl:      require('../../child_icons/snapstudy_avatar_owl_fixed2.png'),
-  panda:    require('../../child_icons/snapstudy_avatar_panda_fixed2.png'),
-  red_dino: require('../../child_icons/snapstudy_avatar_red_dino_fixed2.png'),
-  robot:    require('../../child_icons/snapstudy_avatar_robot_fixed2.png'),
-  unicorn:  require('../../child_icons/snapstudy_avatar_unicorn.png'),
-};
+export const COLOR_PALETTE = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // amber
+  '#22c55e', // green
+  '#4ade80', // mint (SnapStudy accent)
+  '#14b8a6', // teal
+  '#3b82f6', // blue
+  '#6366f1', // indigo
+  '#8b5cf6', // violet
+  '#d946ef', // fuchsia
+  '#ec4899', // pink
+  '#64748b', // slate
+];
 
-export const AVATAR_KEYS  = Object.keys(AVATAR_MAP);
-export const DEFAULT_AVATAR = 'dog';
+export const DEFAULT_COLOR = '#6366f1';
 
-// Returns a require() source for any key, with safe fallback.
-// Also handles legacy emoji keys gracefully — they'll show the default image.
-export function getAvatarSource(key) {
-  return AVATAR_MAP[key] ?? AVATAR_MAP[DEFAULT_AVATAR];
-}
-
-// Soft background tints used behind each avatar image
-export const AVATAR_BG = {
-  bear:     '#fde68a',
-  bunny:    '#fbcfe8',
-  dino:     '#86efac',
-  dog:      '#fed7aa',
-  kitty:    '#f5d0fe',
-  mermaid:  '#bae6fd',
-  owl:      '#fef08a',
-  panda:    '#d1d5db',
-  red_dino: '#fca5a5',
-  robot:    '#a5b4fc',
-  unicorn:  '#c4b5fd',
-};
-
-export function getAvatarBg(key) {
-  return AVATAR_BG[key] ?? '#e2e8f0';
+// Returns a valid hex color from any stored avatar value.
+// Handles legacy emoji strings and image keys gracefully.
+export function getAvatarColor(avatar) {
+  if (typeof avatar === 'string' && avatar.startsWith('#')) return avatar;
+  return DEFAULT_COLOR;
 }

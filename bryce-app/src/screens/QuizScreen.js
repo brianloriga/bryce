@@ -47,7 +47,7 @@ export default function QuizScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>📭</Text>
           <Text style={styles.emptyTitle}>No questions yet</Text>
-          <Text style={styles.emptyDesc}>This unit doesn't have any questions. Try editing it from the Scan tab.</Text>
+          <Text style={styles.emptyDesc}>This lesson doesn't have any questions. Try editing it from the Scan tab.</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.emptyBtnText}>Go Back</Text>
           </TouchableOpacity>
@@ -165,7 +165,7 @@ export default function QuizScreen() {
             <Text style={styles.replayBtnText}>Play Again</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.homeBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.homeBtnText}>Back to Units</Text>
+            <Text style={styles.homeBtnText}>Back to Lessons</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

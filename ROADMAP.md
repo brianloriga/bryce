@@ -186,8 +186,12 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [x] 7.14 Wire up Privacy Policy and Terms of Service rows in AccountScreen (done in Phase 5)
 - [x] 7.15 Upgrade button shows beta alert — "All features free during testing"
 - [x] 7.16 First-run onboarding flow — 3-slide animated intro (done in Phase 5)
-- [x] 7.17 Search / filter bar on HomeScreen — appears at 3+ units, filters by title
-- [ ] 7.18 Allow units to be assigned to a specific child so siblings see their own content
+- [x] 7.17 Search / filter bar on HomeScreen — appears at 3+ lessons, filters by title
+- [x] 7.25 Rename "unit" → "lesson" throughout all user-facing UI text
+- [x] 7.26 "Go to Learn" button on ScanScreen save-success screen — navigates directly to Learn tab
+- [x] 7.27 Keyboard-aware modals — `KeyboardAvoidingView` added to Edit Profile modal and ScanScreen question editor so keyboard no longer covers content
+- [x] 7.28 Avatar system replaced with colour + initial — `KidAvatar` component, 12-colour picker, live preview in add/edit forms; DB stores hex colour
+- [ ] 7.18 Allow lessons to be assigned to a specific child so siblings see their own content
 
 ---
 
@@ -315,7 +319,8 @@ This gets us to the App Store fastest while still feeling like a real native app
 | 3.11 + 7.A | Bug fixes — auto-remove rejected images, QuizScreen guards, PIN/branding cleanup | ✅ Done |
 | 5 | Polish & COPPA compliance | 🔄 Mostly done (5.6, 5.7 pending — device testing) |
 | 7.B–D | Security hardening, UX polish, engagement features | 🔄 In progress |
-| **Theme + Avatar** | Dark/light mode system, custom character images, edit profile | ✅ Done |
+| **Theme + Avatar** | Dark/light mode system, colour+initial avatars, edit profile | ✅ Done |
+| **7.C Polish** | "Lesson" rename, Go to Learn button, keyboard-aware modals, crash fix | ✅ Done |
 | 6 | App Store Launch (free / no paywall) | Pending |
 | 8 | Boss battles, mini-games & à la carte purchases | Pending |
 | **4** | **Subscriptions** — added last after beta testing validates all functionality | **Last** |

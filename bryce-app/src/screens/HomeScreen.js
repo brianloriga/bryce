@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, TextInput, Image,
+  ActivityIndicator, RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -10,7 +10,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { getCustomUnits, deleteCustomUnit, getQuizResultsForKid } from '../services/supabase';
-import { getAvatarSource, getAvatarBg } from '../utils/avatars';
+import KidAvatar from '../components/KidAvatar';
 
 const CARD_COLORS = [
   '#2563eb', '#7c3aed', '#db2777',
@@ -70,7 +70,7 @@ export default function HomeScreen() {
   function confirmDelete(unit) {
     Alert.alert(
       `Delete "${unit.title}"?`,
-      'This will permanently remove this unit and all its questions.',
+      'This will permanently remove this lesson and all its questions.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -109,7 +109,7 @@ export default function HomeScreen() {
         <StatusBar style={theme.statusBar} />
         <View style={styles.center}>
           <Text style={styles.errorEmoji}>⚠️</Text>
-          <Text style={styles.errorTitle}>Couldn't load units</Text>
+          <Text style={styles.errorTitle}>Couldn't load lessons</Text>
           <Text style={styles.errorDesc}>{loadError}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); loadUnits(); }}>
             <Text style={styles.retryBtnText}>Try Again</Text>
@@ -130,21 +130,15 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           {activeKid ? (
-            <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(activeKid.avatar) }]}>
-              <Image
-                source={getAvatarSource(activeKid.avatar)}
-                style={styles.avatarImg}
-                resizeMode="contain"
-              />
-            </View>
+            <KidAvatar name={activeKid.name} color={activeKid.avatar} size={88} radius={22} />
           ) : null}
           <Text style={styles.greeting}>
             {activeKid ? `Hi, ${activeKid.name}!` : 'Welcome!'}
           </Text>
           <Text style={styles.greetingSub}>
             {units.length > 0
-              ? `${units.length} unit${units.length !== 1 ? 's' : ''} ready to study`
-              : 'Your study units will appear here'}
+              ? `${units.length} lesson${units.length !== 1 ? 's' : ''} ready to study`
+              : 'Your lessons will appear here'}
           </Text>
         </View>
 
@@ -154,7 +148,7 @@ export default function HomeScreen() {
             <Ionicons name="search-outline" size={18} color={theme.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search units…"
+              placeholder="Search lessons…"
               placeholderTextColor={theme.textMuted}
               value={search}
               onChangeText={setSearch}
@@ -215,13 +209,13 @@ export default function HomeScreen() {
             <View style={styles.emptyIconCircle}>
               <Ionicons name={search ? 'search' : 'book-outline'} size={44} color={theme.textMuted} />
             </View>
-            <Text style={styles.emptyTitle}>{search ? 'No matches' : 'No units yet'}</Text>
+            <Text style={styles.emptyTitle}>{search ? 'No matches' : 'No lessons yet'}</Text>
             <Text style={styles.emptyDesc}>
               {search
-                ? `No units found for "${search}"`
+                ? `No lessons found for "${search}"`
                 : isLoggedIn
                   ? 'Tap the Scan tab to photograph a textbook page.\nQuestions will appear here instantly.'
-                  : 'Sign in to view your study units.'}
+                  : 'Sign in to view your lessons.'}
             </Text>
             {search ? (
               <TouchableOpacity style={styles.clearSearchBtn} onPress={() => setSearch('')}>
@@ -232,7 +226,7 @@ export default function HomeScreen() {
         )}
 
         {filteredUnits.length > 0 && (
-          <Text style={styles.hintText}>Hold a unit to delete it</Text>
+          <Text style={styles.hintText}>Hold a lesson to delete it</Text>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -247,19 +241,7 @@ function createStyles(t) {
     contentEmpty: { flex: 1 },
 
     // Header
-    header: { marginBottom: 24, paddingTop: 8, alignItems: 'flex-start' },
-    avatarCircle: {
-      width: 88, height: 88, borderRadius: 22,
-      alignItems: 'center', justifyContent: 'center',
-      marginBottom: 14,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 4,
-    },
-    avatarImg: { width: 88, height: 88 },
+    header: { marginBottom: 24, paddingTop: 8, alignItems: 'flex-start', gap: 14 },
     greeting:    { fontSize: 32, fontWeight: '800', color: t.text, marginBottom: 4 },
     greetingSub: { fontSize: 15, color: t.textSub },
 

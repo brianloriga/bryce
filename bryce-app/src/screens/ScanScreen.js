@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   ScrollView, Alert, ActivityIndicator, TextInput,
-  Modal, Dimensions,
+  Modal, Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,11 +20,11 @@ const { width: SCREEN_W } = Dimensions.get('window');
 
 const HOW_IT_WORKS = [
   { icon: 'camera-outline',      text: 'Tap Camera to photograph a textbook page, or Library to pick an existing photo' },
-  { icon: 'copy-outline',        text: 'Add up to 10 pages per unit — tap the + tile in the strip to keep going' },
+  { icon: 'copy-outline',        text: 'Add up to 10 pages per lesson — tap the + tile in the strip to keep going' },
   { icon: 'options-outline',     text: 'Choose how many questions to generate: 5, 9, 15, or 20' },
   { icon: 'sparkles-outline',    text: 'AI reads every page and writes the questions — takes about 10–20 seconds' },
   { icon: 'create-outline',      text: 'Review each question, edit the text, and tap any option to mark it correct' },
-  { icon: 'checkmark-circle-outline', text: 'Save the unit — it appears instantly in the Learn tab for your child to play' },
+  { icon: 'checkmark-circle-outline', text: 'Save the lesson — it appears instantly in the Learn tab for your child to play' },
 ];
 
 export default function ScanScreen() {
@@ -54,7 +54,7 @@ export default function ScanScreen() {
 
   async function pickFromLibrary() {
     if (images.length >= MAX_IMAGES) {
-      Alert.alert('Maximum reached', `You can add up to ${MAX_IMAGES} pages per unit.`);
+      Alert.alert('Maximum reached', `You can add up to ${MAX_IMAGES} pages per lesson.`);
       return;
     }
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -72,7 +72,7 @@ export default function ScanScreen() {
 
   async function takePhoto() {
     if (images.length >= MAX_IMAGES) {
-      Alert.alert('Maximum reached', `You can add up to ${MAX_IMAGES} pages per unit.`);
+      Alert.alert('Maximum reached', `You can add up to ${MAX_IMAGES} pages per lesson.`);
       return;
     }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -96,7 +96,7 @@ export default function ScanScreen() {
     try {
       const base64Images = images.map(img => img.base64);
       const result = await generateQuestionsFromImage(base64Images, questionCount);
-      setUnitTitle(result.title ?? 'New Unit');
+      setUnitTitle(result.title ?? 'New Lesson');
       setQuestions(result.questions ?? []);
       setStep('preview');
     } catch (err) {
@@ -124,7 +124,7 @@ export default function ScanScreen() {
 
   // ── Save ───────────────────────────────────────────────────
   async function handleSave() {
-    if (!unitTitle.trim()) { Alert.alert('Title required', 'Please give this unit a name.'); return; }
+    if (!unitTitle.trim()) { Alert.alert('Title required', 'Please give this lesson a name.'); return; }
     if (!questions || questions.length === 0) { Alert.alert('No questions', 'Add at least one question before saving.'); return; }
     setSaving(true);
     try {
@@ -172,12 +172,19 @@ export default function ScanScreen() {
           <View style={[styles.gateIconCircle, { backgroundColor: 'rgba(74,222,128,0.15)' }]}>
             <Ionicons name="checkmark-circle" size={44} color="#4ade80" />
           </View>
-          <Text style={styles.gateTitle}>Unit saved!</Text>
+          <Text style={styles.gateTitle}>Lesson saved!</Text>
           <Text style={styles.gateDesc}>
             "{unitTitle}" is ready.{'\n'}{activeKid?.name ?? 'Your child'} will see it in the Learn tab.
           </Text>
           <TouchableOpacity style={styles.gateBtn} onPress={reset}>
-            <Text style={styles.gateBtnText}>Scan another unit</Text>
+            <Text style={styles.gateBtnText}>Scan another lesson</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.learnBtn}
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
+          >
+            <Ionicons name="school-outline" size={18} color={theme.accent} style={{ marginRight: 8 }} />
+            <Text style={styles.learnBtnText}>Go to Learn</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -208,11 +215,16 @@ export default function ScanScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <StatusBar style={theme.statusBar} />
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
         <ScrollView contentContainerStyle={styles.previewContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.previewTitle}>Review Questions</Text>
           <Text style={styles.previewSub}>Edit or remove any questions before saving.</Text>
 
-          <Text style={styles.fieldLabel}>Unit title</Text>
+          <Text style={styles.fieldLabel}>Lesson title</Text>
           <TextInput
             style={styles.titleInput}
             value={unitTitle}
@@ -273,13 +285,14 @@ export default function ScanScreen() {
           >
             {saving
               ? <ActivityIndicator color="#0f172a" />
-              : <Text style={styles.generateBtnText}>Save Unit · {questions.length} questions</Text>
+              : <Text style={styles.generateBtnText}>Save Lesson · {questions.length} questions</Text>
             }
           </TouchableOpacity>
           <TouchableOpacity style={styles.discardBtn} onPress={reset}>
             <Text style={styles.discardBtnText}>Discard & start over</Text>
           </TouchableOpacity>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -292,7 +305,7 @@ export default function ScanScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.pageTitle}>Scan a Unit</Text>
+          <Text style={styles.pageTitle}>Scan a Lesson</Text>
           <TouchableOpacity onPress={() => setShowHowModal(true)} style={styles.howLink}>
             <Text style={styles.howLinkText}>How it works</Text>
             <Ionicons name="information-circle-outline" size={16} color="#4ade80" />
@@ -506,6 +519,13 @@ function createStyles(t) {
       shadowOpacity: 0.4, shadowRadius: 10,
     },
     gateBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+    learnBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      marginTop: 14, paddingVertical: 12, paddingHorizontal: 24,
+      borderRadius: 14, borderWidth: 1.5, borderColor: t.accent,
+      backgroundColor: t.accentDim,
+    },
+    learnBtnText: { fontSize: 15, fontWeight: '700', color: t.accent },
     generatingTitle: { fontSize: 22, fontWeight: '800', color: t.text, marginTop: 24, marginBottom: 10 },
     generatingDesc:  { fontSize: 14, color: t.textSub, textAlign: 'center', lineHeight: 22 },
 

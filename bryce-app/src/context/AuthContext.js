@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [activeKid, setActiveKidState] = useState(null);  // Currently playing kid
   const [cloudScores, setCloudScores] = useState(null);   // Flat scores from Supabase
   const [loading, setLoading]         = useState(true);
+  const [kidLoadError, setKidLoadError] = useState(null);
 
   // ── Listen for auth state changes ──────────────────────────
   useEffect(() => {
@@ -42,18 +43,18 @@ export function AuthProvider({ children }) {
 
   async function loadKidProfiles() {
     setLoading(true);
+    setKidLoadError(null);
     try {
       const profiles = await getKidProfiles();
       setKidProfiles(profiles);
 
-      // Restore last active kid
       const savedKidId = await getActiveKid();
       const match = profiles.find(p => p.id === savedKidId);
       if (match) {
-        await selectKid(match, false); // false = don't persist again
+        await selectKid(match, false);
       }
     } catch (err) {
-      console.warn('[AuthContext] loadKidProfiles error:', err.message);
+      setKidLoadError(err.message ?? 'Failed to load profiles');
     } finally {
       setLoading(false);
     }
@@ -61,21 +62,15 @@ export function AuthProvider({ children }) {
 
   // ── Select which kid is playing ────────────────────────────
   async function selectKid(kid, persist = true) {
-    console.log('[selectKid] called with:', kid?.name, kid?.id);
     setActiveKidState(kid);
     if (persist) await saveActiveKid(kid.id);
-    console.log('[selectKid] activeKid set, loading scores...');
 
-    // Load their cloud scores so GameScreen can inject into WebView
     try {
       const scores = await getProgressForKid(kid.id);
-      console.log('[selectKid] scores loaded:', Object.keys(scores).length, 'games');
       setCloudScores(scores);
-    } catch (err) {
-      console.warn('[selectKid] getProgressForKid error:', err.message);
+    } catch {
       setCloudScores({});
     }
-    console.log('[selectKid] done');
   }
 
   // The localStorage JSON string to inject into the WebView on startup
@@ -90,6 +85,7 @@ export function AuthProvider({ children }) {
     activeKid,
     cloudScores,
     loading,
+    kidLoadError,
     selectKid,
     reloadKids: loadKidProfiles,
     initialLocalStoragePayload,

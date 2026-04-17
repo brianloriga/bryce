@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Animated, Switch, Image,
+  Alert, Animated, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { signOut } from '../services/supabase';
 import { getParentPin, setParentPin, clearParentPin } from '../utils/pinStorage';
-import { getAvatarSource, getAvatarBg } from '../utils/avatars';
+import KidAvatar from '../components/KidAvatar';
 
 // ─────────────────────────────────────────────────────────────
 // PIN PAD (theme-aware)
@@ -296,9 +296,7 @@ export default function AccountScreen() {
 
         {/* Profile card */}
         <View style={styles.profileCard}>
-          <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(activeKid?.avatar) }]}>
-            <Image source={getAvatarSource(activeKid?.avatar)} style={styles.avatarImg} resizeMode="contain" />
-          </View>
+          <KidAvatar name={activeKid?.name ?? '?'} color={activeKid?.avatar} size={56} radius={14} />
           <View style={{ flex: 1 }}>
             {isLoggedIn ? (
               <>
@@ -336,8 +334,8 @@ export default function AccountScreen() {
                   activeKid?.id === kid.id && styles.kidRowActive,
                   i < kidProfiles.length - 1 && styles.kidRowBorder,
                 ]}>
-                  <View style={[styles.kidAvatarCircle, { backgroundColor: getAvatarBg(kid.avatar) }]}>
-                    <Image source={getAvatarSource(kid.avatar)} style={styles.kidAvatarImg} resizeMode="contain" />
+                  <View style={{ marginRight: 12 }}>
+                    <KidAvatar name={kid.name} color={kid.avatar} size={40} radius={10} />
                   </View>
                   <Text style={styles.kidName}>{kid.name}</Text>
                   {activeKid?.id === kid.id && (
@@ -365,7 +363,7 @@ export default function AccountScreen() {
             <Text style={styles.planBadgeText}>FREE PLAN</Text>
           </View>
           <Text style={styles.planTitle}>SnapStudy Basic</Text>
-          <Text style={styles.planDesc}>All built-in units included. Upgrade for AI scanning.</Text>
+          <Text style={styles.planDesc}>All built-in lessons included. Upgrade for AI scanning.</Text>
           <TouchableOpacity
             style={styles.upgradeBtn}
             onPress={() => Alert.alert(
@@ -471,11 +469,6 @@ function createStyles(t) {
       shadowColor: t.shadow, shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
     },
-    avatarCircle: {
-      width: 60, height: 60, borderRadius: 14,
-      alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-    },
-    avatarImg: { width: 60, height: 60 },
     userName:  { fontSize: 18, fontWeight: '700', color: t.text },
     userEmail: { fontSize: 13, color: t.textSub, marginTop: 1 },
 
@@ -517,12 +510,6 @@ function createStyles(t) {
     },
     kidRowBorder: { borderBottomWidth: 1, borderBottomColor: t.border },
     kidRowActive: { backgroundColor: t.accentDim },
-    kidAvatarCircle: {
-      width: 40, height: 40, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center',
-      marginRight: 12, overflow: 'hidden',
-    },
-    kidAvatarImg: { width: 40, height: 40 },
     kidName:      { flex: 1, fontSize: 16, fontWeight: '600', color: t.text },
     activeBadge: {
       backgroundColor: t.accent, borderRadius: 6,

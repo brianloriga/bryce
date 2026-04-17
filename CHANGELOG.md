@@ -277,6 +277,40 @@ All notable changes to this project are tracked here.
 
 ---
 
+### UX & Polish — 2026-04-17 (continued)
+
+#### Changed — "Unit" renamed to "Lesson" throughout UI
+- All user-facing text updated across ScanScreen, HomeScreen, QuizScreen, and AccountScreen:
+  - "Scan a Unit" → "Scan a Lesson", "Unit title" → "Lesson title", "Save Unit" → "Save Lesson"
+  - "Scan another unit" → "Scan another lesson"; alert messages, How It Works modal updated
+  - HomeScreen: greeting subtitle, search placeholder, empty state, delete confirmation, hint text
+  - QuizScreen: "Back to Units" → "Back to Lessons", empty state message
+  - AccountScreen: subscription card description
+- Internal variable/function names unchanged (`unit`, `units`, `unitTitle`, etc.)
+
+#### Added — "Go to Learn" button on save success screen (ScanScreen)
+- After saving a lesson, a second outlined button appears below the green "Scan another lesson" button
+- Tapping it calls `navigation.reset` to navigate directly to the Learn tab
+- HomeScreen `useFocusEffect` automatically refreshes the lesson list on arrival
+
+#### Fixed — Keyboard covers edit modal and question editor
+- Added `KeyboardAvoidingView` (`behavior="padding"` on iOS, `behavior="height"` on Android) to the Edit Profile modal in KidSelectScreen — sheet now slides up when the keyboard opens
+- Same fix applied to the ScanScreen question review/edit step — keyboard no longer buries text inputs
+
+#### Fixed — ScanScreen crash on photo capture
+- `Image` component accidentally removed from ScanScreen imports during avatar cleanup; restored — photo thumbnails now display correctly after taking or selecting a picture
+
+#### Changed — Avatar system replaced with colour + initial
+- `src/utils/avatars.js` replaced: now exports a 12-colour `COLOR_PALETTE`, `DEFAULT_COLOR`, and `getAvatarColor(key)` with legacy fallback (any non-hex value falls back to default colour)
+- `src/components/KidAvatar.js` — new reusable component; renders a rounded-square tile with the child's first initial in large bold white on a solid colour background; accepts `name`, `color`, `size`, and `radius` props
+- **KidSelectScreen** — image picker replaced with a 12-swatch **colour picker grid**; selected swatch shows a white ring + checkmark; add/edit forms show a live preview (initial + colour) as the parent types the name or selects a colour; kid bubbles show `KidAvatar`
+- **HomeScreen** — large 88px `KidAvatar` above the greeting replaces the image avatar
+- **AccountScreen** — profile card (56px) and kid list rows (40px) both use `KidAvatar`
+- All `Image` imports for avatar display removed from HomeScreen and AccountScreen
+- DB `avatar` field now stores a hex colour string (e.g. `#6366f1`); legacy emoji/image keys handled gracefully
+
+---
+
 ### Phase 7 — Theme System, Avatar Overhaul & Profile Editing — 2026-04-17
 
 #### Added — Dark / Light Mode
