@@ -5,91 +5,89 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator }     from '@react-navigation/stack';
 import { SafeAreaProvider }         from 'react-native-safe-area-context';
+import { Ionicons }                 from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import GameScreen      from './src/screens/GameScreen';
-import ScanScreen      from './src/screens/ScanScreen';
-import AccountScreen   from './src/screens/AccountScreen';
-import AuthScreen      from './src/screens/AuthScreen';
+import HomeScreen     from './src/screens/HomeScreen';
+import ScanScreen     from './src/screens/ScanScreen';
+import AccountScreen  from './src/screens/AccountScreen';
+import AuthScreen     from './src/screens/AuthScreen';
 import KidSelectScreen from './src/screens/KidSelectScreen';
+import QuizScreen     from './src/screens/QuizScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const TAB_ICON = {
-  Play:    '🎮',
-  Scan:    '📸',
-  Account: '👤',
+// ── Tab bar icon config ───────────────────────────────────────
+const TAB_ICONS = {
+  Play:    { active: 'game-controller',         inactive: 'game-controller-outline' },
+  Scan:    { active: 'camera',                  inactive: 'camera-outline' },
+  Account: { active: 'person-circle',           inactive: 'person-circle-outline' },
 };
 
-// ── Main tabs (shown when a kid is active OR user is guest) ──
+// ── Main tabs ─────────────────────────────────────────────────
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#e2e8f0',
-          borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-          paddingTop: 8,
+          backgroundColor: '#0f172a',
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 88 : 68,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+          paddingTop: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 20,
         },
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#94a3b8',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarIcon: ({ focused }) => (
-          <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>
-            {TAB_ICON[route.name] ?? '●'}
-          </Text>
-        ),
+        tabBarActiveTintColor: '#60a5fa',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.35)',
+        tabBarLabelStyle: {
+          fontSize: 11, fontWeight: '700', letterSpacing: 0.3,
+        },
+        tabBarIcon: ({ focused, color }) => {
+          const icon = focused
+            ? TAB_ICONS[route.name]?.active
+            : TAB_ICONS[route.name]?.inactive;
+          return <Ionicons name={icon ?? 'ellipse'} size={26} color={color} />;
+        },
       })}
     >
-      <Tab.Screen name="Play"    component={GameScreen}    options={{ tabBarLabel: 'Play' }} />
+      <Tab.Screen name="Play"    component={HomeScreen}    options={{ tabBarLabel: 'Play' }} />
       <Tab.Screen name="Scan"    component={ScanScreen}    options={{ tabBarLabel: 'Scan' }} />
       <Tab.Screen name="Account" component={AccountScreen} options={{ tabBarLabel: 'Account' }} />
     </Tab.Navigator>
   );
 }
 
-// ── Root navigator — decides which flow to show ───────────────
+// ── Root navigator ────────────────────────────────────────────
 function RootNavigator() {
-  const { isLoggedIn, loading, kidProfiles, activeKid } = useAuth();
+  const { isLoggedIn, loading, activeKid } = useAuth();
 
   if (loading) {
     return (
       <View style={styles.splash}>
         <Text style={styles.splashLogo}>📚</Text>
         <Text style={styles.splashName}>BryceLearning</Text>
-        <ActivityIndicator color="#fff" style={{ marginTop: 24 }} />
+        <ActivityIndicator color="#60a5fa" style={{ marginTop: 24 }} />
       </View>
     );
   }
 
-  // Guest flow: show main tabs directly (no account required)
-  // Logged-in flow:
-  //   - No kids yet → KidSelect
-  //   - Kids exist but none selected → KidSelect
-  //   - Kid selected → MainTabs
-  const showKidSelect = isLoggedIn && (kidProfiles.length === 0 || !activeKid);
+  const initialRoute = (isLoggedIn && !activeKid) ? 'KidSelect' : 'Main';
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {showKidSelect
-        ? <Stack.Screen name="KidSelect" component={KidSelectScreen} />
-        : <Stack.Screen name="Main"      component={MainTabs} />
-      }
-      {/* These screens are always available to navigate to */}
-      <Stack.Screen
-        name="Auth"
-        component={AuthScreen}
-        options={{ presentation: 'modal' }}
-      />
-      <Stack.Screen
-        name="KidSelect"
-        component={KidSelectScreen}
-      />
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={initialRoute}
+    >
+      <Stack.Screen name="Main"      component={MainTabs} />
+      <Stack.Screen name="Auth"      component={AuthScreen}     options={{ presentation: 'modal' }} />
+      <Stack.Screen name="KidSelect" component={KidSelectScreen} />
+      <Stack.Screen name="Quiz"      component={QuizScreen}     options={{ gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }
@@ -111,7 +109,7 @@ export default function App() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0f172a',
     justifyContent: 'center',
     alignItems: 'center',
   },

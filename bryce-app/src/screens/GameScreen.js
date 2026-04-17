@@ -1,9 +1,13 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity, Platform, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../context/AuthContext';
 import { handleProgressUpdate } from '../services/progressSync';
+
+// WebView is native-only
+const WebView = Platform.OS !== 'web'
+  ? require('react-native-webview').WebView
+  : null;
 
 const GAME_URL = 'https://brianloriga.github.io/bryce/';
 
@@ -56,9 +60,31 @@ true; // Required by React Native WebView
 `;
 }
 
+// Web platform fallback — WebView only works in native Expo Go
+function WebFallback() {
+  return (
+    <View style={styles.fallback}>
+      <Text style={styles.fallbackEmoji}>📱</Text>
+      <Text style={styles.fallbackTitle}>Open in Expo Go</Text>
+      <Text style={styles.fallbackDesc}>
+        The games run natively in the Expo Go app.{'\n'}
+        Download it from the App Store, then scan the QR code from the terminal.
+      </Text>
+      <TouchableOpacity
+        style={styles.fallbackBtn}
+        onPress={() => Linking.openURL(GAME_URL)}
+      >
+        <Text style={styles.fallbackBtnText}>Or play in browser →</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function GameScreen() {
   const webViewRef = useRef(null);
   const { activeKid, initialLocalStoragePayload } = useAuth();
+
+  if (Platform.OS === 'web') return <WebFallback />;
 
   // ── Handle messages from the WebView ────────────────────────
   const onMessage = useCallback(async (event) => {
@@ -150,4 +176,23 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontWeight: '600',
   },
+  fallback: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  fallbackEmoji:  { fontSize: 64, marginBottom: 16 },
+  fallbackTitle:  { fontSize: 26, fontWeight: '800', color: '#fff', marginBottom: 12 },
+  fallbackDesc: {
+    fontSize: 15, color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center', lineHeight: 24, marginBottom: 28,
+  },
+  fallbackBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 2, borderColor: '#fff',
+    borderRadius: 12, paddingHorizontal: 24, paddingVertical: 13,
+  },
+  fallbackBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 });

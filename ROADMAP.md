@@ -60,18 +60,22 @@ This gets us to the App Store fastest while still feeling like a real native app
 **Goal:** Parent photographs a textbook page → AI generates 9 practice questions → added to the app.
 
 ### Steps
-- [ ] 3.1 Add Expo Camera + ImagePicker permissions
-- [ ] 3.2 Build "Add New Section" screen with camera/photo library picker
-- [ ] 3.3 Set up OpenAI API (GPT-4o Vision) in a secure backend route
-  - Never expose the API key on the client
-  - Create a simple serverless function (Supabase Edge Function or Vercel)
-- [ ] 3.4 Build the AI prompt pipeline:
-  - Send image to GPT-4o Vision
-  - Prompt: *"You are a 4th grade teacher. This is a textbook page. Generate 9 multiple-choice practice questions a student can answer after studying this page. Return JSON: `{ title, unit, questions: [{ question, options: [A,B,C,D], correctIndex }] }`"*
-- [ ] 3.5 Show preview of generated questions — parent can edit/delete before saving
-- [ ] 3.6 Save approved questions to Supabase as a custom unit
-- [ ] 3.7 Custom units appear in the child's app alongside built-in units
-- [ ] 3.8 Add loading/processing UI (scanning animation)
+- [x] 3.1 Add Expo Camera + ImagePicker permissions
+- [x] 3.2 Build ScanScreen — camera capture or photo library picker with image preview
+- [x] 3.3 Supabase Edge Function (`generate-questions`) — securely calls GPT-4o Vision, OpenAI key stays server-side
+- [x] 3.4 AI prompt pipeline — sends base64 image, returns `{ title, questions: [{ question, options, correctIndex }] }`
+- [x] 3.5 Question preview + inline editor — edit text, swap correct answer, remove questions
+- [x] 3.6 Save to Supabase `custom_units` table
+- [ ] 3.7 Custom units appear in the child's game (Phase 3 follow-up)
+- [x] 3.8 Scanning loading state with spinner and status message
+- [x] 3.9 Multi-page scanning (up to 6 pages per unit, thumbnail strip UI)
+- [x] 3.10 Image content validation (GPT rejects non-educational images with explanation)
+
+**To activate Phase 3:**
+1. Get an OpenAI API key at platform.openai.com
+2. Install Supabase CLI: `npm install -g supabase`
+3. Run: `supabase functions deploy generate-questions --project-ref vwyhxnaunkbrxuzjxpzt`
+4. Set secret: `supabase secrets set OPENAI_API_KEY=sk-... --project-ref vwyhxnaunkbrxuzjxpzt`
 
 **Output:** Parent scans page → 9 questions appear in kid's game within ~10 seconds.
 
@@ -94,6 +98,11 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [ ] 4.8 Add "Restore Purchases" button
 
 **Output:** App is monetized. Free users can play all existing content. Subscribers can scan new content.
+
+---
+
+## UI Redesign Note
+> Flagged for Phase 5 — current UI is functional but needs a full visual redesign pass before App Store launch.
 
 ---
 
@@ -152,6 +161,19 @@ This gets us to the App Store fastest while still feeling like a real native app
 | Expo EAS Build | $0 (hobby) | $0–29 |
 | **Apple's cut** | — | **30%** of revenue |
 | **Net at $4.99/mo × 500** | — | **~$1,700/mo** |
+
+---
+
+## UI Redesign Progress
+
+> Phase 5 is the full redesign pass, but individual screens are being improved as bugs are fixed.
+> - KidSelectScreen ✅ redesigned (2026-04-17) — larger cards, colored avatars, Account header link
+> - HomeScreen (Play tab) ✅ rebuilt (2026-04-17) — native custom-unit cards, replaces WebView game
+> - QuizScreen ✅ new (2026-04-17) — dark native quiz with animated progress bar and star results
+> - Tab bar ✅ redesigned (2026-04-17) — dark navy, Ionicons vector icons, modern look
+> - ScanScreen ✅ updated (2026-04-17) — multi-page strip, content validation, camera/library prompt
+> - AccountScreen — flagged for redesign in Phase 5
+> - AuthScreen — flagged for redesign in Phase 5
 
 ---
 

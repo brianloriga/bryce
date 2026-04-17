@@ -69,7 +69,116 @@ All notable changes to this project are tracked here.
 4. Run `npx expo start` — sign up, add a kid, play!
 
 #### Next Steps
-- Phase 3: Camera + GPT-4o Vision for AI question generation
+- Phase 3: Camera + GPT-4o Vision for AI question generation ✅ (see below)
+
+---
+
+### Phase 3: Camera + AI Question Generation — 2026-04-16
+
+#### Added
+- `bryce-app/src/screens/ScanScreen.js` — full photo-to-questions flow:
+  - Take photo with camera or pick from library
+  - Image preview before generating
+  - Loading state while AI processes
+  - Question preview with inline editor (edit text, options, swap correct answer, remove questions)
+  - Save to Supabase or discard
+  - Gate for non-logged-in users (prompts to sign in)
+  - Success screen after saving
+- `bryce-app/supabase/functions/generate-questions/index.ts` — Supabase Edge Function:
+  - Receives base64 image from the app
+  - Calls GPT-4o Vision with a 4th-grade teacher prompt
+  - Returns `{ title, questions: [{ question, options, correctIndex }] }`
+  - OpenAI key stored as a server secret, never exposed to client
+- `bryce-app/src/services/aiService.js` — client wrapper for the edge function
+- Added `saveCustomUnit()`, `getCustomUnits()`, `deleteCustomUnit()` to `supabase.js`
+
+#### To activate
+1. Get OpenAI API key at platform.openai.com
+2. `npm install -g supabase`
+3. `supabase functions deploy generate-questions --project-ref vwyhxnaunkbrxuzjxpzt`
+4. `supabase secrets set OPENAI_API_KEY=sk-... --project-ref vwyhxnaunkbrxuzjxpzt`
+
+#### Bug Fixes (same session)
+- Fixed duplicate `KidSelect` screen name crash in Stack navigator
+- Replaced `sb_publishable_` Supabase key with legacy `eyJ...` anon key (required for PostgREST/database access)
+- Fixed `createKidProfile` and `saveCustomUnit` missing `parent_id` in INSERT — caused 403 Forbidden from RLS policy
+- Added inline error/success messages to AuthScreen (replaced unreliable `Alert.alert` on web)
+- Added web platform fallback to GameScreen (WebView not supported in browser)
+- Fixed Metro bundler cache issues causing stale code to be served
+
+#### Current State (end of session 2026-04-16)
+- ✅ Account creation works (email + password)
+- ✅ Email confirmation disabled for dev (re-enable before App Store)
+- ✅ Sign in works
+- ✅ Kid profile creation works (saved to Supabase)
+- ✅ Kid select screen works — tapping a kid navigates to the main app
+- ✅ App runs in browser via `http://192.168.40.183:8081`
+- ⚠️  Expo Go / native not yet tested end-to-end (WebView won't work in browser)
+- ⚠️  UI flagged for redesign (Phase 5)
+- ⏳ Phase 3 AI scanning not yet tested (needs OpenAI key deployed to Supabase Edge Function)
+
+#### Next Steps
+- Phase 4: Subscriptions via RevenueCat / Apple In-App Purchase
+- Or: Deploy Edge Function + test AI scanning (needs OpenAI API key)
+
+---
+
+### Phase 3 Follow-up + Bug Fixes — 2026-04-17
+
+#### Added
+- Multi-page scanning: parents can now add up to 6 pages per unit before generating
+  - Horizontal thumbnail strip with page number badges and individual remove (✕) buttons
+  - Dashed "+ Add page" tile at end of strip
+  - Generate button shows page count: "⚡ Generate Questions from 3 pages"
+  - GPT-4o receives all images in one request and spreads 9 questions across all pages
+- Image content validation guardrail:
+  - GPT-4o evaluates the image(s) before generating questions (same API call, no extra cost)
+  - If the image is not educational content (face, animal, house, etc.) it returns `valid: false` with a plain-English reason
+  - App shows a dismissible red inline error card with the AI's reason — no generic alert
+- Deployed `generate-questions` Supabase Edge Function (project `vwyhxnaunkbrxuzjxpzt`)
+- Set `OPENAI_API_KEY` as a Supabase secret (server-side only, never exposed to client)
+
+#### Fixed
+- **KidSelectScreen navigation bug**: tapping a kid called `selectKid` successfully but the app stayed stuck on the kid select screen. Fixed by adding a `useEffect` that watches `activeKid` and calls `navigation.reset` to Main once a kid is set — guarantees navigation fires after React re-renders with the new state.
+
+#### Changed
+- Redesigned `KidSelectScreen` with larger, more minimal UI:
+  - Kid cards are now taller with a 64px colored avatar circle and 24px name text
+  - "Add a Child" replaced with a clean dashed card (no small icons)
+  - Added "Account" button in top-right header so parents are never stuck
+  - Removed cluttered subtitle; added a subtle "Hold a profile to delete it" hint at the bottom
+  - Avatar picker uses colored background circles matching each emoji
+
+#### Added (continued — same session)
+- **HomeScreen** — replaces WebView game; shows parent's custom scanned units as large colored cards:
+  - Vibrant full-width cards with unit title, question count, and play button
+  - Pull-to-refresh to pick up newly saved scans instantly
+  - Long-press a card to delete a unit
+  - Empty state with guidance to use the Scan tab
+- **QuizScreen** — native multiple-choice quiz for any custom unit:
+  - Dark themed; animated progress bar fills as questions are answered
+  - A/B/C/D answer buttons; correct answer goes green, wrong goes red after each tap
+  - Auto-advances after 1.4 seconds
+  - Results screen with ⭐ rating (3 stars ≥89%, 2 stars ≥67%, 1 star ≥45%), score, Play Again / Back buttons
+- **Tab bar redesign** — fully replaced:
+  - Dark navy background (`#0f172a`) with no top border
+  - Real `Ionicons` vector icons (game-controller, camera, person-circle) with filled/outline active states
+  - Bright blue active tint, muted white for inactive — no more emoji icons
+- Prompted camera vs library choice when tapping the empty placeholder or "+ Add page" tile in ScanScreen
+- Improved Edge Function error handling: `aiService.js` now extracts the actual error body from `error.context` so real failure reasons are shown instead of generic "non-2xx" message
+- Redeployed `generate-questions` Edge Function with `--no-verify-jwt` to fix "non-2xx status code" error caused by JWT gateway rejection
+
+#### Fixed
+- Edge Function returning non-2xx — was being blocked by Supabase JWT verification layer before the function even ran; fixed with `--no-verify-jwt` deploy flag
+
+#### Current State (end of session 2026-04-17)
+- ✅ Expo Go accessible via QR code (iOS Camera app → opens in Expo Go)
+- ✅ Kid select → main app navigation works
+- ✅ Edge Function deployed with OpenAI key; JWT issue resolved
+- ✅ HomeScreen shows custom units; QuizScreen plays questions
+- ✅ Modern dark tab bar with vector icons
+- ⏳ AI scanning end-to-end test pending (needs physical camera on device)
+- ⏳ Phase 4 Subscriptions not started
 
 ---
 

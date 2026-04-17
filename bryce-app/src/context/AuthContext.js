@@ -61,17 +61,21 @@ export function AuthProvider({ children }) {
 
   // ── Select which kid is playing ────────────────────────────
   async function selectKid(kid, persist = true) {
+    console.log('[selectKid] called with:', kid?.name, kid?.id);
     setActiveKidState(kid);
     if (persist) await saveActiveKid(kid.id);
+    console.log('[selectKid] activeKid set, loading scores...');
 
     // Load their cloud scores so GameScreen can inject into WebView
     try {
       const scores = await getProgressForKid(kid.id);
+      console.log('[selectKid] scores loaded:', Object.keys(scores).length, 'games');
       setCloudScores(scores);
     } catch (err) {
-      console.warn('[AuthContext] getProgressForKid error:', err.message);
+      console.warn('[selectKid] getProgressForKid error:', err.message);
       setCloudScores({});
     }
+    console.log('[selectKid] done');
   }
 
   // The localStorage JSON string to inject into the WebView on startup

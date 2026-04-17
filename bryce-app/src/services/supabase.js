@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl  = process.env.EXPO_PUBLIC_SUPABASE_URL  ?? '';
 const supabaseKey  = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
+// Debug: confirm keys loaded (remove before App Store submission)
+console.log('[Supabase] URL loaded:', !!supabaseUrl, '| Key loaded:', !!supabaseKey);
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     // Use AsyncStorage so the session survives app restarts
@@ -45,11 +48,17 @@ export async function getKidProfiles() {
 }
 
 export async function createKidProfile(name, avatar = '🦁') {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('[createKidProfile] user:', user?.id ?? 'NULL', userError?.message ?? '');
+  if (!user) throw new Error('Must be signed in to create a kid profile');
+
   const { data, error } = await supabase
     .from('kid_profiles')
-    .insert({ name, avatar })
+    .insert({ name, avatar, parent_id: user.id })
     .select()
     .single();
+
+  console.log('[createKidProfile] result:', data, error?.message ?? '');
   if (error) throw error;
   return data;
 }
@@ -80,6 +89,45 @@ export async function syncProgressToSupabase(kidId, scores) {
     p_kid_id: kidId,
     p_scores: scores,
   });
+  if (error) throw error;
+}
+
+// ── Custom Unit helpers ───────────────────────────────────────
+
+export async function saveCustomUnit(title, questions, unitLabel = null) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Must be signed in to save units');
+
+  const { data, error } = await supabase
+    .from('custom_units')
+    .insert({
+      title,
+      questions,
+      unit_label: unitLabel,
+      subject: 'custom',
+      parent_id: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getCustomUnits() {
+  const { data, error } = await supabase
+    .from('custom_units')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function deleteCustomUnit(unitId) {
+  const { error } = await supabase
+    .from('custom_units')
+    .delete()
+    .eq('id', unitId);
   if (error) throw error;
 }
 
