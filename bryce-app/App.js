@@ -20,7 +20,7 @@ const Stack = createStackNavigator();
 
 // ── Tab bar icon config ───────────────────────────────────────
 const TAB_ICONS = {
-  Play:    { active: 'game-controller',         inactive: 'game-controller-outline' },
+  Learn:   { active: 'school',                  inactive: 'school-outline' },
   Scan:    { active: 'camera',                  inactive: 'camera-outline' },
   Account: { active: 'person-circle',           inactive: 'person-circle-outline' },
 };
@@ -56,7 +56,7 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Play"    component={HomeScreen}    options={{ tabBarLabel: 'Play' }} />
+      <Tab.Screen name="Learn"   component={HomeScreen}    options={{ tabBarLabel: 'Learn' }} />
       <Tab.Screen name="Scan"    component={ScanScreen}    options={{ tabBarLabel: 'Scan' }} />
       <Tab.Screen name="Account" component={AccountScreen} options={{ tabBarLabel: 'Account' }} />
     </Tab.Navigator>

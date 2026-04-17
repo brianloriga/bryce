@@ -123,6 +123,27 @@ All notable changes to this project are tracked here.
 
 ---
 
+### UI Polish + PIN Protection + Bubbly KidSelect — 2026-04-17
+
+#### Added
+- **Parent PIN lock** on Account tab:
+  - Kids cannot access subscriptions, sign-out, or profile management without PIN
+  - First visit prompts parent to set a 4-digit PIN
+  - PIN required on every Account tab focus (re-locks when switching tabs)
+  - Wrong PIN triggers shake animation; "I forgot my PIN" option via sign-out reset
+  - "Lock" button in Account header to manually re-lock at any time
+- **Bubbly animated KidSelectScreen** redesign:
+  - Soft lavender background (`#f5f3ff`) with 7 floating animated background circles
+  - Large 90px circular profile bubbles with color-matched backgrounds per avatar
+  - Spring bounce animation on each profile tap before navigating
+  - Content fades and slides up on screen load
+  - "Who's learning today? 🎓 / Tap your picture to start!" welcoming text
+- **Manage mode for KidSelectScreen**: navigating from Account passes `mode: 'manage'` — selecting a kid in manage mode updates the active kid without resetting navigation back to Learn tab; "Done" button returns to Account
+- Renamed **Play → Learn** tab with `school` Ionicons icon
+
+#### Fixed
+- "Manage Kids Profiles" in Account was navigating to Play/Learn tab instead of the profile manager — fixed by passing `{ mode: 'manage' }` param and correcting the navigation target
+
 ### Phase 3 Follow-up + Bug Fixes — 2026-04-17
 
 #### Added
