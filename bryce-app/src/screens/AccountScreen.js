@@ -14,12 +14,15 @@ import { getParentPin, setParentPin } from '../utils/pinStorage';
 // PIN PAD COMPONENT
 // ─────────────────────────────────────────────────────────────
 function PinPad({ onComplete, title, subtitle, error, onForgot }) {
-  const [digits, setDigits] = useState([]);
+  const [digits, setDigits]   = useState([]);
+  const [waiting, setWaiting] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
+  // Reset & shake when a new error arrives
   useEffect(() => {
     if (error) {
       setDigits([]);
+      setWaiting(false);
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 10,  duration: 60, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: -10, duration: 60, useNativeDriver: true }),
@@ -31,13 +34,24 @@ function PinPad({ onComplete, title, subtitle, error, onForgot }) {
   }, [error]);
 
   function tap(n) {
-    if (digits.length >= 4) return;
+    if (digits.length >= 4 || waiting) return;
     const next = [...digits, n];
     setDigits(next);
-    if (next.length === 4) onComplete(next.join(''));
+    if (next.length === 4) {
+      setWaiting(true);
+      // Brief pause so the last dot fills visually before handing off
+      setTimeout(() => {
+        setDigits([]);
+        setWaiting(false);
+        onComplete(next.join(''));
+      }, 220);
+    }
   }
 
-  function del() { setDigits(prev => prev.slice(0, -1)); }
+  function del() {
+    if (waiting) return;
+    setDigits(prev => prev.slice(0, -1));
+  }
 
   return (
     <View style={pin.container}>
@@ -123,15 +137,15 @@ export default function AccountScreen() {
 
   async function handleSetupPin2(entered) {
     if (entered !== setupPin) {
-      setPinError('PINs don\'t match. Start again.');
-      setPinState('setup1');
       setSetupPin('');
+      setPinState('setup1');
+      setPinError('PINs didn\'t match — please try again.');
       return;
     }
     await setParentPin(entered);
+    setSetupPin('');
     setPinState('unlocked');
     setPinError('');
-    Alert.alert('PIN saved', 'Your parent PIN is set. Kids will need this PIN to access Account settings.');
   }
 
   function handleForgotPin() {

@@ -81,6 +81,14 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 ---
 
+## Backlog / Nice-to-Have
+
+> Small items that don't fit into a specific phase yet.
+
+- [ ] **Parent PIN reset without sign-out** — currently forgetting the PIN requires signing out. Add a "Forgot PIN" recovery flow that verifies the parent's email (Supabase magic link or OTP) before allowing a reset without losing the account.
+
+---
+
 ## Phase 4 — Subscription
 
 **Goal:** Free tier for built-in units; paid tier ($4.99/month) unlocks AI scanning + unlimited custom units.
