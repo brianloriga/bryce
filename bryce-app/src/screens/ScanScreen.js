@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { generateQuestionsFromImage } from '../services/aiService';
+import { generateQuestionsFromImage, regenerateQuestion } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
 
 const MAX_IMAGES = 10;
@@ -33,15 +33,16 @@ export default function ScanScreen() {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [images, setImages]                   = useState([]);
-  const [validationError, setValidationError] = useState(null);
-  const [loading, setLoading]                 = useState(false);
-  const [questions, setQuestions]             = useState(null);
-  const [unitTitle, setUnitTitle]             = useState('');
-  const [saving, setSaving]                   = useState(false);
-  const [step, setStep]                       = useState('pick');
-  const [showHowModal, setShowHowModal]       = useState(false);
-  const [questionCount, setQuestionCount]     = useState(9);
+  const [images, setImages]                       = useState([]);
+  const [validationError, setValidationError]     = useState(null);
+  const [loading, setLoading]                     = useState(false);
+  const [questions, setQuestions]                 = useState(null);
+  const [unitTitle, setUnitTitle]                 = useState('');
+  const [saving, setSaving]                       = useState(false);
+  const [step, setStep]                           = useState('pick');
+  const [showHowModal, setShowHowModal]           = useState(false);
+  const [questionCount, setQuestionCount]         = useState(9);
+  const [regeneratingIndex, setRegeneratingIndex] = useState(null);
 
   // ── Image helpers ──────────────────────────────────────────
   function addImage(asset) {
@@ -120,6 +121,24 @@ export default function ScanScreen() {
   }
   function removeQuestion(index) {
     setQuestions(prev => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleRegenerate(index) {
+    if (regeneratingIndex !== null) return;
+    const existing = questions[index];
+    setRegeneratingIndex(index);
+    try {
+      const replacement = await regenerateQuestion(
+        images.map(img => img.base64),
+        existing.question,
+        existing.type === 'visual_mc',
+      );
+      setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));
+    } catch (err) {
+      Alert.alert('Regeneration failed', err.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setRegeneratingIndex(null);
+    }
   }
 
   // ── Save ───────────────────────────────────────────────────
@@ -236,10 +255,24 @@ export default function ScanScreen() {
           {questions.map((q, i) => (
             <View key={i} style={styles.questionCard}>
               <View style={styles.questionHeader}>
-                <Text style={styles.questionNum}>Q{i + 1}</Text>
-                <TouchableOpacity onPress={() => removeQuestion(i)} style={styles.removeBtn}>
-                  <Text style={styles.removeBtnText}>Remove</Text>
-                </TouchableOpacity>
+                <Text style={styles.questionNum}>
+                  Q{i + 1}{q.type === 'visual_mc' ? '  ✨' : ''}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => handleRegenerate(i)}
+                    style={styles.regenBtn}
+                    disabled={regeneratingIndex !== null}
+                  >
+                    {regeneratingIndex === i
+                      ? <ActivityIndicator size="small" color="#60a5fa" />
+                      : <Ionicons name="refresh-outline" size={18} color="#60a5fa" />
+                    }
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeQuestion(i)} style={styles.removeBtn}>
+                    <Text style={styles.removeBtnText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <TextInput
                 style={styles.questionInput}
@@ -691,6 +724,7 @@ function createStyles(t) {
     questionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     questionNum:    { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5 },
     removeBtn:      { backgroundColor: t.dangerDim, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    regenBtn:       { backgroundColor: 'rgba(96,165,250,0.15)', borderRadius: 8, padding: 6, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
     removeBtnText:  { fontSize: 12, fontWeight: '700', color: t.danger },
     questionInput: {
       backgroundColor: t.bgInput, borderRadius: 10,

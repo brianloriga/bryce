@@ -191,6 +191,12 @@ This gets us to the App Store fastest while still feeling like a real native app
 - [x] 7.26 "Go to Learn" button on ScanScreen save-success screen — navigates directly to Learn tab
 - [x] 7.27 Keyboard-aware modals — `KeyboardAvoidingView` added to Edit Profile modal and ScanScreen question editor so keyboard no longer covers content
 - [x] 7.28 Avatar system replaced with colour + initial — `KidAvatar` component, 12-colour picker, live preview in add/edit forms; DB stores hex colour
+- [x] 7.29 Rich visual questions — GPT freely composes emoji/unicode visuals in question text; scaled 1–4 per lesson by count
+- [x] 7.30 Hint system — GPT generates a hint per question; 💡 button reveals it with animated fade-in
+- [x] 7.31 Read-aloud TTS — 🔈 button reads question aloud via `expo-speech`; auto-stops on answer/navigation
+- [x] 7.32 Markdown rendering — question text rendered via `react-native-markdown-display` (bold, tables, code, line breaks)
+- [x] 7.33 SVG geometry — optional `geometry` object (pie, bar, shape) rendered with `react-native-svg` above question text
+- [x] 7.34 Per-question regenerate — 🔄 button in review step swaps any question without re-scanning; separate `regenerate` mode in edge function
 - [ ] 7.18 Allow lessons to be assigned to a specific child so siblings see their own content
 
 ---
@@ -321,6 +327,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 | 7.B–D | Security hardening, UX polish, engagement features | 🔄 In progress |
 | **Theme + Avatar** | Dark/light mode system, colour+initial avatars, edit profile | ✅ Done |
 | **7.C Polish** | "Lesson" rename, Go to Learn button, keyboard-aware modals, crash fix | ✅ Done |
+| **7.D Rich Questions** | Visual emoji questions, hints, TTS, markdown, SVG geometry, per-question regenerate | ✅ Done |
 | 6 | App Store Launch (free / no paywall) | Pending |
 | 8 | Boss battles, mini-games & à la carte purchases | Pending |
 | **4** | **Subscriptions** — added last after beta testing validates all functionality | **Last** |
