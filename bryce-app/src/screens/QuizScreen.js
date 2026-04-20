@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Animated,
+  ScrollView, Animated, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -156,26 +156,69 @@ export default function QuizScreen() {
   const [answered, setAnswered]           = useState(false);
   const [finished, setFinished]           = useState(false);
   const [hintVisible, setHintVisible]     = useState(false);
-  const [speaking, setSpeaking]           = useState(false);
+  const [audioPlaying, setAudioPlaying]   = useState(false);
+  const [audioLoading, setAudioLoading]   = useState(false);
+  const [passageVisible, setPassageVisible] = useState(false);
 
   const progressAnim  = useRef(new Animated.Value(0)).current;
   const hintAnim      = useRef(new Animated.Value(0)).current;
   const answerTimeout = useRef(null);
+  const soundRef      = useRef(null);
 
-  // Stop speech and reset hint when question changes
+  async function unloadSound() {
+    if (soundRef.current) {
+      await soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    setAudioPlaying(false);
+  }
+
+  // Reset hint and stop audio when question changes
   useEffect(() => {
-    Speech.stop();
-    setSpeaking(false);
     setHintVisible(false);
     hintAnim.setValue(0);
+    unloadSound();
   }, [currentIndex]);
 
   useEffect(() => {
+    // Enable audio playback even when device is in silent mode
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
     return () => {
       if (answerTimeout.current) clearTimeout(answerTimeout.current);
-      Speech.stop();
+      unloadSound();
     };
   }, []);
+
+  const toggleAudio = useCallback(async () => {
+    if (audioPlaying) {
+      await unloadSound();
+      return;
+    }
+
+    const url = questions[currentIndex]?.audio_url;
+    if (!url) return;
+
+    setAudioLoading(true);
+    try {
+      await unloadSound();
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: url },
+        { shouldPlay: true },
+      );
+      soundRef.current = sound;
+      setAudioPlaying(true);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.didJustFinish || status.error) {
+          setAudioPlaying(false);
+          soundRef.current = null;
+        }
+      });
+    } catch (_) {
+      setAudioPlaying(false);
+    } finally {
+      setAudioLoading(false);
+    }
+  }, [audioPlaying, currentIndex, questions]);
 
   const toggleHint = useCallback(() => {
     const next = !hintVisible;
@@ -186,25 +229,6 @@ export default function QuizScreen() {
       useNativeDriver: true,
     }).start();
   }, [hintVisible]);
-
-  const toggleSpeech = useCallback(async () => {
-    if (speaking) {
-      Speech.stop();
-      setSpeaking(false);
-    } else {
-      const isSpeaking = await Speech.isSpeakingAsync();
-      if (isSpeaking) { Speech.stop(); }
-      const q = questions[currentIndex];
-      const text = (q?.question ?? '').replace(/[\u{1F000}-\u{1FFFF}]/gu, '').trim();
-      Speech.speak(text || q?.question || '', {
-        rate: 0.85,
-        onDone: () => setSpeaking(false),
-        onStopped: () => setSpeaking(false),
-        onError: () => setSpeaking(false),
-      });
-      setSpeaking(true);
-    }
-  }, [speaking, currentIndex, questions]);
 
   if (questions.length === 0) {
     return (
@@ -238,8 +262,7 @@ export default function QuizScreen() {
     if (answered) return;
     setSelectedIndex(index);
     setAnswered(true);
-    Speech.stop();
-    setSpeaking(false);
+    unloadSound();
 
     const isCorrect = index === safeCorrectIndex;
     const newScore = isCorrect ? score + 1 : score;
@@ -282,8 +305,7 @@ export default function QuizScreen() {
     setAnswered(false);
     setFinished(false);
     setHintVisible(false);
-    setSpeaking(false);
-    Speech.stop();
+    unloadSound();
     animateProgress(0);
   }
 
@@ -375,17 +397,32 @@ export default function QuizScreen() {
 
         {/* Question card */}
         <View style={[styles.questionCard, isVisual && styles.questionCardVisual]}>
-          {/* Card header row: label + TTS button */}
           <View style={styles.questionCardHeader}>
             <Text style={styles.questionNum}>
               {isVisual ? '✨ Visual Question' : `Question ${currentIndex + 1}`}
             </Text>
-            <TouchableOpacity onPress={toggleSpeech} style={styles.ttsBtn} activeOpacity={0.7}>
-              <Text style={[styles.ttsBtnIcon, speaking && styles.ttsBtnActive]}>
-                {speaking ? '🔊' : '🔈'}
-              </Text>
-            </TouchableOpacity>
+            {q.audio_url ? (
+              <TouchableOpacity
+                onPress={toggleAudio}
+                style={styles.audioBtn}
+                activeOpacity={0.7}
+                disabled={audioLoading}
+              >
+                <Text style={[styles.audioBtnIcon, audioPlaying && styles.audioBtnActive]}>
+                  {audioLoading ? '⏳' : audioPlaying ? '🔊' : '🔈'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
+
+          {/* Visual aid image (optional — from scanned diagram/graph) */}
+          {q.image_url && (
+            <Image
+              source={{ uri: q.image_url }}
+              style={styles.questionImage}
+              resizeMode="contain"
+            />
+          )}
 
           {/* SVG geometry (optional) */}
           {q.geometry && <GeometryDisplay geometry={q.geometry} />}
@@ -429,7 +466,64 @@ export default function QuizScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Read Along bar — shown below options when a passage is available */}
+        {unit.passage && (
+          <TouchableOpacity
+            style={styles.readAlongBar}
+            onPress={() => setPassageVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.readAlongIcon}>📖</Text>
+            <View style={styles.readAlongTextBlock}>
+              <Text style={styles.readAlongLabel}>Read Along</Text>
+              <Text style={styles.readAlongSub}>Open the reading to help answer</Text>
+            </View>
+            <Text style={styles.readAlongChevron}>›</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* Reading Passage modal */}
+      {unit.passage && (
+        <Modal
+          visible={passageVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPassageVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.passageOverlay}
+            activeOpacity={1}
+            onPress={() => setPassageVisible(false)}
+          >
+            <TouchableOpacity activeOpacity={1} style={styles.passageSheet}>
+              <View style={styles.passageHandle} />
+              <View style={styles.passageModalHeader}>
+                <Text style={styles.passageModalTitle}>📖 Reading Passage</Text>
+                <TouchableOpacity onPress={() => setPassageVisible(false)}>
+                  <Text style={styles.passageCloseX}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.passageModalHint}>
+                Use this text to help answer the questions.
+              </Text>
+              <ScrollView
+                style={styles.passageScroll}
+                showsVerticalScrollIndicator={true}
+              >
+                <Text style={styles.passageBody}>{unit.passage}</Text>
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.passageDoneBtn}
+                onPress={() => setPassageVisible(false)}
+              >
+                <Text style={styles.passageDoneBtnText}>Back to Quiz</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -478,10 +572,71 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8,
   },
 
-  // TTS button
-  ttsBtn:       { padding: 4 },
-  ttsBtnIcon:   { fontSize: 20, opacity: 0.6 },
-  ttsBtnActive: { opacity: 1 },
+  // Visual aid image
+  questionImage: {
+    width: '100%', height: 180, borderRadius: 12,
+    marginBottom: 14, backgroundColor: '#1e293b',
+  },
+
+  // Read Along bar (below answer options)
+  readAlongBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+    marginBottom: 6,
+    marginHorizontal: 4,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(96,165,250,0.07)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(96,165,250,0.18)',
+  },
+  readAlongIcon:      { fontSize: 24 },
+  readAlongTextBlock: { flex: 1 },
+  readAlongLabel:     { fontSize: 14, fontWeight: '700', color: '#60a5fa' },
+  readAlongSub:       { fontSize: 11, color: '#475569', marginTop: 1 },
+  readAlongChevron:   { fontSize: 22, color: '#60a5fa', fontWeight: '300' },
+
+  // Passage modal
+  passageOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end',
+  },
+  passageSheet: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    borderWidth: 1, borderColor: '#1e293b',
+    padding: 24, paddingBottom: 36,
+    maxHeight: '80%',
+  },
+  passageHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#334155', alignSelf: 'center', marginBottom: 20,
+  },
+  passageModalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 6,
+  },
+  passageModalTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  passageCloseX:     { fontSize: 18, color: '#64748b', padding: 4 },
+  passageModalHint:  { fontSize: 13, color: '#64748b', marginBottom: 16 },
+  passageScroll:     { maxHeight: 340, marginBottom: 20 },
+  passageBody: {
+    fontSize: 15, color: '#e2e8f0', lineHeight: 24,
+    fontFamily: 'System',
+  },
+  passageDoneBtn: {
+    backgroundColor: '#1e293b', borderRadius: 14,
+    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: '#334155',
+  },
+  passageDoneBtnText: { fontSize: 15, fontWeight: '700', color: '#94a3b8' },
+
+  // Audio button
+  audioBtn:       { padding: 4 },
+  audioBtnIcon:   { fontSize: 20, opacity: 0.55 },
+  audioBtnActive: { opacity: 1 },
 
   // Hint
   hintRow:  { marginBottom: 16 },

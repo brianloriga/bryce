@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   ScrollView, Alert, ActivityIndicator, TextInput,
@@ -11,10 +12,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { generateQuestionsFromImage, regenerateQuestion } from '../services/aiService';
+import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
 
 const MAX_IMAGES = 10;
+
+// Resize any captured image to a max width of 1024px and compress to JPEG 0.7.
+// An iPhone 14 photo at full res is ~4000px wide and 2-4MB. After resize it drops
+// to ~80-150KB — well within the 6MB Edge Function body limit even with 10 pages.
+// GPT-4o reads printed textbook text perfectly at 1024px.
+async function resizeForUpload(uri, maxWidth = 1024) {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: maxWidth } }],
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+  );
+  return result; // { uri, base64, width, height }
+}
 const QUESTION_OPTIONS = [5, 9, 15, 20];
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -34,15 +48,57 @@ export default function ScanScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [images, setImages]                       = useState([]);
+  // visualImages is an array of { uri, base64, questionCount } — one per visual aid slot
+  const [visualImages, setVisualImages]           = useState([]);
   const [validationError, setValidationError]     = useState(null);
   const [loading, setLoading]                     = useState(false);
   const [questions, setQuestions]                 = useState(null);
+  const [passage, setPassage]                     = useState(null);
   const [unitTitle, setUnitTitle]                 = useState('');
   const [saving, setSaving]                       = useState(false);
   const [step, setStep]                           = useState('pick');
   const [showHowModal, setShowHowModal]           = useState(false);
   const [questionCount, setQuestionCount]         = useState(9);
   const [regeneratingIndex, setRegeneratingIndex] = useState(null);
+  const cancelledRef = useRef(false);
+
+  function cancelGeneration() {
+    cancelledRef.current = true;
+    setStep('pick');
+    setLoading(false);
+  }
+
+  // How many visual aid slots are available for this question count
+  function maxVisualSlots(qCount) {
+    if (qCount >= 20) return 3;
+    if (qCount >= 15) return 2;
+    return 1;
+  }
+
+  function setVisualSlotImage(slotIdx, asset) {
+    setVisualImages(prev => {
+      const next = [...prev];
+      next[slotIdx] = {
+        ...asset,
+        questionCount: prev[slotIdx]?.questionCount ?? 1,
+      };
+      return next;
+    });
+  }
+
+  function setVisualSlotQCount(slotIdx, count) {
+    setVisualImages(prev => prev.map((item, i) =>
+      i === slotIdx ? { ...item, questionCount: count } : item,
+    ));
+  }
+
+  function removeVisualSlot(slotIdx) {
+    setVisualImages(prev => {
+      const next = [...prev];
+      next.splice(slotIdx, 1);
+      return next;
+    });
+  }
 
   // ── Image helpers ──────────────────────────────────────────
   function addImage(asset) {
@@ -65,10 +121,12 @@ export default function ScanScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      base64: true,
+      quality: 1,
     });
-    if (!result.canceled) addImage(result.assets[0]);
+    if (!result.canceled) {
+      const resized = await resizeForUpload(result.assets[0].uri);
+      addImage({ ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+    }
   }
 
   async function takePhoto() {
@@ -81,8 +139,67 @@ export default function ScanScreen() {
       Alert.alert('Permission needed', 'Please allow camera access in Settings.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
-    if (!result.canceled) addImage(result.assets[0]);
+    const result = await ImagePicker.launchCameraAsync({ quality: 1 });
+    if (!result.canceled) {
+      const resized = await resizeForUpload(result.assets[0].uri);
+      addImage({ ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+    }
+  }
+
+  // ── Visual Aid capture ─────────────────────────────────────
+  // Tips shown via Alert.alert (not a Modal) so there is zero iOS view-controller
+  // conflict when the camera/library launches immediately in the button's onPress.
+  // Quality capped at 0.65 so the base64 payload stays within the ~6MB Edge Function limit.
+
+  function showVisualCaptureTips(source, slotIdx) {
+    const tips =
+      '⚡ Flash ON — removes shadows your phone casts.\n\n' +
+      '✂️ You\'ll get a crop tool after the photo — drag the corners to frame just the diagram.\n\n' +
+      '📐 Hold directly above the page — no angle.\n\n' +
+      '☀️ Good natural light also works.';
+    Alert.alert(
+      '📸 Photo Tips',
+      tips,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: source === 'camera' ? 'Open Camera' : 'Choose Photo',
+          onPress: () => source === 'camera'
+            ? openVisualCamera(slotIdx)
+            : openVisualLibrary(slotIdx),
+        },
+      ],
+    );
+  }
+
+  async function openVisualCamera(slotIdx = 0) {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow camera access in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: true });
+    if (!result.canceled) {
+      const resized = await resizeForUpload(result.assets[0].uri, 1024);
+      setVisualSlotImage(slotIdx, { ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+    }
+  }
+
+  async function openVisualLibrary(slotIdx = 0) {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+      allowsEditing: true,
+    });
+    if (!result.canceled) {
+      const resized = await resizeForUpload(result.assets[0].uri, 1024);
+      setVisualSlotImage(slotIdx, { ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+    }
   }
 
   // ── AI generation ──────────────────────────────────────────
@@ -92,13 +209,28 @@ export default function ScanScreen() {
       return;
     }
     setValidationError(null);
+    cancelledRef.current = false;
     setStep('generating');
     setLoading(true);
     try {
       const base64Images = images.map(img => img.base64);
-      const result = await generateQuestionsFromImage(base64Images, questionCount);
+      const activeVisuals = visualImages
+        .slice(0, maxVisualSlots(questionCount))
+        .filter(v => v?.base64)
+        .map(v => ({ base64: v.base64, questionCount: v.questionCount ?? 1 }));
+
+      const result = await generateQuestionsFromImage(
+        base64Images,
+        questionCount,
+        activeVisuals,
+      );
+
+      // User cancelled while waiting — discard result and stay on pick
+      if (cancelledRef.current) return;
+
       setUnitTitle(result.title ?? 'New Lesson');
       setQuestions(result.questions ?? []);
+      setPassage(result.passage ?? null);
       setStep('preview');
     } catch (err) {
       if (err.isValidationError) {
@@ -147,8 +279,11 @@ export default function ScanScreen() {
     if (!questions || questions.length === 0) { Alert.alert('No questions', 'Add at least one question before saving.'); return; }
     setSaving(true);
     try {
-      await saveCustomUnit(unitTitle.trim(), questions);
+      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage);
       setStep('saved');
+      // Fire-and-forget: generate TTS audio in the background after save succeeds.
+      // The edge function caches MP3s in Supabase Storage and patches the unit row.
+      generateAudio(saved.id, questions).catch(() => {});
     } catch (err) {
       Alert.alert('Save failed', err.message);
     } finally {
@@ -157,8 +292,8 @@ export default function ScanScreen() {
   }
 
   function reset() {
-    setImages([]); setQuestions(null);
-    setUnitTitle(''); setStep('pick'); setValidationError(null);
+    setImages([]); setVisualImages([]); setQuestions(null);
+    setPassage(null); setUnitTitle(''); setStep('pick'); setValidationError(null);
   }
 
   // ── Not logged in ──────────────────────────────────────────
@@ -222,8 +357,19 @@ export default function ScanScreen() {
             {images.length > 1
               ? `Reading ${images.length} pages and writing ${questionCount} questions.`
               : `Reading the page and writing ${questionCount} practice questions.`
-            }{'\n'}This takes about 10–20 seconds.
+            }
+            {visualImages.filter(v => v?.base64).length > 0
+              ? `\nIncluding ${visualImages.filter(v => v?.base64).length} visual aid image${visualImages.filter(v => v?.base64).length > 1 ? 's' : ''}.`
+              : ''}
+            {'\n'}This takes about 10–20 seconds.
           </Text>
+          <TouchableOpacity
+            style={styles.cancelGenerateBtn}
+            onPress={cancelGeneration}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelGenerateBtnText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -252,11 +398,24 @@ export default function ScanScreen() {
             placeholderTextColor="#64748b"
           />
 
+          {passage && (
+            <View style={styles.passagePreviewCard}>
+              <View style={styles.passagePreviewHeader}>
+                <Text style={styles.passagePreviewIcon}>📖</Text>
+                <Text style={styles.passagePreviewTitle}>Reading Passage Detected</Text>
+              </View>
+              <Text style={styles.passagePreviewNote}>
+                Students will be able to tap "Read Passage" during the quiz to reference this text.
+              </Text>
+              <Text style={styles.passagePreviewText} numberOfLines={4}>{passage}</Text>
+            </View>
+          )}
+
           {questions.map((q, i) => (
             <View key={i} style={styles.questionCard}>
               <View style={styles.questionHeader}>
                 <Text style={styles.questionNum}>
-                  Q{i + 1}{q.type === 'visual_mc' ? '  ✨' : ''}
+                  Q{i + 1}{q.image_url ? '  🖼️' : q.type === 'visual_mc' ? '  ✨' : ''}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <TouchableOpacity
@@ -436,27 +595,129 @@ export default function ScanScreen() {
           </View>
         )}
 
-        {/* Question count picker + Generate button */}
+        {/* Subtle prompt when no images yet */}
+        {images.length === 0 && (
+          <Text style={styles.promptText}>
+            Photograph any textbook page — AI will write practice questions from the content.
+          </Text>
+        )}
+
+        {/* Question count picker — shown after first image is added */}
         {images.length > 0 && (
-          <>
-            <View style={styles.pickerSection}>
-              <Text style={styles.pickerLabel}>Questions to generate</Text>
-              <View style={styles.pickerRow}>
-                {QUESTION_OPTIONS.map(n => (
-                  <TouchableOpacity
-                    key={n}
-                    style={[styles.pickerOption, questionCount === n && styles.pickerOptionActive]}
-                    onPress={() => setQuestionCount(n)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={[styles.pickerOptionText, questionCount === n && styles.pickerOptionTextActive]}>
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+          <View style={styles.pickerSection}>
+            <Text style={styles.pickerLabel}>Questions to generate</Text>
+            <View style={styles.pickerRow}>
+              {QUESTION_OPTIONS.map(n => (
+                <TouchableOpacity
+                  key={n}
+                  style={[styles.pickerOption, questionCount === n && styles.pickerOptionActive]}
+                  onPress={() => setQuestionCount(n)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.pickerOptionText, questionCount === n && styles.pickerOptionTextActive]}>
+                    {n}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Visual Aid section — shown once pages are added */}
+        {images.length > 0 && (
+          <View style={styles.visualSection}>
+            <View style={styles.visualSectionHeader}>
+              <View style={styles.visualSectionHeaderLeft}>
+                <Ionicons name="image-outline" size={18} color="#c084fc" />
+                <Text style={styles.visualSectionTitle}>Visual Aid Photos</Text>
+                <View style={styles.optionalBadge}>
+                  <Text style={styles.optionalBadgeText}>optional</Text>
+                </View>
               </View>
             </View>
 
+            <Text style={styles.visualDesc}>
+              Have a diagram, chart, or graph? Add up to {maxVisualSlots(questionCount)} photo{maxVisualSlots(questionCount) > 1 ? 's' : ''} and choose how many questions to ask about each one.
+            </Text>
+
+            {Array.from({ length: maxVisualSlots(questionCount) }).map((_, slotIdx) => {
+              const vImg = visualImages[slotIdx];
+              return (
+                <View key={slotIdx} style={styles.visualSlotCard}>
+                  <View style={styles.visualSlotCardHeader}>
+                    <View style={styles.visualSlotBadge}>
+                      <Text style={styles.visualSlotBadgeText}>{slotIdx + 1}</Text>
+                    </View>
+                    <Text style={styles.visualSlotCardTitle}>
+                      {vImg ? 'Visual Aid Added' : 'Visual Aid (optional)'}
+                    </Text>
+                    {vImg && (
+                      <TouchableOpacity onPress={() => removeVisualSlot(slotIdx)} style={{ marginLeft: 'auto' }}>
+                        <Text style={styles.visualRemoveText}>Remove</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {!vImg ? (
+                    <View style={styles.visualBtnRow}>
+                      <TouchableOpacity
+                        style={styles.visualCaptureBtn}
+                        onPress={() => showVisualCaptureTips('camera', slotIdx)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="camera-outline" size={17} color="#c084fc" />
+                        <Text style={styles.visualCaptureBtnText}>Take Photo</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.visualCaptureBtn}
+                        onPress={() => openVisualLibrary(slotIdx)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="images-outline" size={17} color="#c084fc" />
+                        <Text style={styles.visualCaptureBtnText}>From Library</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.visualSlotFilled}>
+                      <Image
+                        source={{ uri: vImg.uri }}
+                        style={styles.visualSlotThumb}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.visualSlotInfo}>
+                        <Text style={styles.visualSlotQLabel}>Questions from this image:</Text>
+                        <View style={styles.visualSlotQRow}>
+                          {[1, 2, 3].map(n => (
+                            <TouchableOpacity
+                              key={n}
+                              style={[styles.visualQOption, vImg.questionCount === n && styles.visualQOptionActive]}
+                              onPress={() => setVisualSlotQCount(slotIdx, n)}
+                              activeOpacity={0.75}
+                            >
+                              <Text style={[styles.visualQOptionText, vImg.questionCount === n && styles.visualQOptionTextActive]}>
+                                {n}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.visualRetakeBtn}
+                          onPress={() => showVisualCaptureTips('camera', slotIdx)}
+                        >
+                          <Text style={styles.visualRetakeBtnText}>Retake</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Generate button + cancel */}
+        {images.length > 0 && (
+          <>
             <TouchableOpacity
               style={[styles.generateBtn, loading && { opacity: 0.6 }]}
               onPress={handleGenerate}
@@ -466,14 +727,23 @@ export default function ScanScreen() {
                 Generate {questionCount} Questions{images.length > 1 ? ` · ${images.length} pages` : ''}
               </Text>
             </TouchableOpacity>
-          </>
-        )}
 
-        {/* Subtle prompt when no images */}
-        {images.length === 0 && (
-          <Text style={styles.promptText}>
-            Photograph any textbook page — AI will write 9 practice questions from the content.
-          </Text>
+            <TouchableOpacity
+              style={styles.discardBtn}
+              onPress={() =>
+                Alert.alert(
+                  'Start Over?',
+                  'This will remove all your photos and start fresh.',
+                  [
+                    { text: 'Keep Working', style: 'cancel' },
+                    { text: 'Start Over', style: 'destructive', onPress: reset },
+                  ],
+                )
+              }
+            >
+              <Text style={styles.discardBtnText}>Cancel & Start Over</Text>
+            </TouchableOpacity>
+          </>
         )}
 
       </ScrollView>
@@ -657,6 +927,54 @@ function createStyles(t) {
     pickerOptionText:       { fontSize: 16, fontWeight: '700', color: t.textMuted },
     pickerOptionTextActive: { color: t.accent },
 
+    // Visual Aid section
+    visualSection: {
+      backgroundColor: t.bgCard,
+      borderRadius: 16, borderWidth: 1, borderColor: 'rgba(192,132,252,0.3)',
+      padding: 16, marginBottom: 20,
+    },
+    visualSectionHeader: {
+      flexDirection: 'row', alignItems: 'center',
+      justifyContent: 'space-between', marginBottom: 10,
+    },
+    visualSectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    visualSectionTitle:  { fontSize: 14, fontWeight: '800', color: '#c084fc' },
+    optionalBadge: {
+      backgroundColor: 'rgba(192,132,252,0.15)',
+      borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
+    },
+    optionalBadgeText:  { fontSize: 10, fontWeight: '700', color: '#c084fc' },
+    visualRemoveText:   { fontSize: 13, fontWeight: '600', color: t.danger },
+    visualDesc: { fontSize: 13, color: t.textSub, lineHeight: 19, marginBottom: 12 },
+    visualBtnRow: { flexDirection: 'row', gap: 10 },
+    visualCaptureBtn: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: 7, backgroundColor: 'rgba(192,132,252,0.1)',
+      borderRadius: 12, paddingVertical: 11,
+      borderWidth: 1.5, borderColor: 'rgba(192,132,252,0.35)',
+    },
+    visualCaptureBtnText: { fontSize: 13, fontWeight: '700', color: '#c084fc' },
+    visualPreviewRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+    visualThumbnail: {
+      width: 90, height: 90, borderRadius: 12, backgroundColor: t.bgInput,
+    },
+    visualPreviewInfo: { flex: 1, gap: 3 },
+    visualPreviewLabel: { fontSize: 14, fontWeight: '800', color: t.text },
+    visualPreviewSub:   { fontSize: 12, color: t.textSub, lineHeight: 17 },
+    visualRetakeBtn: {
+      alignSelf: 'flex-start', marginTop: 6,
+      backgroundColor: 'rgba(192,132,252,0.12)',
+      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5,
+      borderWidth: 1, borderColor: 'rgba(192,132,252,0.3)',
+    },
+    visualRetakeBtnText: { fontSize: 12, fontWeight: '700', color: '#c084fc' },
+    tipsIntro:    { fontSize: 14, color: t.textSub, lineHeight: 20, marginBottom: 16 },
+    tipsBtnRow:   { flexDirection: 'row', gap: 10, marginTop: 8 },
+    tipsLibraryBtn: {
+      flex: 1, backgroundColor: t.bgCard,
+      borderWidth: 1.5, borderColor: '#7c3aed',
+    },
+
     // Generate button
     generateBtn: {
       backgroundColor: '#16a34a', borderRadius: 16,
@@ -746,5 +1064,62 @@ function createStyles(t) {
 
     discardBtn:     { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
     discardBtnText: { fontSize: 14, color: t.danger, fontWeight: '600' },
+
+    // Cancel during generation
+    cancelGenerateBtn: {
+      marginTop: 32,
+      paddingVertical: 12, paddingHorizontal: 32,
+      borderRadius: 14,
+      borderWidth: 1, borderColor: '#334155',
+      backgroundColor: 'rgba(255,255,255,0.04)',
+    },
+    cancelGenerateBtnText: { fontSize: 15, color: '#94a3b8', fontWeight: '600' },
+
+    // Visual aid processing indicator
+    visualProcessingRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingVertical: 14,
+    },
+    visualProcessingText: { fontSize: 13, color: '#c084fc', fontWeight: '600' },
+
+    // Visual aid slot cards
+    visualSlotCard: {
+      borderRadius: 14, borderWidth: 1, borderColor: 'rgba(192,132,252,0.2)',
+      backgroundColor: 'rgba(192,132,252,0.05)',
+      padding: 14, marginBottom: 12,
+    },
+    visualSlotCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    visualSlotBadge: {
+      width: 22, height: 22, borderRadius: 11,
+      backgroundColor: '#7c3aed', alignItems: 'center', justifyContent: 'center',
+    },
+    visualSlotBadgeText:  { fontSize: 11, fontWeight: '800', color: '#fff' },
+    visualSlotCardTitle:  { fontSize: 13, fontWeight: '700', color: t.textSub },
+    visualSlotFilled:     { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+    visualSlotThumb:      { width: 80, height: 80, borderRadius: 10 },
+    visualSlotInfo:       { flex: 1, gap: 6 },
+    visualSlotQLabel:     { fontSize: 12, color: t.textMuted, fontWeight: '600' },
+    visualSlotQRow:       { flexDirection: 'row', gap: 8 },
+    visualQOption: {
+      width: 36, height: 36, borderRadius: 10,
+      borderWidth: 1, borderColor: '#334155',
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    visualQOptionActive: { backgroundColor: '#7c3aed', borderColor: '#7c3aed' },
+    visualQOptionText:   { fontSize: 15, fontWeight: '700', color: t.textSub },
+    visualQOptionTextActive: { color: '#fff' },
+
+    // Passage preview card (shown in review step when AI extracted a passage)
+    passagePreviewCard: {
+      backgroundColor: 'rgba(96,165,250,0.08)',
+      borderRadius: 14, borderWidth: 1, borderColor: 'rgba(96,165,250,0.25)',
+      padding: 14, marginBottom: 20,
+    },
+    passagePreviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+    passagePreviewIcon:   { fontSize: 18 },
+    passagePreviewTitle:  { fontSize: 14, fontWeight: '800', color: '#60a5fa' },
+    passagePreviewNote:   { fontSize: 12, color: t.textMuted, lineHeight: 17, marginBottom: 8 },
+    passagePreviewText:   { fontSize: 13, color: t.textSub, lineHeight: 19 },
   });
 }

@@ -12,6 +12,15 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// How many image-referenced visual questions to generate based on total count
+// (reuses same ratio as emoji visual questions)
+function imageVisualCount(total: number): number {
+  if (total >= 20) return 4;
+  if (total >= 15) return 3;
+  if (total >= 9)  return 2;
+  return 1;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -80,10 +89,18 @@ GEOMETRY RULES (optional enhancement for math questions):
   3. Shape: { "type": "shape", "kind": "rectangle"|"triangle"|"circle", "label": "optional label", "shaded": true|false }
 - If geometry is not needed, omit the field entirely (do not include "geometry": null)
 
+PASSAGE RULES:
+- If the scanned page(s) contain a substantial piece of continuous reading text that the questions will reference — such as a short story, article, poem, science passage, reading comprehension text, or any narrative/informational text — extract it verbatim and include it as a "passage" field in the response.
+- Include the passage when students would need to refer back to the text to answer the questions (e.g. comprehension, vocabulary-in-context, grammar identification, story sequence).
+- Do NOT include a passage for pure math, science diagrams, vocabulary lists, or content where no source text is needed.
+- The passage should be the actual readable text, not a description of it. Keep original line breaks where meaningful.
+- If there is no qualifying passage, omit the "passage" field entirely.
+
 Return ONLY this JSON and nothing else:
 {
   "valid": true,
   "title": "Short descriptive title (e.g. 'Chapter 5 — Adding Fractions')",
+  "passage": "The full reading passage text here, if applicable. Omit this field if not needed.",
   "questions": [
     {
       "question": "The question text here (may include emoji/unicode visuals)",
@@ -152,8 +169,9 @@ function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
     correctIndex: q.correctIndex,
     hint:         q.hint ? serverSanitize(String(q.hint)) : undefined,
   };
-  if (q.type) sanitized.type = q.type;
-  if (q.geometry) sanitized.geometry = q.geometry; // pass through untouched
+  if (q.type)      sanitized.type      = q.type;
+  if (q.geometry)  sanitized.geometry  = q.geometry;
+  if (q.image_ref) sanitized.image_ref = true;
   return sanitized;
 }
 
@@ -162,7 +180,15 @@ function sanitizeResponse(obj: Record<string, unknown>): Record<string, unknown>
     return { valid: false, reason: serverSanitize(String(obj.reason ?? '')) };
   }
   const questions = (obj.questions as Array<Record<string, unknown>> ?? []).map(sanitizeQuestion);
-  return { valid: true, title: serverSanitize(String(obj.title ?? '')), questions };
+  const result: Record<string, unknown> = {
+    valid: true,
+    title: serverSanitize(String(obj.title ?? '')),
+    questions,
+  };
+  if (obj.passage && typeof obj.passage === 'string' && obj.passage.trim()) {
+    result.passage = serverSanitize(obj.passage.trim());
+  }
+  return result;
 }
 
 const MAX_SCANS_PER_DAY = 20;
@@ -278,8 +304,17 @@ serve(async (req) => {
         ? [body.imageBase64]
         : [];
 
+    // Accept new array format OR legacy single-image field
+    type VisualItem = { base64: string; questionCount: number };
+    const rawVisuals: VisualItem[] = Array.isArray(body.visualImages)
+      ? body.visualImages
+      : body.visualImage
+        ? [{ base64: body.visualImage, questionCount: imageVisualCount(Math.min(Math.max(Number(body.questionCount) || 9, 5), 20)) }]
+        : [];
+
     const questionCount: number = Math.min(Math.max(Number(body.questionCount) || 9, 5), 20);
     const numVisual = visualCount(questionCount);
+    const numImageVisual = rawVisuals.reduce((sum, v) => sum + (v.questionCount ?? 1), 0);
 
     if (imageList.length === 0) {
       return new Response(
@@ -296,19 +331,69 @@ serve(async (req) => {
       );
     }
 
-    // Build user message: all images + a final text prompt
+    // Upload all visual aid images to Supabase Storage
+    const visualUrls: string[] = [];
+    if (rawVisuals.length > 0) {
+      const supabaseUrl   = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceKey    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+      await supabaseAdmin.storage.createBucket('lesson-visuals', { public: true }).catch(() => {});
+
+      for (let vi = 0; vi < rawVisuals.length; vi++) {
+        const b64 = rawVisuals[vi].base64;
+        try {
+          const binaryStr = atob(b64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+          const storagePath = `${userId ?? 'anon'}/${Date.now()}-${vi}.jpg`;
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('lesson-visuals')
+            .upload(storagePath, bytes, { contentType: 'image/jpeg', upsert: false });
+
+          if (!uploadError) {
+            const { data: urlData } = supabaseAdmin.storage
+              .from('lesson-visuals').getPublicUrl(storagePath);
+            visualUrls.push(urlData.publicUrl);
+          } else {
+            visualUrls.push('');
+          }
+        } catch {
+          visualUrls.push('');
+        }
+      }
+    }
+
+    // Build user message: all page images + optional visual aid images + text prompt
     const userContent: unknown[] = imageList.map((b64) => ({
       type: 'image_url',
       image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' },
     }));
 
+    // Append each visual aid image at the end
+    for (const v of rawVisuals) {
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: `data:image/jpeg;base64,${v.base64}`, detail: 'high' },
+      });
+    }
+
     const pageText = imageList.length > 1
       ? `These are ${imageList.length} pages from the same lesson. Generate exactly ${questionCount} practice questions spread evenly across all pages.`
       : `Generate exactly ${questionCount} practice questions from this page.`;
 
+    let visualAidInstruction = '';
+    if (rawVisuals.length > 0) {
+      const totalVisualQs = rawVisuals.reduce((s, v) => s + (v.questionCount ?? 1), 0);
+      const perImageInstructions = rawVisuals.map((v, i) =>
+        `Visual Aid ${i + 1} (image at position ${imageList.length + i + 1}): generate exactly ${v.questionCount ?? 1} question(s), mark each with "image_ref": ${i + 1}`
+      ).join('. ');
+      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are specific diagrams or charts the parent wants questions about — they are NOT text pages. ${perImageInstructions}. For each visual aid question: reference "the image shown" or "the diagram above" in the question text. The remaining ${questionCount - totalVisualQs} questions come from the text pages only.`;
+    }
+
     userContent.push({
       type: 'text',
-      text: `${pageText} Exactly ${numVisual} of the ${questionCount} questions should be visually enriched (use emoji/unicode visuals in the question text and mark with "type": "visual_mc"). The other ${questionCount - numVisual} questions should be standard multiple-choice (no "type" field). Every question must include a "hint" field.`,
+      text: `${pageText}${visualAidInstruction} Exactly ${numVisual} of the NON-image-ref questions should be visually enriched (use emoji/unicode visuals in the question text and mark with "type": "visual_mc"). Every question must include a "hint" field.`,
     });
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -317,14 +402,14 @@ serve(async (req) => {
         'Authorization': `Bearer ${openaiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 4000,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userContent },
-        ],
-      }),
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          max_tokens: 8000,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userContent },
+          ],
+        }),
     });
 
     if (!openaiResponse.ok) {
@@ -352,8 +437,12 @@ serve(async (req) => {
       supabase.from('scan_logs').insert({ user_id: userId }).then(() => {});
     }
 
+    const responseBody = visualUrls.length > 0
+      ? { ...safe, visual_urls: visualUrls, visual_url: visualUrls[0] } // visual_url for backwards compat
+      : safe;
+
     return new Response(
-      JSON.stringify(safe),
+      JSON.stringify(responseBody),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

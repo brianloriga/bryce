@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS custom_units (
   subject     TEXT        DEFAULT 'math',
   unit_label  TEXT,       -- e.g. '13.2', 'Chapter 7'
   questions   JSONB       NOT NULL, -- Array of { question, options, correctIndex }
+  passage     TEXT,       -- Optional reading passage/story extracted from scanned pages
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 

@@ -107,9 +107,12 @@ export function sanitizeUnit({ title, questions }) {
   return {
     title: sanitize(title),
     questions: (questions ?? []).map(q => ({
-      question:     sanitize(q.question),
-      options:      (q.options ?? []).map(sanitize),
-      correctIndex: q.correctIndex,
+      // Spread all fields first so nothing (hint, type, geometry, image_url, audio_url…) is lost,
+      // then overwrite the text fields that need sanitizing.
+      ...q,
+      question: sanitize(q.question),
+      options:  (q.options ?? []).map(sanitize),
+      hint:     q.hint ? sanitize(q.hint) : undefined,
     })),
   };
 }

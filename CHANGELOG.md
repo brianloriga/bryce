@@ -6,6 +6,155 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Scan Flow UX, Reading Passage & Visual Aid Overhaul — 2026-04-19
+
+#### Added — Reading Passage (📖 Read Along)
+
+- GPT now detects and extracts reading passages from scanned pages — short stories, articles, poems, science texts — any content students need to reference to answer the questions
+- `passage TEXT` column added to `custom_units` table (migration: `ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS passage TEXT;`)
+- `saveCustomUnit()` updated to accept and persist the optional passage
+- **ScanScreen preview step** — shows a blue "📖 Reading Passage Detected" card when a passage was extracted, explaining that students will be able to open it during the quiz
+- **QuizScreen** — full-width "📖 Read Along / Open the reading to help answer" bar appears below the A/B/C/D options when the unit has a passage; tapping opens a bottom-sheet modal with the full text in a scrollable view and a "Back to Quiz" button
+- Works for any subject: reading comprehension, grammar (identify verbs/adjectives), science passages, short stories, etc.
+
+#### Added — Multiple Visual Aid Photos per Lesson
+
+- Visual aid section now supports **1, 2, or 3 photo slots** based on question count:
+  - 5 or 9 questions → 1 slot
+  - 15 questions → 2 slots
+  - 20 questions → 3 slots
+- Each filled slot shows a thumbnail plus a **"Questions from this image: [1] [2] [3]"** pill picker so the parent controls exactly how many questions to generate per diagram
+- `visualImages` array replaces single `visualImage` state throughout ScanScreen
+- `generate-questions` edge function updated to accept `visualImages: [{base64, questionCount}]`; uploads each to Supabase Storage; constructs per-image GPT instructions ("for Visual Aid 2, generate 1 question, mark with `image_ref: 2`"); returns `visual_urls` array
+- `aiService.js` maps `q.image_ref` (1-based index) to the correct URL from `visual_urls`
+- Backwards compatible: old `visualImage` single-image field still accepted
+
+#### Added — Image Resize Before Upload (`expo-image-manipulator`)
+
+- All captured images (page scans and visual aids) are now resized to **1024px wide, JPEG 70%** before base64 encoding using `expo-image-manipulator`
+- Reduces per-image payload from 1–3MB to ~80–150KB, enabling 10-page lessons to safely fit within the Supabase Edge Function 6MB body limit
+- Pickers changed to `quality: 1` (no double-compression); manipulator handles the single resize+compress pass
+
+#### Added — Cancel Generation
+
+- **Cancel button** on the generating screen — immediately returns to the pick screen with all photos and settings intact; if the edge function response arrives after cancellation it is silently discarded
+- **"Cancel & Start Over"** link below the Generate button on the pick screen — confirmation alert ("This will remove all your photos and start fresh") prevents accidental reset
+
+#### Changed — Scan Flow Order
+
+- **Question count picker (5 / 9 / 15 / 20) now appears after the first photo is added**, not before — keeps the initial screen clean with just the camera/library hero buttons
+- Picker appears at the top of the content once images exist, before visual aid slots and the generate button
+
+#### Changed — Visual Aid Camera (iOS fix)
+
+- Replaced Modal-based "Photo Tips" sheet with a native `Alert.alert` — eliminates the iOS view-controller conflict where `launchCameraAsync` silently hung when called immediately after a Modal dismissed
+- Tips now include explicit crop instruction: "You'll get a crop tool after the photo — drag the corners to frame just the diagram"
+- `allowsEditing: true` on both camera and library visual aid captures gives the native crop editor
+
+#### Fixed — Profanity filter stripping question fields
+
+- `sanitizeUnit` in `profanityFilter.js` was only keeping `question`, `options`, and `correctIndex` — silently dropping `image_url`, `hint`, `type`, `geometry`, and `audio_url` from every question
+- Fixed with object spread (`...q`) so all fields are preserved; only text fields are sanitized
+
+#### Fixed — JWT ES256 rejection on all edge functions
+
+- Supabase's newer projects issue ES256 JWTs; the edge function gateway only accepted HS256, blocking every request before the function ran
+- All three edge functions (`generate-questions`, `generate-audio`, `detect-crop`) redeployed with `--no-verify-jwt`
+- Better error surfacing in `aiService.js`: `error.context` is now read as a `Response` object with `await ctx.json()` so real error messages appear instead of the generic "Edge Function returned a non-2xx status code"
+
+#### Added — `detect-crop` edge function (experimental, replaced by native crop)
+
+- Built and deployed a `detect-crop` edge function using GPT-4o-mini (`detail: high`) to return a content bounding box as percentages; `expo-image-manipulator` applied the crop
+- Replaced with native `allowsEditing: true` after GPT's coordinate estimates proved too imprecise for consistent results; function remains deployed but is no longer called
+
+### Visual Aid Scan Step — 2026-04-19
+
+#### Added — Optional visual aid capture in ScanScreen
+
+- New "Visual Aid (optional)" section appears below the page thumbnail strip once at least one page is added
+- Parent can photograph any diagram, graph, or image from the book before generating questions
+- **Photo Tips modal** shown before camera opens:
+  - Flash ON eliminates phone shadow on page
+  - Fill the frame with just the image
+  - Hold phone directly above page — no angle
+  - Good natural light also works
+- Visual aid captured at `quality: 1.0` (vs. 0.8 for text pages — detail matters more for images)
+- After capture: thumbnail preview with Retake and Remove options
+- Generating screen shows "Including your visual aid." when a visual is present
+
+#### Changed — generate-questions edge function
+
+- Accepts optional `visualImage` base64 string alongside `images`
+- When present: uploads the visual to new `lesson-visuals` Supabase Storage bucket (public) using service role key
+- Appends visual as the final image in the GPT call with explicit instructions:
+  - Generate `imageVisualCount(n)` questions specifically about the diagram (same 1/2/3/4 ratio)
+  - Questions reference "the image shown" / "the diagram above"
+  - Those questions marked with `image_ref: true`
+  - Remaining questions generated from text pages as normal
+- Returns `visual_url` alongside questions in the response
+- `sanitizeQuestion` updated to pass through `image_ref` flag
+
+#### Changed — aiService.js
+
+- `generateQuestionsFromImage(base64Images, questionCount, visualBase64 = null)` — new third param
+- Passes `visualImage` in request body when provided
+- Maps `visual_url` onto questions where `image_ref === true` → becomes `image_url` on the question object
+
+#### Changed — QuizScreen
+
+- Renders a `<Image>` (180px tall, full card width, rounded) above question text when `q.image_url` is present
+- Works alongside the audio button, geometry display, and markdown text
+
+#### Setup — run once in Supabase SQL Editor
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('lesson-visuals', 'lesson-visuals', true)
+on conflict (id) do nothing;
+```
+
+### AI Read-Aloud (OpenAI TTS + Supabase Storage) — 2026-04-19
+
+#### Replaced expo-speech with cached OpenAI TTS
+
+- Removed `expo-speech` (robotic, question-only) and replaced with a full OpenAI TTS pipeline
+- **Voice:** `nova` model via `tts-1` — natural-sounding, child-friendly
+
+#### Added — `generate-audio` Supabase Edge Function
+
+- New function at `supabase/functions/generate-audio/index.ts`
+- Receives `unit_id` + `questions` array; generates one MP3 per question in parallel
+- Speech text reads the full question then each answer: "Question text. A: option. B: option. C: option. D: option."
+- Strips emoji, markdown (`**bold**`, `` `code` ``), and block-drawing characters before sending to TTS so audio reads cleanly
+- Uploads each MP3 to Supabase Storage bucket `question-audio` (public)
+- Patches the `custom_units` row directly (via service role key) — adds `audio_url` to every question object
+- Deploy: `npx supabase functions deploy generate-audio --project-ref vwyhxnaunkbrxuzjxpzt --no-verify-jwt`
+- Storage bucket setup (run once in Supabase SQL Editor):
+  ```sql
+  insert into storage.buckets (id, name, public) values ('question-audio', 'question-audio', true)
+  on conflict (id) do nothing;
+  ```
+
+#### Added — `generateAudio()` in aiService.js
+
+- Calls the `generate-audio` edge function
+- Fired fire-and-forget from `ScanScreen.handleSave` after `saveCustomUnit` returns — never blocks the save UX
+
+#### Changed — ScanScreen `handleSave`
+
+- Captures the saved unit row (which includes the DB-assigned `id`)
+- Immediately shows the success screen, then kicks off `generateAudio(saved.id, questions)` in the background
+
+#### Added — Audio playback in QuizScreen
+
+- Installed `expo-av` for native audio streaming
+- 🔈 speaker button appears in the question card header **only when `audio_url` is present** on that question
+- Tapping plays the cached MP3 from Supabase Storage via `Audio.Sound.createAsync`
+- Tap again (🔊) to stop; ⏳ shown while loading
+- Audio stops automatically when the question is answered, the user navigates, or the component unmounts
+- `Audio.setAudioModeAsync({ playsInSilentModeIOS: true })` ensures playback works when the device is in silent mode
+- Lessons saved before this update will not show the button (no `audio_url` on their questions) — no breakage
+
 ### Rich Visual Questions, Hints, TTS & SVG Geometry — 2026-04-17
 
 #### Added — Visual question generation
