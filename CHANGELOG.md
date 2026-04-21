@@ -6,6 +6,25 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Parent Progress Dashboard (7.20) — 2026-04-20
+
+#### Added — `ProgressScreen` (`src/screens/ProgressScreen.js`)
+
+- New screen accessible from the Account tab via a **"View Progress"** button
+- **Kid selector** — horizontal scrollable chip strip; if the family has more than one child, parent taps to switch between them (single-kid families see a name + avatar header instead)
+- **3 stat cards** — Quizzes taken · Avg Score (colour-coded green/amber/red) · Stars earned (with perfect-3-star count)
+- **Recent Activity feed** — last 10 quiz results showing lesson name, score/total, star rating, and a friendly "5m ago / 2d ago" timestamp
+- **By Lesson table** — groups all attempts by lesson; shows attempt count, best score, best stars, and an animated colour-coded progress bar
+- Pull-to-refresh, loading state, error state, and empty state (no quizzes yet)
+
+#### Changed — `AccountScreen`
+- Added a **"View Progress"** button card (green bar-chart icon) between the kid profiles section and the Subscription section — navigates to the new Progress screen
+
+#### Changed — `App.js`
+- `ProgressScreen` registered as a stack screen (`name="Progress"`)
+
+---
+
 ### Self-Contained Questions + Context Reference Card — 2026-04-20
 
 #### Added — ContextCard component (`src/screens/QuizScreen.js`)

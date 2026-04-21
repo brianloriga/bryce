@@ -20,6 +20,7 @@ import QuizScreen          from './src/screens/QuizScreen';
 import OnboardingScreen    from './src/screens/OnboardingScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsScreen         from './src/screens/TermsScreen';
+import ProgressScreen      from './src/screens/ProgressScreen';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -122,8 +123,9 @@ function RootNavigator() {
       <Stack.Screen name="KidSelect"     component={KidSelectScreen} />
       <Stack.Screen name="Onboarding"    component={OnboardingScreen} />
       <Stack.Screen name="Quiz"          component={QuizScreen}          options={{ gestureEnabled: false }} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ presentation: 'modal' }} />
-      <Stack.Screen name="Terms"         component={TermsScreen}         options={{ presentation: 'modal' }} />
+        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ presentation: 'modal' }} />
+        <Stack.Screen name="Terms"         component={TermsScreen}         options={{ presentation: 'modal' }} />
+        <Stack.Screen name="Progress"      component={ProgressScreen} />
     </Stack.Navigator>
   );
 }

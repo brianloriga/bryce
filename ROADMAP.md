@@ -210,7 +210,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 ### 7.D ? Engagement & Retention
 
 - [x] 7.19 Save quiz results to Supabase ? `quiz_results` table tracks score, stars, kid, unit, and timestamp
-- [ ] 7.20 Kid-level progress dashboard for parents ? simple summary of scores and activity across all units
+- [x] 7.20 Kid-level progress dashboard for parents — ProgressScreen with kid selector, 3 stat cards (quizzes/avg score/stars), recent activity feed, and per-lesson best scores with progress bars; accessible from Account tab
 - [ ] 7.21 Streak tracking ? reward kids for studying on consecutive days with a visual streak counter
 - [ ] 7.22 Push notifications ? optional daily "time to study!" reminder, configurable per kid
 - [ ] 7.23 Offline mode ? cache loaded units locally so kids can take a quiz without Wi-Fi

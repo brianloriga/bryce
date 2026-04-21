@@ -1,0 +1,10 @@
+feat: parent progress dashboard (7.20)
+
+- New ProgressScreen: kid selector strip, 3 stat cards (quizzes / avg
+  score / stars), recent activity feed (last 10 results with timeago),
+  per-lesson best scores with colour-coded progress bars
+- Pull-to-refresh, loading/error/empty states
+- AccountScreen: "View Progress" shortcut button (green bar-chart icon)
+  added between kids section and subscription section
+- App.js: ProgressScreen registered in stack navigator
+- CHANGELOG + ROADMAP updated

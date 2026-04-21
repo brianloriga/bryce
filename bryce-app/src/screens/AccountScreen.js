@@ -353,6 +353,24 @@ export default function AccountScreen() {
                 <Text style={styles.manageKidsBtnText}>Manage Profiles</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Progress dashboard shortcut */}
+            <TouchableOpacity
+              style={styles.progressBtn}
+              onPress={() => navigation.navigate('Progress')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.progressBtnLeft}>
+                <View style={styles.progressBtnIcon}>
+                  <Ionicons name="bar-chart-outline" size={20} color="#4ade80" />
+                </View>
+                <View>
+                  <Text style={styles.progressBtnTitle}>View Progress</Text>
+                  <Text style={styles.progressBtnSub}>Scores, stars &amp; activity by child</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#475569" />
+            </TouchableOpacity>
           </>
         )}
 
@@ -524,6 +542,21 @@ function createStyles(t) {
       backgroundColor: t.accentDim,
     },
     manageKidsBtnText: { fontSize: 14, fontWeight: '700', color: t.id === 'dark' ? '#fff' : t.accent },
+
+    progressBtn: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: t.bgCard, borderRadius: 16, padding: 16,
+      marginTop: 12,
+      borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)',
+    },
+    progressBtnLeft:  { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    progressBtnIcon: {
+      width: 40, height: 40, borderRadius: 12,
+      backgroundColor: 'rgba(74,222,128,0.12)',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    progressBtnTitle: { fontSize: 15, fontWeight: '700', color: t.text, marginBottom: 2 },
+    progressBtnSub:   { fontSize: 12, color: t.textSub },
 
     planBadge: {
       backgroundColor: t.accentDim, borderRadius: 6,
