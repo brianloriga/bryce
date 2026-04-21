@@ -636,6 +636,7 @@ export default function QuizScreen() {
   const [audioPlaying, setAudioPlaying]     = useState(false);
   const [audioLoading, setAudioLoading]     = useState(false);
   const [passageVisible, setPassageVisible] = useState(false);
+  const [zoomImage, setZoomImage]           = useState(null);
 
   const progressAnim  = useRef(new Animated.Value(0)).current;
   const hintAnim      = useRef(new Animated.Value(0)).current;
@@ -901,7 +902,17 @@ export default function QuizScreen() {
             </View>
 
             {q.image_url && (
-              <Image source={{ uri: q.image_url }} style={styles.questionImage} resizeMode="contain" />
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setZoomImage(q.image_url)}
+                style={styles.questionImageWrap}
+              >
+                <Image source={{ uri: q.image_url }} style={styles.questionImage} resizeMode="cover" />
+                <View style={styles.zoomHint}>
+                  <Ionicons name="expand-outline" size={14} color="#fff" />
+                  <Text style={styles.zoomHintText}>Tap to enlarge</Text>
+                </View>
+              </TouchableOpacity>
             )}
             {q.geometry && <GeometryDisplay geometry={q.geometry} />}
 
@@ -959,6 +970,18 @@ export default function QuizScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Image zoom modal */}
+      <Modal visible={!!zoomImage} transparent animationType="fade" onRequestClose={() => setZoomImage(null)}>
+        <TouchableOpacity style={styles.zoomOverlay} activeOpacity={1} onPress={() => setZoomImage(null)}>
+          <View style={styles.zoomContainer}>
+            <Image source={{ uri: zoomImage }} style={styles.zoomImage} resizeMode="contain" />
+            <TouchableOpacity style={styles.zoomCloseBtn} onPress={() => setZoomImage(null)}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Reading Passage modal */}
       {unit.passage && (
@@ -1029,7 +1052,25 @@ const styles = StyleSheet.create({
   },
   typeBadgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
 
-  questionImage: { width: '100%', height: 180, borderRadius: 12, marginBottom: 14, backgroundColor: '#1e293b' },
+  questionImageWrap: { width: '100%', marginBottom: 14, borderRadius: 12, overflow: 'hidden', backgroundColor: '#1e293b' },
+  questionImage:     { width: '100%', height: 180 },
+  zoomHint: {
+    position: 'absolute', bottom: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  zoomHintText: { fontSize: 11, color: '#fff', fontWeight: '600' },
+
+  // Zoom modal
+  zoomOverlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center' },
+  zoomContainer: { width: '100%', height: '85%' },
+  zoomImage:     { width: '100%', height: '100%' },
+  zoomCloseBtn: {
+    position: 'absolute', top: 12, right: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20,
+    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
+  },
 
   // Read Along
   readAlongBar: {
