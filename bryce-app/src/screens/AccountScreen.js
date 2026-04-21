@@ -354,6 +354,24 @@ export default function AccountScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Game Library shortcut */}
+            <TouchableOpacity
+              style={[styles.progressBtn, { marginBottom: 10 }]}
+              onPress={() => navigation.navigate('GameManager')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.progressBtnLeft}>
+                <View style={[styles.progressBtnIcon, { backgroundColor: 'rgba(139,92,246,0.15)' }]}>
+                  <Ionicons name="game-controller-outline" size={20} color="#8b5cf6" />
+                </View>
+                <View>
+                  <Text style={styles.progressBtnTitle}>Game Library</Text>
+                  <Text style={styles.progressBtnSub}>Enable &amp; manage mini-games</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#475569" />
+            </TouchableOpacity>
+
             {/* Progress dashboard shortcut */}
             <TouchableOpacity
               style={styles.progressBtn}

@@ -56,7 +56,7 @@ export function buildSubjectList(units = [], customSubjects = []) {
   // Also surface any subject key found in units that isn't already covered
   for (const u of units) {
     const k = u.subject;
-    if (k && k !== 'custom' && !knownKeys.has(k) && !extraKeys.has(k)) {
+    if (k && k !== 'custom' && k !== 'unassigned' && !knownKeys.has(k) && !extraKeys.has(k)) {
       extras.push({ key: k, label: toLabel(k), color: '#0891b2', image: GENERIC_ICON });
       extraKeys.add(k);
     }

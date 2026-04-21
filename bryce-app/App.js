@@ -21,6 +21,8 @@ import OnboardingScreen    from './src/screens/OnboardingScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsScreen         from './src/screens/TermsScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
+import GameManagerScreen   from './src/screens/GameManagerScreen';
+import { GAME_REGISTRY }   from './src/minigames/registry';
 
 const Tab   = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -125,7 +127,17 @@ function RootNavigator() {
       <Stack.Screen name="Quiz"          component={QuizScreen}          options={{ gestureEnabled: false }} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ presentation: 'modal' }} />
         <Stack.Screen name="Terms"         component={TermsScreen}         options={{ presentation: 'modal' }} />
-        <Stack.Screen name="Progress"      component={ProgressScreen} />
+        <Stack.Screen name="Progress"    component={ProgressScreen} />
+        <Stack.Screen name="GameManager" component={GameManagerScreen} />
+        {/* Mini-game routes — auto-registered from src/minigames/registry.js */}
+        {GAME_REGISTRY.filter(g => g.component).map(game => (
+          <Stack.Screen
+            key={game.id}
+            name={game.routeName}
+            component={game.component}
+            options={{ gestureEnabled: false }}
+          />
+        ))}
     </Stack.Navigator>
   );
 }

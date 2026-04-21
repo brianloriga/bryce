@@ -14,6 +14,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { saveQuizResult } from '../services/supabase';
 import { resolveSubject } from '../utils/subjects';
+import { findGame, AVAILABLE_GAMES, GAME_REGISTRY } from '../minigames/registry';
+import { getEnabledMap } from '../services/gameSettings';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -637,6 +639,11 @@ export default function QuizScreen() {
   const [audioLoading, setAudioLoading]     = useState(false);
   const [passageVisible, setPassageVisible] = useState(false);
   const [zoomImage, setZoomImage]           = useState(null);
+  const [enabledGames, setEnabledGames]     = useState({});
+
+  useEffect(() => {
+    getEnabledMap(GAME_REGISTRY.map(g => g.id)).then(setEnabledGames);
+  }, []);
 
   const progressAnim  = useRef(new Animated.Value(0)).current;
   const hintAnim      = useRef(new Animated.Value(0)).current;
@@ -813,7 +820,23 @@ export default function QuizScreen() {
 
   // ── Results screen ──────────────────────────────────────────
   if (finished) {
-    const stars = getStars(score, questions.length);
+    const stars         = getStars(score, questions.length);
+    const pct           = score / questions.length;
+    // Resolve which game to reward.
+    // If the lesson has reward_config set, use that. Otherwise default to the
+    // first available game when there are MC questions (makes all lessons work
+    // without requiring parents to configure every lesson individually).
+    const hasMCQuestions = questions.some(q => Array.isArray(q.options) && q.options.length >= 2);
+    const configuredId   = unit.reward_config?.game;
+    const defaultGame    = hasMCQuestions
+      ? (AVAILABLE_GAMES.find(g => enabledGames[g.id] !== false) ?? null)
+      : null;
+    const rewardGame     = configuredId
+      ? (enabledGames[configuredId] !== false ? findGame(configuredId) : null)
+      : defaultGame;
+    const rewardUnlocked = pct >= 0.70 && !!rewardGame;
+    const gameLabel      = rewardGame?.label ?? '';
+
     return (
       <SafeAreaView style={styles.safe}>
         <StatusBar style="light" />
@@ -831,6 +854,25 @@ export default function QuizScreen() {
             </Text>
             <Text style={styles.resultsUnit}>{unit.title}</Text>
           </View>
+
+          {/* Speed Round unlock — shown when score ≥ 70% and lesson has a reward game */}
+          {rewardUnlocked && (
+            <TouchableOpacity
+              style={styles.rewardUnlockBtn}
+              onPress={() => navigation.navigate(rewardGame.routeName, { unit })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.rewardUnlockLeft}>
+                <Text style={styles.rewardUnlockEmoji}>{rewardGame?.emoji ?? '🎮'}</Text>
+                <View>
+                  <Text style={styles.rewardUnlockTitle}>{gameLabel} Unlocked!</Text>
+                  <Text style={styles.rewardUnlockSub}>{rewardGame?.description ?? 'Play now!'}</Text>
+                </View>
+              </View>
+              <Text style={styles.rewardUnlockChevron}>›</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={styles.replayBtn} onPress={restart}>
             <Text style={styles.replayBtnText}>Play Again</Text>
           </TouchableOpacity>
@@ -948,13 +990,13 @@ export default function QuizScreen() {
               ))}
             </View>
           ) : qType === 'fill_in' ? (
-            <FillInRenderer q={q} onResolve={resolveAnswer} styles={styles} />
+            <FillInRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'ordering' ? (
-            <OrderingRenderer q={q} onResolve={resolveAnswer} styles={styles} />
+            <OrderingRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'true_false' ? (
-            <TrueFalseRenderer q={q} onResolve={resolveAnswer} styles={styles} />
+            <TrueFalseRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'word_bank' ? (
-            <WordBankRenderer q={q} onResolve={resolveAnswer} styles={styles} />
+            <WordBankRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : null}
 
           {/* Read Along */}
@@ -1221,6 +1263,25 @@ const styles = StyleSheet.create({
   resultsScore:{ fontSize: 72, fontWeight: '900', color: '#fff', lineHeight: 80 },
   resultsLabel:{ fontSize: 22, fontWeight: '700', color: '#94a3b8', marginTop: 8, marginBottom: 6 },
   resultsUnit: { fontSize: 14, color: '#475569', textAlign: 'center', maxWidth: 240 },
+  // Reward unlock banner
+  rewardUnlockBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(37,99,235,0.18)',
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(59,130,246,0.5)',
+  },
+  rewardUnlockLeft:    { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rewardUnlockEmoji:   { fontSize: 30 },
+  rewardUnlockTitle:   { fontSize: 16, fontWeight: '800', color: '#93c5fd', marginBottom: 2 },
+  rewardUnlockSub:     { fontSize: 12, color: '#475569', fontWeight: '600' },
+  rewardUnlockChevron: { fontSize: 28, color: '#3b82f6', fontWeight: '300' },
+
   replayBtn:   { backgroundColor: '#2563eb', borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginBottom: 12 },
   replayBtnText:{ fontSize: 17, fontWeight: '700', color: '#fff' },
   homeBtn:     { paddingVertical: 14, alignItems: 'center' },

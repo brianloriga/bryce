@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, Alert, TextInput, Dimensions, Image, Modal,
@@ -14,6 +14,8 @@ import KidAvatar from '../components/KidAvatar';
 import {
   DEFAULT_SUBJECTS, UNASSIGNED_SUBJECT, buildSubjectList, resolveSubject,
 } from '../utils/subjects';
+import { AVAILABLE_GAMES, GAME_REGISTRY } from '../minigames/registry';
+import { getEnabledMap } from '../services/gameSettings';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GRID_PADDING  = 20;   // horizontal padding on each side
@@ -35,9 +37,13 @@ export default function HomeScreen() {
   const [search, setSearch]         = useState('');
   // null = subject grid; string key = drill-in view
   const [activeSubject, setActiveSubject] = useState(null);
+  const [enabledGames, setEnabledGames]   = useState({});
 
   useFocusEffect(
-    useCallback(() => { loadUnits(); }, [isLoggedIn])
+    useCallback(() => {
+      loadUnits();
+      getEnabledMap(GAME_REGISTRY.map(g => g.id)).then(setEnabledGames);
+    }, [isLoggedIn])
   );
 
   async function loadUnits() {
@@ -173,38 +179,71 @@ export default function HomeScreen() {
     const subject = resolveSubject(unit.subject, allSubjects);
     const qCount  = unit.questions?.length ?? 0;
     const best    = resultsMap[unit.id] ?? resultsMap[unit.title] ?? null;
+
+    // Which available games apply to this unit?
+    // Speed Round (and any future MC-based game) needs options arrays.
+    const hasMC = (unit.questions ?? []).some(
+      q => Array.isArray(q.options) && q.options.length >= 2,
+    );
+    const applicableGames = AVAILABLE_GAMES.filter(g => {
+      if (enabledGames[g.id] === false) return false;
+      if (g.id === 'speed_round' || g.id === 'memory_flip') return hasMC;
+      return true;
+    });
+
     return (
-      <TouchableOpacity
-        style={[styles.unitCard, { backgroundColor: subject.color }]}
-        onPress={() => navigation.navigate('Quiz', { unit })}
-        onLongPress={() => confirmDelete(unit)}
-        activeOpacity={0.88}
-      >
-        <View style={styles.unitCardTop}>
-          <View style={styles.unitCardLeft}>
-            <Text style={styles.unitCardTitle} numberOfLines={2}>{unit.title}</Text>
-            <Text style={styles.unitCardMeta}>{qCount} question{qCount !== 1 ? 's' : ''}</Text>
+      <View style={[styles.unitCard, { backgroundColor: subject.color }]}>
+        {/* ── Main quiz tap area ── */}
+        <TouchableOpacity
+          style={styles.unitCardMain}
+          onPress={() => navigation.navigate('Quiz', { unit })}
+          onLongPress={() => confirmDelete(unit)}
+          activeOpacity={0.88}
+        >
+          <View style={styles.unitCardTop}>
+            <View style={styles.unitCardLeft}>
+              <Text style={styles.unitCardTitle} numberOfLines={2}>{unit.title}</Text>
+              <Text style={styles.unitCardMeta}>{qCount} question{qCount !== 1 ? 's' : ''}</Text>
+            </View>
+            <View style={styles.playBtn}>
+              <Ionicons name="play" size={22} color="#fff" />
+            </View>
           </View>
-          <View style={styles.playBtn}>
-            <Ionicons name="play" size={22} color="#fff" />
+          <View style={styles.scoreStrip}>
+            {best ? (
+              <>
+                <Text style={styles.scoreStars}>
+                  {[1,2,3].map(n => n <= best.stars ? '⭐' : '☆').join('')}
+                </Text>
+                <Text style={styles.scoreText}>Best: {best.score}/{best.total}</Text>
+                <Text style={styles.attemptsText}>
+                  {best.attempts} attempt{best.attempts !== 1 ? 's' : ''}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.notPlayedText}>Not played yet — give it a try!</Text>
+            )}
           </View>
-        </View>
-        <View style={styles.scoreStrip}>
-          {best ? (
-            <>
-              <Text style={styles.scoreStars}>
-                {[1,2,3].map(n => n <= best.stars ? '⭐' : '☆').join('')}
-              </Text>
-              <Text style={styles.scoreText}>Best: {best.score}/{best.total}</Text>
-              <Text style={styles.attemptsText}>
-                {best.attempts} attempt{best.attempts !== 1 ? 's' : ''}
-              </Text>
-            </>
-          ) : (
-            <Text style={styles.notPlayedText}>Not played yet — give it a try!</Text>
-          )}
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        {/* ── Mini-game quick-launch chips ── */}
+        {applicableGames.length > 0 && (
+          <View style={styles.gameChipsRow}>
+            {applicableGames.map(game => (
+              <TouchableOpacity
+                key={game.id}
+                style={styles.gameChip}
+                onPress={() => navigation.navigate(game.routeName, { unit })}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.gameChipEmoji}>{game.emoji}</Text>
+                <Text style={styles.gameChipLabel}>{game.label}</Text>
+                <Text style={styles.gameChipChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
     );
   }
 
@@ -627,11 +666,12 @@ function createStyles(t) {
     // Lesson cards
     unitList: { gap: 14 },
     unitCard: {
-      borderRadius: 20, padding: 20,
+      borderRadius: 20, overflow: 'hidden',
       shadowColor: t.shadow,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.18, shadowRadius: 12, elevation: 5,
     },
+    unitCardMain:  { padding: 20 },
     unitCardTop:  { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
     unitCardLeft: { flex: 1, marginRight: 12 },
     unitCardTitle: { fontSize: 20, fontWeight: '800', color: '#fff', marginBottom: 4, lineHeight: 26 },
@@ -651,6 +691,28 @@ function createStyles(t) {
     scoreText:     { fontSize: 13, fontWeight: '700', color: '#fff' },
     attemptsText:  { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginLeft: 'auto' },
     notPlayedText: { fontSize: 12, color: 'rgba(255,255,255,0.55)', fontStyle: 'italic' },
+
+    // Mini-game quick-launch chips
+    gameChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingBottom: 14,
+    },
+    gameChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(0,0,0,0.22)',
+      borderRadius: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      flex: 1,
+    },
+    gameChipEmoji:   { fontSize: 15 },
+    gameChipLabel:   { flex: 1, fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)' },
+    gameChipChevron: { fontSize: 18, color: 'rgba(255,255,255,0.45)', fontWeight: '300' },
 
     // Empty state
     empty: {

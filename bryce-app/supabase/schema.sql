@@ -86,6 +86,12 @@ CREATE POLICY "Parents manage own units" ON custom_units
 -- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS kid_id UUID REFERENCES kid_profiles(id) ON DELETE CASCADE;
 -- CREATE INDEX IF NOT EXISTS custom_units_kid_id_idx ON custom_units (kid_id);
 
+-- ── Migration: add reward_config to existing custom_units table ─
+-- Stores which mini-game (if any) unlocks after the quiz for this lesson.
+-- Example value: { "game": "speed_round" }
+-- Run this once in the Supabase SQL Editor:
+-- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS reward_config JSONB;
+
 
 -- ── Quiz Results ─────────────────────────────────────────────
 -- Records every quiz attempt for history, improvement tracking, and the

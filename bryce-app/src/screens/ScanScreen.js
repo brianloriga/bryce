@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
 import { DEFAULT_SUBJECTS } from '../utils/subjects';
+import { GAME_REGISTRY } from '../minigames/registry';
 
 const MAX_IMAGES = 10;
 
@@ -65,6 +66,7 @@ export default function ScanScreen() {
   const [selectedSubject, setSelectedSubject]     = useState(null);
   const [creatingSubject, setCreatingSubject]     = useState(false);
   const [newSubjectName, setNewSubjectName]       = useState('');
+  const [rewardGame, setRewardGame]               = useState(null); // null | 'speed_round'
   const cancelledRef = useRef(false);
 
   function cancelGeneration() {
@@ -294,7 +296,8 @@ export default function ScanScreen() {
 
     setSaving(true);
     try {
-      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null);
+      const rewardConfig = rewardGame ? { game: rewardGame } : null;
+      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null, rewardConfig);
       setStep('saved');
       // Fire-and-forget: generate TTS audio in the background after save succeeds.
       generateAudio(saved.id, questions).catch(() => {});
@@ -309,6 +312,7 @@ export default function ScanScreen() {
     setImages([]); setVisualImages([]); setQuestions(null);
     setPassage(null); setUnitTitle(''); setStep('pick'); setValidationError(null);
     setSelectedSubject(null); setCreatingSubject(false); setNewSubjectName('');
+    setRewardGame(null);
   }
 
   // ── Not logged in ──────────────────────────────────────────
@@ -656,6 +660,49 @@ export default function ScanScreen() {
             </View>
             );
           })}
+
+          {/* ── Reward Game picker ───────────────────────────── */}
+          <View style={styles.rewardSection}>
+            <View style={styles.rewardSectionHeader}>
+              <Text style={styles.rewardSectionTitle}>🎮  Reward Game</Text>
+              <Text style={styles.rewardSectionSub}>
+                Kid unlocks this after scoring 70%+ on the quiz
+              </Text>
+            </View>
+            <View style={styles.rewardGameRow}>
+              {GAME_REGISTRY.map(game => {
+                const isActive = rewardGame === game.id;
+                if (!game.available) {
+                  return (
+                    <View key={game.id} style={[styles.rewardGameChip, styles.rewardGameChipSoon]}>
+                      <Text style={styles.rewardGameChipEmoji}>{game.emoji}</Text>
+                      <View style={styles.rewardGameChipText}>
+                        <Text style={styles.rewardGameChipLabelSoon}>{game.label}</Text>
+                        <Text style={styles.rewardGameChipDesc}>Coming soon</Text>
+                      </View>
+                    </View>
+                  );
+                }
+                return (
+                  <TouchableOpacity
+                    key={game.id}
+                    style={[styles.rewardGameChip, isActive && styles.rewardGameChipActive]}
+                    onPress={() => setRewardGame(prev => prev === game.id ? null : game.id)}
+                    activeOpacity={0.78}
+                  >
+                    <Text style={styles.rewardGameChipEmoji}>{game.emoji}</Text>
+                    <View style={styles.rewardGameChipText}>
+                      <Text style={[styles.rewardGameChipLabel, isActive && styles.rewardGameChipLabelActive]}>
+                        {game.label}
+                      </Text>
+                      <Text style={styles.rewardGameChipDesc}>{game.description}</Text>
+                    </View>
+                    {isActive && <Ionicons name="checkmark-circle" size={20} color="#4ade80" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
 
           <TouchableOpacity
             style={[styles.generateBtn, saving && { opacity: 0.6 }]}
@@ -1303,6 +1350,55 @@ function createStyles(t) {
 
     discardBtn:     { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
     discardBtnText: { fontSize: 14, color: t.danger, fontWeight: '600' },
+
+    // ── Reward Game picker
+    rewardSection: {
+      marginBottom: 20,
+      backgroundColor: t.cardBg,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    rewardSectionHeader: { marginBottom: 12 },
+    rewardSectionTitle: {
+      fontSize: 14, fontWeight: '800', color: t.text,
+      marginBottom: 3,
+    },
+    rewardSectionSub: {
+      fontSize: 12, color: t.textMuted, lineHeight: 16,
+    },
+    rewardGameRow: { flexDirection: 'row', gap: 10 },
+    rewardGameChip: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: t.border,
+      backgroundColor: t.inputBg,
+    },
+    rewardGameChipActive: {
+      borderColor: '#4ade80',
+      backgroundColor: 'rgba(74,222,128,0.08)',
+    },
+    rewardGameChipSoon: {
+      opacity: 0.45,
+    },
+    rewardGameChipEmoji: { fontSize: 22 },
+    rewardGameChipText:  { flex: 1 },
+    rewardGameChipLabel: {
+      fontSize: 13, fontWeight: '700', color: t.textMuted,
+    },
+    rewardGameChipLabelActive: { color: '#4ade80' },
+    rewardGameChipLabelSoon:   { fontSize: 13, fontWeight: '700', color: t.textMuted },
+    rewardGameChipDesc: {
+      fontSize: 10, color: t.textMuted, marginTop: 1, fontWeight: '600',
+      textTransform: 'uppercase', letterSpacing: 0.4,
+    },
 
     // Cancel during generation
     cancelGenerateBtn: {
