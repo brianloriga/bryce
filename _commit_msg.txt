@@ -1,9 +1,0 @@
-feat: expand context card icon set from 40 to ~120 icons
-
-- Edge function SYSTEM_PROMPT: icons now organised into 14 labelled
-  categories (Transport, Animals/Nature, Weather, Space, Science, People,
-  School/Art, Awards/Sports, Food, Money/Shopping, Time, Community/Home,
-  Math/Shapes, Music) so GPT picks the best one for any worksheet topic
-- QuizScreen ICON_MAP updated to match — all new names map to their
-  correct Ionicons outline variant
-- Cost impact: ~$0.0006 extra per scan (220 additional prompt tokens)
