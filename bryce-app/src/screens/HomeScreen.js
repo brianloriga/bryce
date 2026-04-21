@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, TextInput, Dimensions, Image,
+  ActivityIndicator, RefreshControl, Alert, TextInput, Dimensions, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -22,7 +22,8 @@ const TILE_SIZE     = (SCREEN_W - GRID_PADDING * 2 - GRID_GAP) / 2;
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { activeKid, isLoggedIn } = useAuth();
+  const { activeKid, kidProfiles, selectKid, isLoggedIn } = useAuth();
+  const [switcherVisible, setSwitcherVisible] = useState(false);
   const { theme }  = useTheme();
   const styles     = useMemo(() => createStyles(theme), [theme]);
 
@@ -44,7 +45,7 @@ export default function HomeScreen() {
     setLoadError(null);
     try {
       const [data, results] = await Promise.all([
-        getCustomUnits(),
+        getCustomUnits(activeKid?.id ?? null),
         activeKid?.id ? getQuizResultsForKid(activeKid.id) : Promise.resolve([]),
       ]);
       setUnits(data);
@@ -221,7 +222,11 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.header}
+            onPress={() => kidProfiles.length > 1 && setSwitcherVisible(true)}
+            activeOpacity={kidProfiles.length > 1 ? 0.75 : 1}
+          >
             {activeKid ? (
               <KidAvatar name={activeKid.name} color={activeKid.avatar} size={64} radius={18} />
             ) : null}
@@ -235,7 +240,13 @@ export default function HomeScreen() {
                   : 'Your lessons will appear here'}
               </Text>
             </View>
-          </View>
+            {kidProfiles.length > 1 && (
+              <View style={styles.switchChevron}>
+                <Ionicons name="swap-horizontal-outline" size={18} color={theme.textSub} />
+                <Text style={styles.switchLabel}>Switch</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Global search bar — always visible when there are lessons */}
           {units.length > 0 && (
@@ -322,6 +333,9 @@ export default function HomeScreen() {
             </>
           )}
         </ScrollView>
+
+        {/* Kid switcher modal */}
+        {KidSwitcherModal()}
       </SafeAreaView>
     );
   }
@@ -394,8 +408,54 @@ export default function HomeScreen() {
           <Text style={styles.hintText}>Hold a lesson to delete it</Text>
         )}
       </ScrollView>
+
+      {/* Kid switcher modal */}
+      {KidSwitcherModal()}
     </SafeAreaView>
   );
+
+  // ── Kid switcher modal (shared by both returns) ───────────────
+  function KidSwitcherModal() {
+    return (
+      <Modal visible={switcherVisible} transparent animationType="slide" onRequestClose={() => setSwitcherVisible(false)}>
+        <TouchableOpacity style={styles.switcherOverlay} activeOpacity={1} onPress={() => setSwitcherVisible(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.switcherSheet}>
+            <View style={styles.switcherHandle} />
+            <Text style={styles.switcherTitle}>Who's learning?</Text>
+            <View style={styles.switcherGrid}>
+              {kidProfiles.map(kid => {
+                const isActive = activeKid?.id === kid.id;
+                return (
+                  <TouchableOpacity
+                    key={kid.id}
+                    style={[styles.switcherKidBtn, isActive && styles.switcherKidBtnActive]}
+                    onPress={async () => {
+                      if (!isActive) await selectKid(kid);
+                      setSwitcherVisible(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <KidAvatar name={kid.name} color={kid.avatar} size={64} radius={16} />
+                    <Text style={[styles.switcherKidName, isActive && styles.switcherKidNameActive]}>
+                      {kid.name}
+                    </Text>
+                    {isActive && (
+                      <View style={styles.switcherActiveDot}>
+                        <Ionicons name="checkmark" size={12} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity style={styles.switcherDismiss} onPress={() => setSwitcherVisible(false)}>
+              <Text style={styles.switcherDismissText}>Cancel</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    );
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -438,9 +498,42 @@ function createStyles(t) {
       flexDirection: 'row', alignItems: 'center', gap: 14,
       marginBottom: 20, paddingTop: 6,
     },
-    headerText:  { flex: 1 },
-    greeting:    { fontSize: 26, fontWeight: '800', color: t.text, marginBottom: 2 },
-    greetingSub: { fontSize: 13, color: t.textSub },
+    headerText:   { flex: 1 },
+    greeting:     { fontSize: 26, fontWeight: '800', color: t.text, marginBottom: 2 },
+    greetingSub:  { fontSize: 13, color: t.textSub },
+    switchChevron: {
+      alignItems: 'center', gap: 2,
+      backgroundColor: t.bgCard, borderRadius: 10,
+      paddingHorizontal: 10, paddingVertical: 6,
+      borderWidth: 1, borderColor: t.border,
+    },
+    switchLabel:  { fontSize: 10, fontWeight: '700', color: t.textSub, textTransform: 'uppercase', letterSpacing: 0.5 },
+
+    // Kid switcher modal
+    switcherOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    switcherSheet: {
+      backgroundColor: t.bgCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: 40,
+      borderTopWidth: 1, borderColor: t.border,
+    },
+    switcherHandle:   { width: 40, height: 4, borderRadius: 2, backgroundColor: t.border, alignSelf: 'center', marginBottom: 20 },
+    switcherTitle:    { fontSize: 18, fontWeight: '800', color: t.text, textAlign: 'center', marginBottom: 24 },
+    switcherGrid:     { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginBottom: 24 },
+    switcherKidBtn: {
+      alignItems: 'center', gap: 8, padding: 12,
+      borderRadius: 18, borderWidth: 2, borderColor: t.border,
+      backgroundColor: t.bg, minWidth: 90,
+    },
+    switcherKidBtnActive: { borderColor: t.accent, backgroundColor: t.accentDim },
+    switcherKidName:       { fontSize: 13, fontWeight: '700', color: t.textSub, textAlign: 'center' },
+    switcherKidNameActive: { color: t.accent },
+    switcherActiveDot: {
+      position: 'absolute', top: 8, right: 8,
+      width: 20, height: 20, borderRadius: 10,
+      backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center',
+    },
+    switcherDismiss:     { paddingVertical: 14, alignItems: 'center' },
+    switcherDismissText: { fontSize: 15, color: t.textSub, fontWeight: '600' },
 
     // Search bar
     searchBar: {

@@ -294,7 +294,7 @@ export default function ScanScreen() {
 
     setSaving(true);
     try {
-      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey);
+      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null);
       setStep('saved');
       // Fire-and-forget: generate TTS audio in the background after save succeeds.
       generateAudio(saved.id, questions).catch(() => {});

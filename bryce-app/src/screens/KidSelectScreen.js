@@ -107,13 +107,14 @@ export default function KidSelectScreen() {
   }
 
   async function handleAddKid() {
-    if (!newName.trim()) { Alert.alert('Name required', "Please enter the child's name."); return; }
+    if (!newName.trim()) { Alert.alert('Name required', "Please enter the child's name."); return false; }
     setSaving(true);
     try {
       await createKidProfile(newName.trim(), newColor);
       await reloadKids();
       setNewName(''); setNewColor(DEFAULT_COLOR); setShowAdd(false);
-    } catch (err) { Alert.alert('Error', err.message); }
+      return true;
+    } catch (err) { Alert.alert('Error', err.message); return false; }
     finally { setSaving(false); }
   }
 
@@ -172,8 +173,20 @@ export default function KidSelectScreen() {
         {mode === 'manage' ? (
           <>
             <Text style={styles.manageTitleText}>Manage Profiles</Text>
-            <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
-              <Text style={styles.doneBtnText}>Done</Text>
+            <TouchableOpacity
+              style={[styles.doneBtn, saving && { opacity: 0.6 }]}
+              disabled={saving}
+              onPress={async () => {
+                if (showAdd && newName.trim()) {
+                  const ok = await handleAddKid();
+                  if (!ok) return;
+                }
+                navigation.goBack();
+              }}
+            >
+              {saving
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <Text style={styles.doneBtnText}>Done</Text>}
             </TouchableOpacity>
           </>
         ) : (
@@ -183,7 +196,16 @@ export default function KidSelectScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
+      >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
           {mode === 'select' && (
@@ -251,6 +273,7 @@ export default function KidSelectScreen() {
           <Text style={styles.hint}>Hold a profile to delete it</Text>
         </Animated.View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Edit modal */}
       <Modal visible={!!editKid} transparent animationType="slide" onRequestClose={closeEdit}>

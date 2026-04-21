@@ -128,7 +128,7 @@ function lessonRow(t) {
 
 export default function ProgressScreen() {
   const navigation                    = useNavigation();
-  const { activeKid, kids: authKids } = useAuth();
+  const { activeKid, kidProfiles } = useAuth();
   const { theme, isDark }             = useTheme();
   const styles                        = useMemo(() => createStyles(theme), [theme]);
 
@@ -141,9 +141,9 @@ export default function ProgressScreen() {
 
   // Load kid profiles
   useEffect(() => {
-    if (authKids?.length) {
-      setKids(authKids);
-      setSelectedKid(prev => prev ?? (activeKid ?? authKids[0]));
+    if (kidProfiles?.length) {
+      setKids(kidProfiles);
+      setSelectedKid(prev => prev ?? (activeKid ?? kidProfiles[0]));
     } else {
       getKidProfiles()
         .then(data => {
@@ -152,7 +152,7 @@ export default function ProgressScreen() {
         })
         .catch(() => {});
     }
-  }, [authKids, activeKid]);
+  }, [kidProfiles, activeKid]);
 
   const loadResults = useCallback(async (kidId) => {
     if (!kidId) return;

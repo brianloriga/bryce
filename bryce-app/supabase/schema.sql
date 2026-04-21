@@ -68,6 +68,7 @@ CREATE POLICY "Service role writes subscriptions" ON subscriptions
 CREATE TABLE IF NOT EXISTS custom_units (
   id          UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   parent_id   UUID        REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  kid_id      UUID        REFERENCES kid_profiles(id) ON DELETE CASCADE,
   title       TEXT        NOT NULL,
   subject     TEXT        DEFAULT 'math',
   unit_label  TEXT,       -- e.g. '13.2', 'Chapter 7'
@@ -79,6 +80,11 @@ CREATE TABLE IF NOT EXISTS custom_units (
 ALTER TABLE custom_units ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Parents manage own units" ON custom_units
   FOR ALL USING (auth.uid() = parent_id);
+
+-- ── Migration: add kid_id to existing custom_units table ─────
+-- Run this once if the table already exists without kid_id:
+-- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS kid_id UUID REFERENCES kid_profiles(id) ON DELETE CASCADE;
+-- CREATE INDEX IF NOT EXISTS custom_units_kid_id_idx ON custom_units (kid_id);
 
 
 -- ── Quiz Results ─────────────────────────────────────────────
