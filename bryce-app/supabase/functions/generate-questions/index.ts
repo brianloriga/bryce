@@ -100,15 +100,51 @@ PASSAGE RULES:
 - Do NOT include a passage for pure math, diagrams, or vocabulary lists.
 - Omit the field if not needed.
 
+SELF-CONTAINED QUESTION RULE (mandatory):
+- Every question must be answerable WITHOUT the worksheet in hand
+- If a question references data shown visually on the worksheet (prices, measurements, tally counts, distances, scores, etc.), you MUST either:
+  a) Embed the data directly in the question text: "Cat = 10¢, Dog = 15¢, Car = 20¢, Bike = 8¢. How much do the car and dog cost together?"
+  b) OR include a "context" object (see CONTEXT RULES below) so the app shows a visual reference card above the question
+- NEVER write a question like "Which is the cheapest?" without providing the prices somewhere
+
+CONTEXT RULES — visual reference card shown above the question:
+- Include a "context" object when the question references a set of items with values (prices, scores, lengths, tallies, temperatures, etc.) that are best shown as a compact reference rather than a long sentence
+- The context card is rendered as a clean visual grid or table in the app — NO emojis
+- Use "type": "grid" for items that have a label + value (most common — price tables, score charts, measurement lists)
+- Use "type": "table" for multi-column comparisons (e.g. two groups being compared)
+- For each item in a grid, pick ONE icon from this exact allowed list (use the name exactly as shown):
+  car, bicycle, bus, train, airplane, boat,
+  paw, fish, bug, leaf, flower, planet, rainy, sunny, snow, flame,
+  person, people, man, woman, baby,
+  book, school, pencil, calculator, flask, medal, trophy, star, heart,
+  cash, card, bag, gift, pizza, cafe, restaurant,
+  basketball, football, baseball, tennisball, bicycle,
+  cube, shapes, grid, layers, image, map, compass
+- If no icon fits, use "grid" as a safe fallback
+- Omit "context" entirely if the question is self-contained and no reference card is needed (e.g. a pure fact question, vocabulary, grammar)
+
+CONTEXT EXAMPLES:
+Grid (price table):
+{ "context": { "type": "grid", "title": "Toy Sale Prices", "items": [
+  { "label": "Cat", "icon": "paw", "value": "10¢" },
+  { "label": "Dog", "icon": "paw", "value": "15¢" },
+  { "label": "Car", "icon": "car", "value": "20¢" },
+  { "label": "Bike", "icon": "bicycle", "value": "8¢" }
+]}}
+
+Table (two groups):
+{ "context": { "type": "table", "title": "Class Scores", "columns": ["Student","Score"], "rows": [["Amir","18"],["Bella","14"],["Carl","20"]] }}
+
 WORKSHEET EXTRACTION RULES (highest priority):
 - If the image shows a printed worksheet or problem set, your PRIMARY job is to faithfully reproduce those questions in digital form
-- Keep the SAME numbers, items, names, and scenarios from the worksheet (e.g. if it says "cat costs 10¢, dog costs 15¢", use those exact values)
-- Use fill_in for every calculation question on the worksheet (e.g. "How much does the car and bike cost together?" → fill_in, correctAnswer "28¢")
-- Use ordering if the worksheet says "order from least to greatest" or similar
-- Use true_false if the worksheet asks to evaluate a statement
-- Use multiple_choice only when the worksheet itself offers choices
+- Keep the SAME numbers, items, names, and scenarios from the worksheet
+- Use fill_in for every calculation question (e.g. "How much does the car and bike cost together?" → fill_in, correctAnswer "28¢")
+- Use ordering when the worksheet says "order from least to greatest" or similar
+- Use true_false when the worksheet asks to evaluate a statement
+- Use multiple_choice only when the worksheet itself provides answer choices
 - DO NOT invent generic questions when specific questions are printed on the worksheet
-- DO NOT simplify or replace a calculation question with a "which is cheapest?" multiple-choice question
+- DO NOT simplify a calculation question into a "which is cheapest?" multiple-choice question
+- When a question needs the price/data table, include a "context" grid object so the kid never needs the paper
 
 VARIETY GUIDANCE:
 - Mix types naturally. A math worksheet → fill_in for calculations, ordering for sequences, true_false for comparisons. A grammar worksheet → word_bank for sentence completions. Do NOT force everything into multiple_choice.
@@ -119,12 +155,23 @@ Return ONLY this JSON and nothing else:
   "title": "Short descriptive title",
   "passage": "Optional reading passage — omit if not needed.",
   "questions": [
-    { "question": "Multiple choice example", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 2 },
-    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3",".3","0.30"] },
-    { "type": "ordering", "question": "Order least to greatest:", "hint": "...", "items": ["3/4","1/4","1/2"], "correctOrder": [1, 2, 0] },
+    {
+      "context": { "type": "grid", "title": "Toy Sale Prices", "items": [
+        { "label": "Cat", "icon": "paw", "value": "10¢" },
+        { "label": "Dog", "icon": "paw", "value": "15¢" },
+        { "label": "Car", "icon": "car", "value": "20¢" },
+        { "label": "Bike", "icon": "bicycle", "value": "8¢" }
+      ]},
+      "type": "fill_in",
+      "question": "How much do the car and bike cost together?",
+      "hint": "Add the two prices.",
+      "correctAnswer": "28¢",
+      "acceptedAnswers": ["28¢","28 cents","28c"]
+    },
+    { "question": "Multiple choice — no context needed", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 2 },
+    { "type": "ordering", "question": "Order least to greatest: 15¢, 8¢, 20¢, 10¢", "hint": "...", "items": ["15¢","8¢","20¢","10¢"], "correctOrder": [1,3,0,2] },
     { "type": "true_false", "question": "1/2 > 3/4. True or False?", "hint": "...", "correctAnswer": false },
-    { "type": "word_bank", "question": "The children ____ at school.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "are" },
-    { "type": "visual_mc", "question": "🍎🍎🍎 + 🍎🍎 = ?", "hint": "...", "options": ["4","5","6","7"], "correctIndex": 1 }
+    { "type": "word_bank", "question": "The children ____ at school.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "are" }
   ]
 }`;
 
@@ -141,11 +188,14 @@ You will be given an original question and asked to generate ONE replacement que
 
 Match the SAME question type as the original. Use the correct JSON shape for that type:
 - multiple_choice (no type field): { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 0 }
-- visual_mc: same as multiple_choice but with emoji/unicode visuals in question text, "type": "visual_mc"
+- visual_mc: { "type": "visual_mc", "question": "...", "hint": "...", "options": [...], "correctIndex": 0 }
 - fill_in: { "type": "fill_in", "question": "...", "hint": "...", "correctAnswer": "...", "acceptedAnswers": [...] }
 - ordering: { "type": "ordering", "question": "...", "hint": "...", "items": [...], "correctOrder": [...] }
 - true_false: { "type": "true_false", "question": "...", "hint": "...", "correctAnswer": true|false }
 - word_bank: { "type": "word_bank", "question": "sentence with ____", "hint": "...", "wordBank": [...], "correctAnswer": "..." }
+
+SELF-CONTAINED RULE: the replacement must be answerable without any external materials. If the original had a "context" reference card, keep an equivalent context in the replacement.
+If a "context" is needed, use this structure: { "type": "grid", "title": "...", "items": [{ "label": "...", "icon": "car|bicycle|paw|book|cash|flask|person|star|grid|...", "value": "..." }] }
 
 For math shape/fraction questions you MAY include a "geometry" object (pie, bar, or shape).
 Every question MUST include a "hint" field.
@@ -214,6 +264,7 @@ function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
   // Optional extras
   if (q.geometry)  sanitized.geometry  = q.geometry;
   if (q.image_ref) sanitized.image_ref = true;
+  if (q.context)   sanitized.context   = q.context;   // reference card data
 
   return sanitized;
 }

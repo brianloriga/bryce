@@ -53,6 +53,7 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
     if (q.hint)     mapped.hint     = q.hint;
     if (q.type)     mapped.type     = q.type;
     if (q.geometry) mapped.geometry = q.geometry;
+    if (q.context)  mapped.context  = q.context;
 
     // multiple_choice / visual_mc
     if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
@@ -171,6 +172,7 @@ export async function regenerateQuestion(base64Images, existingQuestion, isVisua
   if (q.hint)     mapped.hint     = q.hint;
   if (q.type)     mapped.type     = q.type;
   if (q.geometry) mapped.geometry = q.geometry;
+  if (q.context)  mapped.context  = q.context;
 
   if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
     mapped.options      = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A','Option B','Option C','Option D'];

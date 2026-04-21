@@ -33,6 +33,131 @@ function getStars(correct, total) {
   return 0;
 }
 
+// ── Context reference card ────────────────────────────────────
+// Allowed icon names map to Ionicons "-outline" variants.
+// GPT picks from a restricted list we define in the prompt.
+const ICON_MAP = {
+  car: 'car-outline', bicycle: 'bicycle-outline', bus: 'bus-outline',
+  train: 'train-outline', airplane: 'airplane-outline', boat: 'boat-outline',
+  paw: 'paw-outline', fish: 'fish-outline', bug: 'bug-outline',
+  leaf: 'leaf-outline', flower: 'flower-outline', planet: 'planet-outline',
+  rainy: 'rainy-outline', sunny: 'sunny-outline', snow: 'snow-outline',
+  flame: 'flame-outline', person: 'person-outline', people: 'people-outline',
+  man: 'man-outline', woman: 'woman-outline', baby: 'happy-outline',
+  book: 'book-outline', school: 'school-outline', pencil: 'pencil-outline',
+  calculator: 'calculator-outline', flask: 'flask-outline',
+  medal: 'medal-outline', trophy: 'trophy-outline', star: 'star-outline',
+  heart: 'heart-outline', cash: 'cash-outline', card: 'card-outline',
+  bag: 'bag-outline', gift: 'gift-outline', pizza: 'pizza-outline',
+  cafe: 'cafe-outline', restaurant: 'restaurant-outline',
+  basketball: 'basketball-outline', football: 'football-outline',
+  baseball: 'baseball-outline', tennisball: 'tennisball-outline',
+  cube: 'cube-outline', shapes: 'shapes-outline', layers: 'layers-outline',
+  image: 'image-outline', map: 'map-outline', compass: 'compass-outline',
+  grid: 'grid-outline',
+};
+
+function ContextCard({ context, accentColor }) {
+  if (!context?.type) return null;
+  const accent = accentColor ?? '#60a5fa';
+
+  if (context.type === 'grid') {
+    const items = context.items ?? [];
+    // Lay out items 2-per-row
+    const pairs = [];
+    for (let i = 0; i < items.length; i += 2) {
+      pairs.push([items[i], items[i + 1] ?? null]);
+    }
+    return (
+      <View style={ctxStyles.card}>
+        <View style={[ctxStyles.accentBar, { backgroundColor: accent }]} />
+        <View style={ctxStyles.inner}>
+          {context.title ? (
+            <Text style={ctxStyles.title}>{context.title}</Text>
+          ) : null}
+          {pairs.map((pair, pi) => (
+            <View key={pi} style={ctxStyles.row}>
+              {pair.map((item, ii) => item ? (
+                <View key={ii} style={ctxStyles.cell}>
+                  <View style={[ctxStyles.iconCircle, { backgroundColor: accent + '22', borderColor: accent + '55' }]}>
+                    <Ionicons
+                      name={ICON_MAP[item.icon] ?? 'grid-outline'}
+                      size={22}
+                      color={accent}
+                    />
+                  </View>
+                  <Text style={ctxStyles.cellLabel} numberOfLines={1}>{item.label}</Text>
+                  <Text style={[ctxStyles.cellValue, { color: accent }]}>{item.value}</Text>
+                </View>
+              ) : (
+                <View key={ii} style={ctxStyles.cellEmpty} />
+              ))}
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (context.type === 'table') {
+    const columns = context.columns ?? [];
+    const rows    = context.rows    ?? [];
+    return (
+      <View style={ctxStyles.card}>
+        <View style={[ctxStyles.accentBar, { backgroundColor: accent }]} />
+        <View style={ctxStyles.inner}>
+          {context.title ? <Text style={ctxStyles.title}>{context.title}</Text> : null}
+          {/* Header */}
+          {columns.length > 0 && (
+            <View style={ctxStyles.tableRow}>
+              {columns.map((col, ci) => (
+                <Text key={ci} style={[ctxStyles.tableHeader, { color: accent }]}>{col}</Text>
+              ))}
+            </View>
+          )}
+          {/* Data rows */}
+          {rows.map((row, ri) => (
+            <View key={ri} style={[ctxStyles.tableRow, ri % 2 === 1 && ctxStyles.tableRowAlt]}>
+              {(Array.isArray(row) ? row : [row]).map((cell, ci) => (
+                <Text key={ci} style={ctxStyles.tableCell}>{String(cell)}</Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  return null;
+}
+
+const ctxStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#1a2744',
+    borderRadius: 16, marginBottom: 14,
+    overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+  },
+  accentBar: { width: 4, borderRadius: 4 },
+  inner:     { flex: 1, padding: 14 },
+  title:     { fontSize: 11, fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
+
+  // Grid layout
+  row:       { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  cell:      { flex: 1, alignItems: 'center', gap: 6 },
+  cellEmpty: { flex: 1 },
+  iconCircle:{ width: 48, height: 48, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  cellLabel: { fontSize: 13, fontWeight: '600', color: '#94a3b8', textAlign: 'center' },
+  cellValue: { fontSize: 16, fontWeight: '800', textAlign: 'center' },
+
+  // Table layout
+  tableRow:    { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  tableRowAlt: { backgroundColor: 'rgba(255,255,255,0.03)' },
+  tableHeader: { flex: 1, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  tableCell:   { flex: 1, fontSize: 14, fontWeight: '600', color: '#e2e8f0' },
+});
+
 // ── Geometry renderer ─────────────────────────────────────────
 function GeometryDisplay({ geometry }) {
   if (!geometry?.type) return null;
@@ -704,6 +829,9 @@ export default function QuizScreen() {
         keyboardVerticalOffset={0}
       >
         <ScrollView contentContainerStyle={styles.quizContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+          {/* Context reference card — shown above the question when GPT included one */}
+          {q.context && <ContextCard context={q.context} accentColor={subjectColor} />}
 
           {/* Question card */}
           <Animated.View style={[

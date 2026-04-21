@@ -6,6 +6,26 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Self-Contained Questions + Context Reference Card — 2026-04-20
+
+#### Added — ContextCard component (`src/screens/QuizScreen.js`)
+- New `ContextCard` component renders a visual reference panel **above the question** when GPT includes a `context` field
+- Supports two layouts:
+  - **Grid** — 2-column icon grid; each item shows a vector icon (Ionicons), a label, and a value (e.g. "Cat · 10¢"); used for price tables, score lists, measurement sets
+  - **Table** — multi-column data table with alternating row shading; used for comparisons with multiple columns
+- Subject-colour accent bar on the left edge; icon circles tinted to match the current subject
+- No emojis — all icons are clean Ionicons vector assets chosen by GPT from a predefined allowed list
+
+#### Changed — `generate-questions` Edge Function
+- **SELF-CONTAINED QUESTION RULE**: every question must now be answerable without the original worksheet — all data needed to answer must appear either in the question text itself or in a `context` reference card
+- **CONTEXT RULES** added to SYSTEM_PROMPT: defines when to produce a `context` object, the grid/table schemas, and a curated list of ~40 allowed Ionicons names GPT may assign to items
+- REGEN prompt updated to carry context through on regeneration
+
+#### Changed — `aiService.js`
+- Both `generateQuestionsFromImages` and `regenerateQuestion` mappers now forward the `context` field
+
+---
+
 ### Rich Question Types — 2026-04-20
 
 #### Added — New Question Types (AI + UI)

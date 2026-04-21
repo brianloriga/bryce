@@ -1,0 +1,13 @@
+feat: self-contained questions + ContextCard reference panel
+
+- Edge function: SELF-CONTAINED QUESTION RULE added — every question must
+  be answerable without the worksheet; GPT must embed data in the question
+  text or provide a context object
+- CONTEXT RULES in SYSTEM_PROMPT: grid (icon + label + value) and table
+  schemas; curated allowed-icon list of ~40 Ionicons names for GPT to pick
+- sanitizeQuestion now passes context field through
+- aiService.js: context field mapped in both generate and regen paths
+- QuizScreen: ContextCard component renders icon grid or data table above
+  the question card; icons are Ionicons vector assets (no emojis);
+  accent colour matches current subject
+- CHANGELOG updated
