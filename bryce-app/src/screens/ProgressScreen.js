@@ -228,6 +228,7 @@ export default function ProgressScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.kidStrip}
+          style={styles.kidStripScroll}
         >
           {kids.map(kid => {
             const active = selectedKid?.id === kid.id;
@@ -275,11 +276,13 @@ export default function ProgressScreen() {
           </View>
         ) : totalQuizzes === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📊</Text>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="bar-chart-outline" size={40} color={theme.accent} />
+            </View>
             <Text style={styles.emptyTitle}>No quiz history yet</Text>
             <Text style={styles.emptySub}>
-              {selectedKid?.name ?? 'This child'} hasn't completed any quizzes yet.
-              {'\n'}Head to the Learn tab and start one!
+              {selectedKid?.name ?? 'This child'} hasn't completed any quizzes yet.{'\n'}
+              Head to the Learn tab and start one!
             </Text>
           </View>
         ) : (
@@ -331,10 +334,15 @@ function createStyles(t) {
     headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: t.text, textAlign: 'center' },
 
     // Kid selector
-    kidStrip: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+    kidStripScroll: { flexGrow: 0 },
+    kidStrip: {
+      paddingHorizontal: 16, paddingVertical: 12,
+      gap: 10, alignItems: 'center',
+    },
     kidChip: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
-      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+      paddingHorizontal: 14, paddingVertical: 8,
+      borderRadius: 24, alignSelf: 'flex-start',
       backgroundColor: t.bgCard, borderWidth: 1.5, borderColor: t.border,
     },
     kidChipActive:     { borderColor: t.accent, backgroundColor: t.accentDim },
@@ -376,8 +384,12 @@ function createStyles(t) {
       padding: 16, marginTop: 40,
     },
     errorText:  { flex: 1, fontSize: 14, color: '#f87171', lineHeight: 20 },
-    emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 10 },
-    emptyEmoji: { fontSize: 52, marginBottom: 8 },
+    emptyState:      { alignItems: 'center', paddingTop: 64, paddingHorizontal: 32, gap: 12 },
+    emptyIconCircle: {
+      width: 80, height: 80, borderRadius: 24,
+      backgroundColor: t.accentDim, borderWidth: 1, borderColor: t.accent + '40',
+      alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+    },
     emptyTitle: { fontSize: 20, fontWeight: '800', color: t.text },
     emptySub:   { fontSize: 14, color: t.textSub, textAlign: 'center', lineHeight: 22 },
   });
