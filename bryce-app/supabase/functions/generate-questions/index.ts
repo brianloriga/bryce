@@ -26,14 +26,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// How many visually-enriched questions to request based on total count
-function visualCount(total: number): number {
-  if (total >= 20) return 4;
-  if (total >= 15) return 3;
-  if (total >= 9)  return 2;
-  return 1;
-}
-
 const SYSTEM_PROMPT = `You are a helpful educational assistant for children aged 5–12.
 
 CONTENT RULES — these are absolute and must never be violated:
@@ -66,11 +58,11 @@ QUESTION TYPE RULES — choose the best type for each question:
    { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 1 }
 
 2. VISUAL MULTIPLE CHOICE — "type": "visual_mc"
-   - Same as multiple_choice but embed emoji/unicode visuals directly in the question string
-   - Young children: 🍎🍎🍎 counting, 🪙 coins, 🔴🔵🔴🔵❓ patterns
-   - Older children: ████░░ bar charts, temperature scales, timelines
-   - Math: ■■□□ fraction shading, coin grids, repeated symbols
-   { "type": "visual_mc", "question": "🍎🍎🍎 + 🍎🍎 = ?", "hint": "...", "options": ["4","5","6","7"], "correctIndex": 1 }
+   - Use ONLY when the worksheet does NOT provide specific numbers or scenarios to extract, AND a visual/emoji representation would genuinely help a child understand the concept
+   - Do NOT use visual_mc to "decorate" a question that already has clear numbers or text on the worksheet — use fill_in or true_false instead
+   - Examples where visual_mc is appropriate: a blank pattern like 🔴🔵🔴❓, a counting exercise with no specific numbers given, an abstract concept with no worksheet text
+   - Examples where visual_mc is WRONG: the worksheet says "How much does the car and bike cost together?" → use fill_in; the worksheet says "8¢ + 20¢ = ?" → use fill_in
+   { "type": "visual_mc", "question": "🔴🔵🔴🔵❓ What comes next?", "hint": "...", "options": ["🔴","🔵","🟡","🟢"], "correctIndex": 0 }
 
 3. FILL IN THE BLANK — "type": "fill_in"
    - PREFER for: math calculations, "write as a decimal/fraction/word form", coordinate answers, single-word answers
@@ -107,6 +99,16 @@ PASSAGE RULES:
 - If the page(s) contain a substantial continuous reading text students need to reference (story, article, poem, science passage), extract it verbatim as a "passage" field.
 - Do NOT include a passage for pure math, diagrams, or vocabulary lists.
 - Omit the field if not needed.
+
+WORKSHEET EXTRACTION RULES (highest priority):
+- If the image shows a printed worksheet or problem set, your PRIMARY job is to faithfully reproduce those questions in digital form
+- Keep the SAME numbers, items, names, and scenarios from the worksheet (e.g. if it says "cat costs 10¢, dog costs 15¢", use those exact values)
+- Use fill_in for every calculation question on the worksheet (e.g. "How much does the car and bike cost together?" → fill_in, correctAnswer "28¢")
+- Use ordering if the worksheet says "order from least to greatest" or similar
+- Use true_false if the worksheet asks to evaluate a statement
+- Use multiple_choice only when the worksheet itself offers choices
+- DO NOT invent generic questions when specific questions are printed on the worksheet
+- DO NOT simplify or replace a calculation question with a "which is cheapest?" multiple-choice question
 
 VARIETY GUIDANCE:
 - Mix types naturally. A math worksheet → fill_in for calculations, ordering for sequences, true_false for comparisons. A grammar worksheet → word_bank for sentence completions. Do NOT force everything into multiple_choice.
@@ -354,7 +356,6 @@ serve(async (req) => {
         : [];
 
     const questionCount: number = Math.min(Math.max(Number(body.questionCount) || 9, 5), 20);
-    const numVisual = visualCount(questionCount);
     const numImageVisual = rawVisuals.reduce((sum, v) => sum + (v.questionCount ?? 1), 0);
 
     if (imageList.length === 0) {
@@ -434,7 +435,7 @@ serve(async (req) => {
 
     userContent.push({
       type: 'text',
-      text: `${pageText}${visualAidInstruction} Exactly ${numVisual} of the NON-image-ref questions should be visually enriched (use emoji/unicode visuals in the question text and mark with "type": "visual_mc"). Every question must include a "hint" field.`,
+      text: `${pageText}${visualAidInstruction} Every question must include a "hint" field. WORKSHEET EXTRACTION PRIORITY: if the image shows a worksheet or problem set, base the questions as closely as possible on the ACTUAL questions printed on the worksheet — same numbers, same scenarios, same level of difficulty. Do NOT simplify or restate the questions in a generic way. Use fill_in for calculation questions, ordering for sequence questions, true_false for comparisons, word_bank for grammar fill-ins. Only use visual_mc (with emoji/unicode) when the worksheet genuinely lacks specific numbers or context and a visual aid would help — do NOT default to visual_mc just to add emoji decoration.`,
     });
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
