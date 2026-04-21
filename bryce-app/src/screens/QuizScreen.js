@@ -37,24 +37,69 @@ function getStars(correct, total) {
 // Allowed icon names map to Ionicons "-outline" variants.
 // GPT picks from a restricted list we define in the prompt.
 const ICON_MAP = {
+  // Transport
   car: 'car-outline', bicycle: 'bicycle-outline', bus: 'bus-outline',
   train: 'train-outline', airplane: 'airplane-outline', boat: 'boat-outline',
+  walk: 'walk-outline', rocket: 'rocket-outline', subway: 'subway-outline',
+  // Animals / Nature
   paw: 'paw-outline', fish: 'fish-outline', bug: 'bug-outline',
-  leaf: 'leaf-outline', flower: 'flower-outline', planet: 'planet-outline',
-  rainy: 'rainy-outline', sunny: 'sunny-outline', snow: 'snow-outline',
-  flame: 'flame-outline', person: 'person-outline', people: 'people-outline',
+  bird: 'egg-outline',    // closest available; bird-outline not in Ionicons5
+  egg: 'egg-outline', leaf: 'leaf-outline', flower: 'flower-outline',
+  rose: 'rose-outline', water: 'water-outline', flame: 'flame-outline', snow: 'snow-outline',
+  // Weather
+  rainy: 'rainy-outline', sunny: 'sunny-outline', 'partly-sunny': 'partly-sunny-outline',
+  cloud: 'cloud-outline', thunderstorm: 'thunderstorm-outline',
+  umbrella: 'umbrella-outline', thermometer: 'thermometer-outline', moon: 'moon-outline',
+  // Space
+  planet: 'planet-outline', globe: 'globe-outline', earth: 'earth-outline',
+  telescope: 'telescope-outline',
+  // Science
+  flask: 'flask-outline', magnet: 'magnet-outline', flash: 'flash-outline',
+  bulb: 'bulb-outline', prism: 'prism-outline', pulse: 'pulse-outline',
+  bandage: 'bandage-outline', medkit: 'medkit-outline',
+  body: 'body-outline', eye: 'eye-outline', ear: 'ear-outline',
+  // People
+  person: 'person-outline', people: 'people-outline',
   man: 'man-outline', woman: 'woman-outline', baby: 'happy-outline',
+  male: 'male-outline', female: 'female-outline',
+  // School / Art
   book: 'book-outline', school: 'school-outline', pencil: 'pencil-outline',
-  calculator: 'calculator-outline', flask: 'flask-outline',
-  medal: 'medal-outline', trophy: 'trophy-outline', star: 'star-outline',
-  heart: 'heart-outline', cash: 'cash-outline', card: 'card-outline',
-  bag: 'bag-outline', gift: 'gift-outline', pizza: 'pizza-outline',
-  cafe: 'cafe-outline', restaurant: 'restaurant-outline',
-  basketball: 'basketball-outline', football: 'football-outline',
+  backpack: 'backpack-outline', library: 'library-outline',
+  clipboard: 'clipboard-outline', brush: 'brush-outline',
+  'color-palette': 'color-palette-outline', calculator: 'calculator-outline',
+  document: 'document-outline',
+  // Awards / Sports
+  medal: 'medal-outline', trophy: 'trophy-outline', ribbon: 'ribbon-outline',
+  star: 'star-outline', podium: 'podium-outline',
+  basketball: 'basketball-outline', football: 'american-football-outline',
   baseball: 'baseball-outline', tennisball: 'tennisball-outline',
-  cube: 'cube-outline', shapes: 'shapes-outline', layers: 'layers-outline',
-  image: 'image-outline', map: 'map-outline', compass: 'compass-outline',
-  grid: 'grid-outline',
+  golf: 'golf-outline', fitness: 'fitness-outline', stopwatch: 'stopwatch-outline',
+  // Food
+  nutrition: 'nutrition-outline', pizza: 'pizza-outline',
+  'fast-food': 'fast-food-outline', 'ice-cream': 'ice-cream-outline',
+  cafe: 'cafe-outline', restaurant: 'restaurant-outline', cart: 'cart-outline',
+  // Money / Shopping
+  cash: 'cash-outline', card: 'card-outline', bag: 'bag-outline',
+  gift: 'gift-outline', pricetag: 'pricetag-outline',
+  receipt: 'receipt-outline', wallet: 'wallet-outline',
+  // Time
+  clock: 'time-outline', time: 'time-outline', hourglass: 'hourglass-outline',
+  timer: 'timer-outline', calendar: 'calendar-outline', alarm: 'alarm-outline',
+  // Community / Home
+  home: 'home-outline', flag: 'flag-outline', storefront: 'storefront-outline',
+  key: 'key-outline', map: 'map-outline', compass: 'compass-outline',
+  location: 'location-outline', pin: 'pin-outline', newspaper: 'newspaper-outline',
+  // Math / Shapes
+  cube: 'cube-outline', shapes: 'shapes-outline', triangle: 'triangle-outline',
+  square: 'square-outline', diamond: 'diamond-outline', ellipse: 'ellipse-outline',
+  infinite: 'infinite-outline', 'pie-chart': 'pie-chart-outline',
+  'bar-chart': 'bar-chart-outline', 'stats-chart': 'stats-chart-outline',
+  // Music
+  'musical-note': 'musical-note-outline', 'musical-notes': 'musical-notes-outline',
+  // Heart / General
+  heart: 'heart-outline',
+  // Fallbacks
+  grid: 'grid-outline', layers: 'layers-outline', image: 'image-outline',
 };
 
 function ContextCard({ context, accentColor }) {

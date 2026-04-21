@@ -113,13 +113,21 @@ CONTEXT RULES — visual reference card shown above the question:
 - Use "type": "grid" for items that have a label + value (most common — price tables, score charts, measurement lists)
 - Use "type": "table" for multi-column comparisons (e.g. two groups being compared)
 - For each item in a grid, pick ONE icon from this exact allowed list (use the name exactly as shown):
-  car, bicycle, bus, train, airplane, boat,
-  paw, fish, bug, leaf, flower, planet, rainy, sunny, snow, flame,
-  person, people, man, woman, baby,
-  book, school, pencil, calculator, flask, medal, trophy, star, heart,
-  cash, card, bag, gift, pizza, cafe, restaurant,
-  basketball, football, baseball, tennisball, bicycle,
-  cube, shapes, grid, layers, image, map, compass
+  TRANSPORT: car, bicycle, bus, train, airplane, boat, walk, rocket, subway
+  ANIMALS/NATURE: paw, fish, bug, bird, egg, leaf, flower, rose, leaf, water, flame, snow
+  WEATHER: rainy, sunny, partly-sunny, cloud, thunderstorm, umbrella, thermometer, moon
+  SPACE: planet, globe, earth, telescope
+  SCIENCE: flask, magnet, flash, bulb, prism, pulse, bandage, medkit, body, eye, ear
+  PEOPLE: person, people, man, woman, baby, male, female
+  SCHOOL/ART: book, school, pencil, backpack, library, clipboard, brush, color-palette, calculator, document
+  AWARDS/SPORTS: medal, trophy, ribbon, star, podium, basketball, football, baseball, tennisball, golf, fitness, stopwatch
+  FOOD: nutrition, pizza, fast-food, ice-cream, cafe, restaurant, cart
+  MONEY/SHOPPING: cash, card, bag, gift, pricetag, receipt, wallet
+  TIME: clock, time, hourglass, timer, calendar, alarm
+  COMMUNITY/HOME: home, flag, storefront, key, map, compass, location, pin, newspaper
+  MATH/SHAPES: cube, shapes, triangle, square, diamond, ellipse, infinite, pie-chart, bar-chart, stats-chart
+  MUSIC: musical-note, musical-notes
+  GENERAL FALLBACK: grid, layers, image
 - If no icon fits, use "grid" as a safe fallback
 - Omit "context" entirely if the question is self-contained and no reference card is needed (e.g. a pure fact question, vocabulary, grammar)
 
