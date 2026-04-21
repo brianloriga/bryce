@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl,
@@ -8,14 +8,14 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { getQuizResultsForKid, getKidProfiles } from '../services/supabase';
 import KidAvatar from '../components/KidAvatar';
-import { resolveSubject } from '../utils/subjects';
 
 // ── Helpers ───────────────────────────────────────────────────
 
 function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const diff  = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
@@ -32,7 +32,7 @@ function pct(score, total) {
 }
 
 function starString(stars) {
-  return ['☆☆☆','★☆☆','★★☆','★★★'][Math.min(stars ?? 0, 3)];
+  return ['☆☆☆', '★☆☆', '★★☆', '★★★'][Math.min(stars ?? 0, 3)];
 }
 
 function scoreColor(p) {
@@ -43,109 +43,103 @@ function scoreColor(p) {
 
 // ── Sub-components ────────────────────────────────────────────
 
-function StatCard({ icon, label, value, sub, color }) {
+function StatCard({ icon, label, value, sub, color, t }) {
   return (
-    <View style={[statStyles.card, { borderTopColor: color ?? '#60a5fa' }]}>
-      <Ionicons name={icon} size={22} color={color ?? '#60a5fa'} style={statStyles.icon} />
-      <Text style={statStyles.value}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
-      {sub ? <Text style={statStyles.sub}>{sub}</Text> : null}
+    <View style={[statCard(t).card, { borderTopColor: color ?? t.accent }]}>
+      <Ionicons name={icon} size={22} color={color ?? t.accent} style={{ marginBottom: 2 }} />
+      <Text style={[statCard(t).value, { color: t.text }]}>{value}</Text>
+      <Text style={statCard(t).label}>{label}</Text>
+      {sub ? <Text style={statCard(t).sub}>{sub}</Text> : null}
     </View>
   );
 }
 
-const statStyles = StyleSheet.create({
-  card: {
-    flex: 1, backgroundColor: '#1e293b', borderRadius: 16,
-    padding: 14, alignItems: 'center', gap: 4,
-    borderTopWidth: 3,
-  },
-  icon:  { marginBottom: 2 },
-  value: { fontSize: 26, fontWeight: '900', color: '#fff' },
-  label: { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'center' },
-  sub:   { fontSize: 12, color: '#475569', marginTop: 2 },
-});
+function statCard(t) {
+  return {
+    card:  { flex: 1, backgroundColor: t.bgCard, borderRadius: 16, padding: 14, alignItems: 'center', gap: 4, borderTopWidth: 3 },
+    value: { fontSize: 26, fontWeight: '900' },
+    label: { fontSize: 11, fontWeight: '700', color: t.textMuted ?? t.textSub, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'center' },
+    sub:   { fontSize: 12, color: t.textSub, marginTop: 2 },
+  };
+}
 
-function ActivityRow({ result }) {
-  const p = pct(result.score, result.total);
+function ActivityRow({ result, t }) {
+  const p     = pct(result.score, result.total);
   const color = scoreColor(p);
-  const subjectColor = resolveSubject(result.subject, [])?.color ?? '#60a5fa';
   return (
-    <View style={actStyles.row}>
-      <View style={[actStyles.scoreDot, { backgroundColor: color + '22', borderColor: color }]}>
-        <Text style={[actStyles.scoreText, { color }]}>{p}%</Text>
+    <View style={[actRow(t).row]}>
+      <View style={[actRow(t).dot, { backgroundColor: color + '22', borderColor: color }]}>
+        <Text style={[actRow(t).dotText, { color }]}>{p}%</Text>
       </View>
-      <View style={actStyles.middle}>
-        <Text style={actStyles.title} numberOfLines={1}>{result.unit_title ?? 'Untitled'}</Text>
-        <Text style={actStyles.detail}>
+      <View style={{ flex: 1 }}>
+        <Text style={[actRow(t).title]} numberOfLines={1}>{result.unit_title ?? 'Untitled'}</Text>
+        <Text style={actRow(t).detail}>
           {result.score}/{result.total} correct · {starString(result.stars)}
         </Text>
       </View>
-      <Text style={actStyles.time}>{timeAgo(result.played_at)}</Text>
+      <Text style={actRow(t).time}>{timeAgo(result.played_at)}</Text>
     </View>
   );
 }
 
-const actStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b',
-  },
-  scoreDot: {
-    width: 52, height: 52, borderRadius: 14, borderWidth: 2,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  scoreText: { fontSize: 14, fontWeight: '800' },
-  middle:    { flex: 1 },
-  title:     { fontSize: 14, fontWeight: '700', color: '#e2e8f0', marginBottom: 2 },
-  detail:    { fontSize: 12, color: '#64748b' },
-  time:      { fontSize: 11, color: '#475569', flexShrink: 0 },
-});
+function actRow(t) {
+  return {
+    row:      { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: t.border },
+    dot:      { width: 52, height: 52, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    dotText:  { fontSize: 14, fontWeight: '800' },
+    title:    { fontSize: 14, fontWeight: '700', color: t.text, marginBottom: 2 },
+    detail:   { fontSize: 12, color: t.textSub },
+    time:     { fontSize: 11, color: t.textSub, flexShrink: 0 },
+  };
+}
 
-function LessonRow({ title, attempts, bestScore, bestTotal, bestStars }) {
+function LessonRow({ title, attempts, bestScore, bestTotal, bestStars, t }) {
   const p     = pct(bestScore, bestTotal);
   const color = scoreColor(p);
-  const barW  = `${p}%`;
   return (
-    <View style={lessonStyles.row}>
-      <View style={lessonStyles.header}>
-        <Text style={lessonStyles.title} numberOfLines={1}>{title}</Text>
-        <Text style={[lessonStyles.pct, { color }]}>{p}%</Text>
+    <View style={[lessonRow(t).row]}>
+      <View style={lessonRow(t).header}>
+        <Text style={lessonRow(t).title} numberOfLines={1}>{title}</Text>
+        <Text style={[lessonRow(t).pct, { color }]}>{p}%</Text>
       </View>
-      <View style={lessonStyles.track}>
-        <View style={[lessonStyles.fill, { width: barW, backgroundColor: color }]} />
+      <View style={lessonRow(t).track}>
+        <View style={[lessonRow(t).fill, { width: `${p}%`, backgroundColor: color }]} />
       </View>
-      <Text style={lessonStyles.meta}>
+      <Text style={lessonRow(t).meta}>
         {attempts} {attempts === 1 ? 'attempt' : 'attempts'} · best {bestScore}/{bestTotal} · {starString(bestStars)}
       </Text>
     </View>
   );
 }
 
-const lessonStyles = StyleSheet.create({
-  row:    { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  title:  { fontSize: 14, fontWeight: '700', color: '#e2e8f0', flex: 1, marginRight: 8 },
-  pct:    { fontSize: 14, fontWeight: '800' },
-  track:  { height: 6, backgroundColor: '#1e293b', borderRadius: 3, marginBottom: 5, overflow: 'hidden' },
-  fill:   { height: 6, borderRadius: 3 },
-  meta:   { fontSize: 11, color: '#475569' },
-});
+function lessonRow(t) {
+  return {
+    row:    { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: t.border },
+    header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    title:  { fontSize: 14, fontWeight: '700', color: t.text, flex: 1, marginRight: 8 },
+    pct:    { fontSize: 14, fontWeight: '800' },
+    track:  { height: 6, backgroundColor: t.border, borderRadius: 3, marginBottom: 5, overflow: 'hidden' },
+    fill:   { height: 6, borderRadius: 3 },
+    meta:   { fontSize: 11, color: t.textSub },
+  };
+}
 
 // ── Main Screen ───────────────────────────────────────────────
 
 export default function ProgressScreen() {
-  const navigation          = useNavigation();
+  const navigation                    = useNavigation();
   const { activeKid, kids: authKids } = useAuth();
+  const { theme, isDark }             = useTheme();
+  const styles                        = useMemo(() => createStyles(theme), [theme]);
 
-  const [kids, setKids]             = useState([]);
+  const [kids, setKids]               = useState([]);
   const [selectedKid, setSelectedKid] = useState(null);
-  const [results, setResults]       = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError]           = useState(null);
+  const [results, setResults]         = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [error, setError]             = useState(null);
 
-  // Load kid profiles (use authKids if available, otherwise fetch)
+  // Load kid profiles
   useEffect(() => {
     if (authKids?.length) {
       setKids(authKids);
@@ -166,7 +160,7 @@ export default function ProgressScreen() {
     try {
       const data = await getQuizResultsForKid(kidId);
       setResults(data);
-    } catch (e) {
+    } catch {
       setError('Could not load results. Pull down to retry.');
       setResults([]);
     } finally {
@@ -188,15 +182,13 @@ export default function ProgressScreen() {
   }
 
   // ── Derived stats ───────────────────────────────────────────
-  const totalQuizzes  = results.length;
-  const totalStars    = results.reduce((s, r) => s + (r.stars ?? 0), 0);
-  const avgPct        = totalQuizzes
+  const totalQuizzes   = results.length;
+  const totalStars     = results.reduce((s, r) => s + (r.stars ?? 0), 0);
+  const avgPct         = totalQuizzes
     ? Math.round(results.reduce((s, r) => s + pct(r.score, r.total), 0) / totalQuizzes)
     : 0;
   const threeStarCount = results.filter(r => r.stars === 3).length;
-
-  // Recent 10 results for activity feed
-  const recent = results.slice(0, 10);
+  const recent         = results.slice(0, 10);
 
   // Per-lesson best scores
   const lessonMap = {};
@@ -206,32 +198,31 @@ export default function ProgressScreen() {
       lessonMap[key] = { title: key, attempts: 0, bestScore: 0, bestTotal: r.total, bestStars: 0 };
     }
     lessonMap[key].attempts++;
-    const p = pct(r.score, r.total);
-    if (p > pct(lessonMap[key].bestScore, lessonMap[key].bestTotal)) {
+    if (pct(r.score, r.total) > pct(lessonMap[key].bestScore, lessonMap[key].bestTotal)) {
       lessonMap[key].bestScore = r.score;
       lessonMap[key].bestTotal = r.total;
       lessonMap[key].bestStars = r.stars ?? 0;
     }
   }
-  const lessonList = Object.values(lessonMap).sort((a, b) =>
-    pct(b.bestScore, b.bestTotal) - pct(a.bestScore, a.bestTotal)
+  const lessonList = Object.values(lessonMap).sort(
+    (a, b) => pct(b.bestScore, b.bestTotal) - pct(a.bestScore, a.bestTotal)
   );
 
   // ── Render ──────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="light" />
+      <StatusBar style={theme.statusBar} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#94a3b8" />
+          <Ionicons name="arrow-back" size={24} color={theme.textSub} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Progress</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Kid selector */}
+      {/* Multi-kid selector strip */}
       {kids.length > 1 && (
         <ScrollView
           horizontal
@@ -257,7 +248,7 @@ export default function ProgressScreen() {
         </ScrollView>
       )}
 
-      {/* Single kid name header when only one kid */}
+      {/* Single-kid name header */}
       {kids.length === 1 && selectedKid && (
         <View style={styles.singleKidRow}>
           <KidAvatar kid={selectedKid} size={40} />
@@ -269,16 +260,12 @@ export default function ProgressScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#60a5fa"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />
         }
       >
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#60a5fa" />
+            <ActivityIndicator size="large" color={theme.accent} />
             <Text style={styles.loadingText}>Loading results…</Text>
           </View>
         ) : error ? (
@@ -297,51 +284,27 @@ export default function ProgressScreen() {
           </View>
         ) : (
           <>
-            {/* Stat cards row */}
+            {/* Stat cards */}
             <View style={styles.statsRow}>
-              <StatCard
-                icon="checkmark-circle-outline"
-                label="Quizzes"
-                value={totalQuizzes}
-                color="#60a5fa"
-              />
-              <StatCard
-                icon="trending-up-outline"
-                label="Avg Score"
-                value={`${avgPct}%`}
-                color={scoreColor(avgPct)}
-              />
-              <StatCard
-                icon="star-outline"
-                label="Stars"
-                value={totalStars}
-                sub={`${threeStarCount} perfect`}
-                color="#fbbf24"
-              />
+              <StatCard icon="checkmark-circle-outline" label="Quizzes"   value={totalQuizzes}   color={theme.accent}  t={theme} />
+              <StatCard icon="trending-up-outline"      label="Avg Score" value={`${avgPct}%`}   color={scoreColor(avgPct)} t={theme} />
+              <StatCard icon="star-outline"             label="Stars"     value={totalStars}     sub={`${threeStarCount} perfect`} color="#fbbf24" t={theme} />
             </View>
 
             {/* Recent activity */}
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             <View style={styles.card}>
-              {recent.length === 0 ? (
-                <Text style={styles.emptySection}>No recent activity</Text>
-              ) : (
-                recent.map((r, i) => (
-                  <ActivityRow key={r.id ?? i} result={r} />
-                ))
-              )}
+              {recent.map((r, i) => (
+                <ActivityRow key={r.id ?? i} result={r} t={theme} />
+              ))}
             </View>
 
             {/* By lesson */}
             <Text style={styles.sectionTitle}>By Lesson</Text>
             <View style={styles.card}>
-              {lessonList.length === 0 ? (
-                <Text style={styles.emptySection}>No lesson data</Text>
-              ) : (
-                lessonList.map((l, i) => (
-                  <LessonRow key={i} {...l} />
-                ))
-              )}
+              {lessonList.map((l, i) => (
+                <LessonRow key={i} {...l} t={theme} />
+              ))}
             </View>
 
             <View style={{ height: 40 }} />
@@ -352,64 +315,70 @@ export default function ProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: '#0f172a' },
+// ── Theme-aware styles ────────────────────────────────────────
 
-  // Header
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: '#1e293b',
-  },
-  backBtn:     { width: 40, alignItems: 'flex-start' },
-  headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#fff', textAlign: 'center' },
+function createStyles(t) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: t.bg },
 
-  // Kid selector strip
-  kidStrip: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  kidChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: '#1e293b', borderWidth: 1.5, borderColor: '#334155',
-  },
-  kidChipActive:     { borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.12)' },
-  kidChipName:       { fontSize: 14, fontWeight: '600', color: '#64748b' },
-  kidChipNameActive: { color: '#60a5fa' },
+    // Header
+    header: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 14,
+      borderBottomWidth: 1, borderBottomColor: t.border,
+    },
+    backBtn:     { width: 40, alignItems: 'flex-start' },
+    headerTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: t.text, textAlign: 'center' },
 
-  // Single kid row
-  singleKidRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14 },
-  singleKidName: { fontSize: 20, fontWeight: '800', color: '#fff' },
+    // Kid selector
+    kidStrip: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+    kidChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+      backgroundColor: t.bgCard, borderWidth: 1.5, borderColor: t.border,
+    },
+    kidChipActive:     { borderColor: t.accent, backgroundColor: t.accentDim },
+    kidChipName:       { fontSize: 14, fontWeight: '600', color: t.textSub },
+    kidChipNameActive: { color: t.accent },
 
-  // Content
-  content: { padding: 20, paddingTop: 10 },
+    // Single kid row
+    singleKidRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 14 },
+    singleKidName: { fontSize: 20, fontWeight: '800', color: t.text },
 
-  // Stats
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+    // Content
+    content: { padding: 20, paddingTop: 12 },
 
-  // Sections
-  sectionTitle: {
-    fontSize: 13, fontWeight: '800', color: '#64748b',
-    textTransform: 'uppercase', letterSpacing: 0.8,
-    marginBottom: 10, marginTop: 4,
-  },
-  card: {
-    backgroundColor: '#1e293b', borderRadius: 18,
-    paddingHorizontal: 16, paddingVertical: 4,
-    marginBottom: 24,
-  },
+    // Stat cards row
+    statsRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
 
-  // States
-  centered:    { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
-  loadingText: { fontSize: 14, color: '#475569' },
-  errorCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 14,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
-    padding: 16, marginTop: 40,
-  },
-  errorText:    { flex: 1, fontSize: 14, color: '#f87171', lineHeight: 20 },
-  emptyState:   { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 10 },
-  emptyEmoji:   { fontSize: 52, marginBottom: 8 },
-  emptyTitle:   { fontSize: 20, fontWeight: '800', color: '#fff' },
-  emptySub:     { fontSize: 14, color: '#475569', textAlign: 'center', lineHeight: 22 },
-  emptySection: { fontSize: 13, color: '#475569', paddingVertical: 16, textAlign: 'center' },
-});
+    // Section headings
+    sectionTitle: {
+      fontSize: 12, fontWeight: '800', color: t.textSub,
+      textTransform: 'uppercase', letterSpacing: 0.8,
+      marginBottom: 10, marginTop: 4,
+    },
+
+    // Card container for rows
+    card: {
+      backgroundColor: t.bgCard, borderRadius: 18,
+      paddingHorizontal: 16, paddingVertical: 4,
+      marginBottom: 24,
+      borderWidth: 1, borderColor: t.border,
+    },
+
+    // States
+    centered:    { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
+    loadingText: { fontSize: 14, color: t.textSub },
+    errorCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 14,
+      borderWidth: 1, borderColor: 'rgba(239,68,68,0.25)',
+      padding: 16, marginTop: 40,
+    },
+    errorText:  { flex: 1, fontSize: 14, color: '#f87171', lineHeight: 20 },
+    emptyState: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32, gap: 10 },
+    emptyEmoji: { fontSize: 52, marginBottom: 8 },
+    emptyTitle: { fontSize: 20, fontWeight: '800', color: t.text },
+    emptySub:   { fontSize: 14, color: t.textSub, textAlign: 'center', lineHeight: 22 },
+  });
+}
