@@ -485,28 +485,35 @@ export default function ScanScreen() {
             </View>
           )}
 
-          {questions.map((q, i) => (
+          {questions.map((q, i) => {
+            const qType = q.type ?? 'multiple_choice';
+            const TYPE_LABEL = {
+              fill_in: 'Fill in the Blank', ordering: 'Ordering', true_false: 'True / False',
+              word_bank: 'Word Bank', visual_mc: 'Visual MC', multiple_choice: 'Multiple Choice',
+            };
+            return (
             <View key={i} style={styles.questionCard}>
+              {/* Header row */}
               <View style={styles.questionHeader}>
-                <Text style={styles.questionNum}>
-                  Q{i + 1}{q.image_url ? '  🖼️' : q.type === 'visual_mc' ? '  ✨' : ''}
-                </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <TouchableOpacity
-                    onPress={() => handleRegenerate(i)}
-                    style={styles.regenBtn}
-                    disabled={regeneratingIndex !== null}
-                  >
+                  <Text style={styles.questionNum}>Q{i + 1}</Text>
+                  <View style={styles.qTypeBadge}>
+                    <Text style={styles.qTypeBadgeText}>{TYPE_LABEL[qType] ?? qType}</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity onPress={() => handleRegenerate(i)} style={styles.regenBtn} disabled={regeneratingIndex !== null}>
                     {regeneratingIndex === i
                       ? <ActivityIndicator size="small" color="#60a5fa" />
-                      : <Ionicons name="refresh-outline" size={18} color="#60a5fa" />
-                    }
+                      : <Ionicons name="refresh-outline" size={18} color="#60a5fa" />}
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => removeQuestion(i)} style={styles.removeBtn}>
                     <Text style={styles.removeBtnText}>Remove</Text>
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Question text — editable for all types */}
               <TextInput
                 style={styles.questionInput}
                 value={q.question}
@@ -515,34 +522,140 @@ export default function ScanScreen() {
                 placeholder="Question text"
                 placeholderTextColor="#64748b"
               />
-              {(q.options ?? []).map((opt, j) => (
-                <TouchableOpacity
-                  key={j}
-                  style={[styles.optionRow, q.correctIndex === j && styles.optionCorrect]}
-                  onPress={() => updateQuestion(i, 'correctIndex', j)}
-                >
-                  <Text style={[styles.optionLetter, q.correctIndex === j && styles.optionLetterActive]}>
-                    {['A','B','C','D'][j]}
-                  </Text>
+
+              {/* ── Type-specific fields ── */}
+
+              {/* Multiple choice / visual_mc */}
+              {(!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') && (
+                <>
+                  {(q.options ?? []).map((opt, j) => (
+                    <TouchableOpacity
+                      key={j}
+                      style={[styles.optionRow, q.correctIndex === j && styles.optionCorrect]}
+                      onPress={() => updateQuestion(i, 'correctIndex', j)}
+                    >
+                      <Text style={[styles.optionLetter, q.correctIndex === j && styles.optionLetterActive]}>
+                        {['A','B','C','D'][j]}
+                      </Text>
+                      <TextInput
+                        style={[styles.optionInput, q.correctIndex === j && styles.optionInputActive]}
+                        value={opt}
+                        onChangeText={v => { const o = [...q.options]; o[j] = v; updateQuestion(i, 'options', o); }}
+                        placeholder={`Option ${['A','B','C','D'][j]}`}
+                        placeholderTextColor="#475569"
+                      />
+                      {q.correctIndex === j && <Ionicons name="checkmark-circle" size={18} color="#4ade80" />}
+                    </TouchableOpacity>
+                  ))}
+                  <Text style={styles.optionHint}>Tap an option to mark it correct</Text>
+                </>
+              )}
+
+              {/* Fill in the blank */}
+              {q.type === 'fill_in' && (
+                <View style={styles.reviewFieldGroup}>
+                  <Text style={styles.reviewFieldLabel}>Correct answer</Text>
                   <TextInput
-                    style={[styles.optionInput, q.correctIndex === j && styles.optionInputActive]}
-                    value={opt}
-                    onChangeText={v => {
-                      const newOptions = [...q.options];
-                      newOptions[j] = v;
-                      updateQuestion(i, 'options', newOptions);
-                    }}
-                    placeholder={`Option ${['A','B','C','D'][j]}`}
+                    style={styles.reviewFieldInput}
+                    value={q.correctAnswer ?? ''}
+                    onChangeText={v => updateQuestion(i, 'correctAnswer', v)}
+                    placeholder="e.g. 0.3"
+                    placeholderTextColor="#475569"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <Text style={styles.reviewFieldLabel}>Also accept (comma-separated variants)</Text>
+                  <TextInput
+                    style={styles.reviewFieldInput}
+                    value={(q.acceptedAnswers ?? []).join(', ')}
+                    onChangeText={v => updateQuestion(i, 'acceptedAnswers', v.split(',').map(s => s.trim()).filter(Boolean))}
+                    placeholder="e.g. .3, 0.30"
+                    placeholderTextColor="#475569"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              )}
+
+              {/* Ordering */}
+              {q.type === 'ordering' && (
+                <View style={styles.reviewFieldGroup}>
+                  <Text style={styles.reviewFieldLabel}>Items to order (one per line)</Text>
+                  <TextInput
+                    style={[styles.reviewFieldInput, { minHeight: 80 }]}
+                    value={(q.items ?? []).join('\n')}
+                    onChangeText={v => updateQuestion(i, 'items', v.split('\n').map(s => s.trim()).filter(Boolean))}
+                    multiline
+                    placeholder={'1/4\n1/2\n3/4'}
                     placeholderTextColor="#475569"
                   />
-                  {q.correctIndex === j && (
-                    <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-                  )}
-                </TouchableOpacity>
-              ))}
-              <Text style={styles.optionHint}>Tap an option to mark it correct</Text>
+                  <Text style={styles.reviewFieldLabel}>Correct order (item numbers, comma-separated)</Text>
+                  <TextInput
+                    style={styles.reviewFieldInput}
+                    value={(q.correctOrder ?? []).map(n => n + 1).join(', ')}
+                    onChangeText={v => {
+                      const nums = v.split(',').map(s => parseInt(s.trim(), 10) - 1).filter(n => !isNaN(n));
+                      updateQuestion(i, 'correctOrder', nums);
+                    }}
+                    placeholder="e.g. 1, 3, 2, 4"
+                    placeholderTextColor="#475569"
+                    keyboardType="numbers-and-punctuation"
+                  />
+                  <Text style={styles.optionHint}>
+                    Enter item numbers in the correct order (first item = 1)
+                  </Text>
+                </View>
+              )}
+
+              {/* True / False */}
+              {q.type === 'true_false' && (
+                <View style={styles.reviewFieldGroup}>
+                  <Text style={styles.reviewFieldLabel}>Correct answer</Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      style={[styles.tfEditBtn, q.correctAnswer === true && styles.tfEditBtnTrue]}
+                      onPress={() => updateQuestion(i, 'correctAnswer', true)}
+                    >
+                      <Text style={[styles.tfEditBtnText, q.correctAnswer === true && { color: '#fff' }]}>True</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.tfEditBtn, q.correctAnswer === false && styles.tfEditBtnFalse]}
+                      onPress={() => updateQuestion(i, 'correctAnswer', false)}
+                    >
+                      <Text style={[styles.tfEditBtnText, q.correctAnswer === false && { color: '#fff' }]}>False</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Word bank */}
+              {q.type === 'word_bank' && (
+                <View style={styles.reviewFieldGroup}>
+                  <Text style={styles.reviewFieldLabel}>Word bank (comma-separated)</Text>
+                  <TextInput
+                    style={styles.reviewFieldInput}
+                    value={(q.wordBank ?? []).join(', ')}
+                    onChangeText={v => updateQuestion(i, 'wordBank', v.split(',').map(s => s.trim()).filter(Boolean))}
+                    placeholder="e.g. am, is, are"
+                    placeholderTextColor="#475569"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <Text style={styles.reviewFieldLabel}>Correct answer</Text>
+                  <TextInput
+                    style={styles.reviewFieldInput}
+                    value={q.correctAnswer ?? ''}
+                    onChangeText={v => updateQuestion(i, 'correctAnswer', v.trim())}
+                    placeholder="e.g. is"
+                    placeholderTextColor="#475569"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              )}
             </View>
-          ))}
+            );
+          })}
 
           <TouchableOpacity
             style={[styles.generateBtn, saving && { opacity: 0.6 }]}
@@ -1160,7 +1273,33 @@ function createStyles(t) {
     optionLetterActive: { color: t.accent },
     optionInput:        { flex: 1, fontSize: 14, color: t.text, paddingVertical: 2 },
     optionInputActive:  { color: t.text },
-    optionHint:         { fontSize: 11, color: t.textMuted, marginTop: 4 },
+    optionHint: { fontSize: 11, color: t.textMuted, marginTop: 4 },
+
+    // Question type badge
+    qTypeBadge: {
+      borderWidth: 1, borderColor: 'rgba(96,165,250,0.35)',
+      borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+      backgroundColor: 'rgba(96,165,250,0.1)',
+    },
+    qTypeBadgeText: { fontSize: 10, fontWeight: '700', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+    // Shared field group inside question card
+    reviewFieldGroup: { marginTop: 4 },
+    reviewFieldLabel: { fontSize: 11, fontWeight: '700', color: t.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5, marginTop: 10 },
+    reviewFieldInput: {
+      backgroundColor: t.bgInput, borderRadius: 10,
+      borderWidth: 1, borderColor: t.border,
+      padding: 10, fontSize: 14, color: t.text,
+    },
+
+    // True/False edit buttons inside review card
+    tfEditBtn: {
+      flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
+      backgroundColor: t.bgInput, borderWidth: 1.5, borderColor: t.border,
+    },
+    tfEditBtnTrue:  { backgroundColor: '#14532d', borderColor: '#22c55e' },
+    tfEditBtnFalse: { backgroundColor: '#7f1d1d', borderColor: '#ef4444' },
+    tfEditBtnText:  { fontSize: 15, fontWeight: '700', color: t.textMuted },
 
     discardBtn:     { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
     discardBtnText: { fontSize: 14, color: t.danger, fontWeight: '600' },

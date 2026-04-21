@@ -47,23 +47,52 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
 
   const rawQuestions = data.questions.map((q, i) => {
     const mapped = {
-      question:     q.question     ?? `Question ${i + 1}`,
-      options:      Array.isArray(q.options) && q.options.length === 4
-                      ? q.options
-                      : ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
+      question: q.question ?? `Question ${i + 1}`,
     };
-    if (q.hint)      mapped.hint      = q.hint;
-    if (q.type)      mapped.type      = q.type;
-    if (q.geometry)  mapped.geometry  = q.geometry;
-    // Map visual_url(s) onto questions GPT flagged as image-referenced.
-    // image_ref is 1-based index into visual_urls array.
+
+    if (q.hint)     mapped.hint     = q.hint;
+    if (q.type)     mapped.type     = q.type;
+    if (q.geometry) mapped.geometry = q.geometry;
+
+    // multiple_choice / visual_mc
+    if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
+      mapped.options      = Array.isArray(q.options) && q.options.length >= 2
+        ? q.options
+        : ['Option A', 'Option B', 'Option C', 'Option D'];
+      mapped.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+    }
+
+    // fill_in
+    if (q.type === 'fill_in') {
+      mapped.correctAnswer   = String(q.correctAnswer ?? '');
+      if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+    }
+
+    // ordering
+    if (q.type === 'ordering') {
+      mapped.items        = Array.isArray(q.items)        ? q.items        : [];
+      mapped.correctOrder = Array.isArray(q.correctOrder) ? q.correctOrder : [];
+    }
+
+    // true_false
+    if (q.type === 'true_false') {
+      mapped.correctAnswer = typeof q.correctAnswer === 'boolean' ? q.correctAnswer : true;
+    }
+
+    // word_bank
+    if (q.type === 'word_bank') {
+      mapped.wordBank      = Array.isArray(q.wordBank) ? q.wordBank : [];
+      mapped.correctAnswer = String(q.correctAnswer ?? '');
+    }
+
+    // Map visual aid image URLs onto image-referenced questions
     if (q.image_ref && data.visual_urls?.length > 0) {
       const idx = (typeof q.image_ref === 'number' ? q.image_ref : 1) - 1;
       mapped.image_url = data.visual_urls[Math.max(0, Math.min(idx, data.visual_urls.length - 1))];
     } else if (q.image_ref && data.visual_url) {
-      mapped.image_url = data.visual_url; // backwards compat
+      mapped.image_url = data.visual_url;
     }
+
     return mapped;
   });
 
@@ -138,15 +167,29 @@ export async function regenerateQuestion(base64Images, existingQuestion, isVisua
   if (!data?.question) throw new Error('AI returned an unexpected format. Please try again.');
 
   const q = data.question;
-  const mapped = {
-    question:     q.question     ?? existingQuestion,
-    options:      Array.isArray(q.options) && q.options.length === 4
-                    ? q.options
-                    : ['Option A', 'Option B', 'Option C', 'Option D'],
-    correctIndex: typeof q.correctIndex === 'number' ? q.correctIndex : 0,
-  };
+  const mapped = { question: q.question ?? existingQuestion };
   if (q.hint)     mapped.hint     = q.hint;
   if (q.type)     mapped.type     = q.type;
   if (q.geometry) mapped.geometry = q.geometry;
+
+  if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
+    mapped.options      = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A','Option B','Option C','Option D'];
+    mapped.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+  }
+  if (q.type === 'fill_in') {
+    mapped.correctAnswer = String(q.correctAnswer ?? '');
+    if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+  }
+  if (q.type === 'ordering') {
+    mapped.items        = Array.isArray(q.items)        ? q.items        : [];
+    mapped.correctOrder = Array.isArray(q.correctOrder) ? q.correctOrder : [];
+  }
+  if (q.type === 'true_false') {
+    mapped.correctAnswer = typeof q.correctAnswer === 'boolean' ? q.correctAnswer : true;
+  }
+  if (q.type === 'word_bank') {
+    mapped.wordBank      = Array.isArray(q.wordBank) ? q.wordBank : [];
+    mapped.correctAnswer = String(q.correctAnswer ?? '');
+  }
   return mapped;
 }

@@ -51,71 +51,78 @@ If the image does NOT contain educational content — for example it shows a per
   "reason": "Brief, friendly explanation using simple language (e.g. 'This looks like a photo of a desk rather than a textbook page. Please take a clear photo of an open book or worksheet.')"
 }
 
-If the image DOES contain educational content, generate the requested number of multiple-choice practice questions appropriate for the grade level shown in the material.
-
-QUESTION RULES:
-- Each question must have exactly 4 answer options (A, B, C, D)
-- Only one option is correct
-- Questions should test understanding, not just memory
-- Keep questions clear, concise, and child-friendly
-- If multiple pages are provided, spread the questions across all the content
-- Never ask questions about inappropriate topics regardless of what appears in the image
+If the image DOES contain educational content, generate the requested number of practice questions appropriate for the grade level shown in the material. Choose the BEST question type for each question based on the content — do NOT default to multiple_choice for everything.
 
 HINT RULES:
 - Every single question MUST include a "hint" field — one short, encouraging sentence that nudges the child toward the answer without giving it away directly
 - The hint should reference the concept, not the specific answer
 - Example hints: "Think about what plants need to grow.", "Count how many tails you see in the picture.", "Remember: perimeter means going all the way around."
 
-VISUAL ENRICHMENT RULES:
-- A subset of questions (specified in the user message) should be visually enriched
-- For visually enriched questions, embed an engaging visual aid DIRECTLY inside the "question" string using emoji, unicode symbols, repeated characters, or creative text layouts
-- Use your full creative freedom — match the visual style to the age level and subject:
-  - Young children (5–8): counting with fruit emoji 🍎🍎🍎, coins 🪙, animals, simple patterns like 🔴🔵🔴🔵❓
-  - Older children (9–12): text-based data rows, unicode bar charts like ████░░, temperature scales, simple timelines
-  - Math: coin grids for money, repeated symbols for multiplication, fraction shading with blocks ■■□□
-  - Science: emoji organisms, weather symbols 🌡️🌧️☀️, planet emoji
-  - Patterns: sequences with a ❓ or blank at the end
-- The question text itself IS the visual — no separate image needed
-- Mark visually enriched questions with "type": "visual_mc"
-- Standard questions omit the "type" field entirely
+QUESTION TYPE RULES — choose the best type for each question:
 
-GEOMETRY RULES (optional enhancement for math questions):
-- For math questions involving shapes, fractions, or data comparisons, you MAY include a "geometry" object alongside the question
-- Only use geometry when it genuinely helps (e.g. fraction circles, bar comparisons, simple shapes)
-- Supported geometry types:
-  1. Pie chart: { "type": "pie", "slices": [ { "fraction": 0.75, "color": "#6366f1", "label": "shaded" }, { "fraction": 0.25, "color": "#1e293b", "label": "unshaded" } ] }
-     - fractions must sum to 1.0; use hex colors
-  2. Bar chart: { "type": "bar", "bars": [ { "label": "Mon", "value": 4 }, { "label": "Tue", "value": 7 } ], "maxValue": 10 }
-  3. Shape: { "type": "shape", "kind": "rectangle"|"triangle"|"circle", "label": "optional label", "shaded": true|false }
-- If geometry is not needed, omit the field entirely (do not include "geometry": null)
+1. MULTIPLE CHOICE (default) — omit the "type" field
+   - Use for: recall, definitions, identification, comprehension
+   - Requires exactly 4 options and a correctIndex (0–3)
+   { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 1 }
+
+2. VISUAL MULTIPLE CHOICE — "type": "visual_mc"
+   - Same as multiple_choice but embed emoji/unicode visuals directly in the question string
+   - Young children: 🍎🍎🍎 counting, 🪙 coins, 🔴🔵🔴🔵❓ patterns
+   - Older children: ████░░ bar charts, temperature scales, timelines
+   - Math: ■■□□ fraction shading, coin grids, repeated symbols
+   { "type": "visual_mc", "question": "🍎🍎🍎 + 🍎🍎 = ?", "hint": "...", "options": ["4","5","6","7"], "correctIndex": 1 }
+
+3. FILL IN THE BLANK — "type": "fill_in"
+   - PREFER for: math calculations, "write as a decimal/fraction/word form", coordinate answers, single-word answers
+   - correctAnswer: the expected answer as a string
+   - acceptedAnswers: array of equivalent acceptable forms (optional but recommended for math)
+   { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3", ".3", "0.30"] }
+
+4. ORDERING — "type": "ordering"
+   - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
+   - items: 3–6 things to arrange
+   - correctOrder: indices into items[] giving the correct left-to-right sequence
+   { "type": "ordering", "question": "Order these fractions from least to greatest:", "hint": "...", "items": ["3/4","1/4","1/2","4/4"], "correctOrder": [1, 2, 0, 3] }
+
+5. TRUE OR FALSE — "type": "true_false"
+   - PREFER for: evaluating equations, comparisons (>, <, =), fact-check statements
+   - correctAnswer: boolean true or false
+   { "type": "true_false", "question": "3/4 + 2/4 = 5/4. True or False?", "hint": "...", "correctAnswer": true }
+
+6. WORD BANK — "type": "word_bank"
+   - PREFER for: grammar fill-in-blank (am/is/are, verb tenses), vocabulary in context, language arts sentences with blanks
+   - The question string shows the sentence with ____ marking the blank
+   - wordBank: 2–5 word choices
+   - correctAnswer: the single correct word from wordBank
+   { "type": "word_bank", "question": "My sister ____ a dancer.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "is" }
+
+GEOMETRY RULES (optional, math questions only):
+- MAY include a "geometry" object when it genuinely helps visualise the concept
+- Pie: { "type": "pie", "slices": [{ "fraction": 0.75, "color": "#6366f1", "label": "shaded" }, { "fraction": 0.25, "color": "#1e293b", "label": "unshaded" }] } — fractions must sum to 1.0
+- Bar: { "type": "bar", "bars": [{ "label": "Mon", "value": 4 }], "maxValue": 10 }
+- Shape: { "type": "shape", "kind": "rectangle"|"triangle"|"circle", "label": "...", "shaded": true }
+- Omit entirely if not needed
 
 PASSAGE RULES:
-- If the scanned page(s) contain a substantial piece of continuous reading text that the questions will reference — such as a short story, article, poem, science passage, reading comprehension text, or any narrative/informational text — extract it verbatim and include it as a "passage" field in the response.
-- Include the passage when students would need to refer back to the text to answer the questions (e.g. comprehension, vocabulary-in-context, grammar identification, story sequence).
-- Do NOT include a passage for pure math, science diagrams, vocabulary lists, or content where no source text is needed.
-- The passage should be the actual readable text, not a description of it. Keep original line breaks where meaningful.
-- If there is no qualifying passage, omit the "passage" field entirely.
+- If the page(s) contain a substantial continuous reading text students need to reference (story, article, poem, science passage), extract it verbatim as a "passage" field.
+- Do NOT include a passage for pure math, diagrams, or vocabulary lists.
+- Omit the field if not needed.
+
+VARIETY GUIDANCE:
+- Mix types naturally. A math worksheet → fill_in for calculations, ordering for sequences, true_false for comparisons. A grammar worksheet → word_bank for sentence completions. Do NOT force everything into multiple_choice.
 
 Return ONLY this JSON and nothing else:
 {
   "valid": true,
-  "title": "Short descriptive title (e.g. 'Chapter 5 — Adding Fractions')",
-  "passage": "The full reading passage text here, if applicable. Omit this field if not needed.",
+  "title": "Short descriptive title",
+  "passage": "Optional reading passage — omit if not needed.",
   "questions": [
-    {
-      "question": "The question text here (may include emoji/unicode visuals)",
-      "type": "visual_mc",
-      "hint": "One short hint sentence here.",
-      "geometry": { "type": "pie", "slices": [...] },
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctIndex": 0
-    },
-    {
-      "question": "A standard question without visuals",
-      "hint": "One short hint sentence here.",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctIndex": 2
-    }
+    { "question": "Multiple choice example", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 2 },
+    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3",".3","0.30"] },
+    { "type": "ordering", "question": "Order least to greatest:", "hint": "...", "items": ["3/4","1/4","1/2"], "correctOrder": [1, 2, 0] },
+    { "type": "true_false", "question": "1/2 > 3/4. True or False?", "hint": "...", "correctAnswer": false },
+    { "type": "word_bank", "question": "The children ____ at school.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "are" },
+    { "type": "visual_mc", "question": "🍎🍎🍎 + 🍎🍎 = ?", "hint": "...", "options": ["4","5","6","7"], "correctIndex": 1 }
   ]
 }`;
 
@@ -128,24 +135,22 @@ CONTENT RULES — these are absolute and must never be violated:
 - Never reference drugs, alcohol, weapons, or adult themes
 - Use simple, encouraging, and positive language at all times
 
-You will be given an original question and asked to generate ONE replacement question on the same topic and difficulty. The replacement must be clearly different from the original — a different angle, different numbers, different phrasing, or a different aspect of the same concept.
+You will be given an original question and asked to generate ONE replacement question on the same topic and difficulty. The replacement must be clearly different — different angle, different numbers, different phrasing, or different aspect of the same concept.
 
-Every question MUST include:
-- Exactly 4 answer options
-- A "hint" field — one short sentence that nudges toward the answer without giving it away
-- If the original was a visual question (isVisual: true), make the replacement visually enriched too, embedding emoji or unicode visuals directly in the question text, and mark it with "type": "visual_mc"
-- For math shape/fraction questions, you MAY include a "geometry" object (pie, bar, or shape — same rules as the main prompt)
+Match the SAME question type as the original. Use the correct JSON shape for that type:
+- multiple_choice (no type field): { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 0 }
+- visual_mc: same as multiple_choice but with emoji/unicode visuals in question text, "type": "visual_mc"
+- fill_in: { "type": "fill_in", "question": "...", "hint": "...", "correctAnswer": "...", "acceptedAnswers": [...] }
+- ordering: { "type": "ordering", "question": "...", "hint": "...", "items": [...], "correctOrder": [...] }
+- true_false: { "type": "true_false", "question": "...", "hint": "...", "correctAnswer": true|false }
+- word_bank: { "type": "word_bank", "question": "sentence with ____", "hint": "...", "wordBank": [...], "correctAnswer": "..." }
+
+For math shape/fraction questions you MAY include a "geometry" object (pie, bar, or shape).
+Every question MUST include a "hint" field.
 
 Return ONLY this JSON and nothing else:
 {
-  "question": { 
-    "question": "Replacement question text",
-    "type": "visual_mc",
-    "hint": "One short hint.",
-    "geometry": { ... },
-    "options": ["A", "B", "C", "D"],
-    "correctIndex": 0
-  }
+  "question": { ... correct shape for the type ... }
 }`;
 
 // Server-side profanity guard — last line of defense before sending to client
@@ -164,14 +169,50 @@ function serverSanitize(text: string): string {
 
 function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {
-    question:     serverSanitize(String(q.question ?? '')),
-    options:      (q.options as string[] ?? []).map(serverSanitize),
-    correctIndex: q.correctIndex,
-    hint:         q.hint ? serverSanitize(String(q.hint)) : undefined,
+    question: serverSanitize(String(q.question ?? '')),
+    hint:     q.hint ? serverSanitize(String(q.hint)) : undefined,
   };
-  if (q.type)      sanitized.type      = q.type;
+
+  // Type field (present for all non-default types)
+  if (q.type) sanitized.type = q.type;
+
+  // multiple_choice / visual_mc fields
+  if (Array.isArray(q.options) && q.options.length > 0) {
+    sanitized.options      = (q.options as string[]).map(serverSanitize);
+    sanitized.correctIndex = q.correctIndex;
+  }
+
+  // fill_in fields
+  if (q.correctAnswer !== undefined && q.type === 'fill_in') {
+    sanitized.correctAnswer  = serverSanitize(String(q.correctAnswer));
+    if (Array.isArray(q.acceptedAnswers)) {
+      sanitized.acceptedAnswers = (q.acceptedAnswers as string[]).map(serverSanitize);
+    }
+  }
+
+  // ordering fields
+  if (q.type === 'ordering') {
+    if (Array.isArray(q.items))        sanitized.items        = (q.items as string[]).map(serverSanitize);
+    if (Array.isArray(q.correctOrder)) sanitized.correctOrder = q.correctOrder;
+  }
+
+  // true_false fields
+  if (q.type === 'true_false') {
+    sanitized.correctAnswer = q.correctAnswer; // boolean
+  }
+
+  // word_bank fields
+  if (q.type === 'word_bank') {
+    sanitized.correctAnswer = serverSanitize(String(q.correctAnswer ?? ''));
+    if (Array.isArray(q.wordBank)) {
+      sanitized.wordBank = (q.wordBank as string[]).map(serverSanitize);
+    }
+  }
+
+  // Optional extras
   if (q.geometry)  sanitized.geometry  = q.geometry;
   if (q.image_ref) sanitized.image_ref = true;
+
   return sanitized;
 }
 

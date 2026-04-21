@@ -6,6 +6,54 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Rich Question Types — 2026-04-20
+
+#### Added — New Question Types (AI + UI)
+
+Five question types are now fully supported end-to-end: from AI generation → service mapping → quiz rendering → scan review editing.
+
+**`fill_in` — Fill in the Blank**
+- Student types a free-text answer; normalised string comparison against `correctAnswer` + `acceptedAnswers` array
+- Interactive: shake animation + haptic on wrong, green highlight on correct; answer revealed on mistake
+- Editable in ScanScreen: correct answer field + accepted variants (comma-separated)
+
+**`ordering` — Put in Order**
+- Student taps chips from a word/phrase pool to build the correct sequence in numbered slots
+- Auto-checks when all slots filled; shows correct sequence on wrong answer
+- Editable in ScanScreen: items list (one per line) + correct order by item number
+
+**`true_false` — True or False**
+- Large, full-width True / False buttons with green / red fill on reveal
+- `correctAnswer` stored as a boolean
+- Editable in ScanScreen: True / False toggle buttons
+
+**`word_bank` — Word Bank**
+- Tap a word chip to fill the `____` blank in a rendered sentence
+- Sentence re-renders in real-time showing the selected word; shake + haptic on wrong answer
+- Editable in ScanScreen: word bank (comma-separated) + correct answer field
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+- `SYSTEM_PROMPT` fully rewritten with per-type JSON schemas and "VARIETY GUIDANCE" instructing GPT to use the best type for each question instead of defaulting to multiple choice
+- `REGEN_SYSTEM_PROMPT` updated to match the original question type on regeneration
+- `sanitizeQuestion` updated to pass through all new fields: `correctAnswer`, `acceptedAnswers`, `items`, `correctOrder`, `wordBank`
+
+#### Changed — `aiService.js`
+- `generateQuestionsFromImages` mapper handles all 6 question types with safe defaults
+- `regenerateQuestion` mapper mirrors the same logic
+
+#### Changed — QuizScreen (`src/screens/QuizScreen.js`)
+- Subject-colour accent stripe at top of screen (tied to `unit.subject`)
+- Question type badge on every question card (colour-tinted by subject)
+- `FillInRenderer`, `OrderingRenderer`, `TrueFalseRenderer`, `WordBankRenderer` components added
+- `GeometryDisplay` (pie, bar, shape) retained and improved
+- Results screen shows star rating, score, and unit title
+
+#### Changed — ScanScreen (`src/screens/ScanScreen.js`)
+- Review step question cards now render type-specific editors for all 5 types
+- Each card shows a colour-coded type badge (Fill in the Blank, Ordering, True / False, Word Bank, Multiple Choice)
+
+---
+
 ### Subject Categories + HomeScreen Grid Redesign — 2026-04-20
 
 #### Fixed — HomeScreen grid polish (follow-up)
