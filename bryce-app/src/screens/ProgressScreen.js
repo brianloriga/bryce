@@ -238,7 +238,7 @@ export default function ProgressScreen() {
                 onPress={() => setSelectedKid(kid)}
                 activeOpacity={0.8}
               >
-                <KidAvatar kid={kid} size={32} />
+                <KidAvatar name={kid.name} color={kid.avatar} size={32} />
                 <Text style={[styles.kidChipName, active && styles.kidChipNameActive]}>
                   {kid.name}
                 </Text>
@@ -251,7 +251,7 @@ export default function ProgressScreen() {
       {/* Single-kid name header */}
       {kids.length === 1 && selectedKid && (
         <View style={styles.singleKidRow}>
-          <KidAvatar kid={selectedKid} size={40} />
+          <KidAvatar name={selectedKid.name} color={selectedKid.avatar} size={40} />
           <Text style={styles.singleKidName}>{selectedKid.name}</Text>
         </View>
       )}
