@@ -207,6 +207,19 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 ---
 
+### 7.E — Guardrails & Storage Limits
+
+> Prevents runaway storage costs and keeps the app tidy for families with lots of content.
+
+- [ ] 7.41 **Kid profile cap** — limit each parent account to a maximum of 6 child profiles; show a friendly "You've reached the limit" message if they try to add more (configurable constant, easy to raise for paid tiers later)
+- [ ] 7.42 **Lesson cap per account** — limit total saved lessons to 30 (free tier) with a clear "Storage full" prompt and a link to delete old lessons; cap raised or removed for subscribers once Phase 4 is live
+- [ ] 7.43 **Lesson delete confirmation** — add a swipe-to-delete or long-press delete flow on HomeScreen lesson cards with a confirmation prompt (prevents accidental loss)
+- [ ] 7.44 **Auto-archive old lessons** — lessons not played in 90 days move to an "Archived" section (collapsed by default) rather than cluttering the active subject grid; parent can restore or permanently delete archived lessons
+- [ ] 7.45 **Storage usage indicator** — show a subtle "X / 30 lessons" counter somewhere in AccountScreen or the Scan tab so parents know how much space they've used before hitting the cap
+- [ ] 7.46 **Orphaned asset cleanup** — Edge Function or scheduled Supabase job that deletes audio files (`question-audio` bucket) and visual aid images (`lesson-visuals` bucket) that no longer have a matching `custom_units` row (prevents ghost files accumulating after lesson deletes)
+
+---
+
 ### 7.D ? Engagement & Retention
 
 - [x] 7.19 Save quiz results to Supabase ? `quiz_results` table tracks score, stars, kid, unit, and timestamp
