@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
+import { DEFAULT_SUBJECTS } from '../utils/subjects';
 
 const MAX_IMAGES = 10;
 
@@ -60,6 +61,10 @@ export default function ScanScreen() {
   const [showHowModal, setShowHowModal]           = useState(false);
   const [questionCount, setQuestionCount]         = useState(9);
   const [regeneratingIndex, setRegeneratingIndex] = useState(null);
+  // Subject selection
+  const [selectedSubject, setSelectedSubject]     = useState(null);
+  const [creatingSubject, setCreatingSubject]     = useState(false);
+  const [newSubjectName, setNewSubjectName]       = useState('');
   const cancelledRef = useRef(false);
 
   function cancelGeneration() {
@@ -277,12 +282,21 @@ export default function ScanScreen() {
   async function handleSave() {
     if (!unitTitle.trim()) { Alert.alert('Title required', 'Please give this lesson a name.'); return; }
     if (!questions || questions.length === 0) { Alert.alert('No questions', 'Add at least one question before saving.'); return; }
+
+    // If the parent is mid-way through creating a custom subject, finalise it
+    let subjectKey = selectedSubject;
+    if (creatingSubject) {
+      const trimmed = newSubjectName.trim();
+      if (!trimmed) { Alert.alert('Subject name required', 'Please enter a name for your subject, or choose an existing one.'); return; }
+      // Convert to a stable snake_case key
+      subjectKey = trimmed.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    }
+
     setSaving(true);
     try {
-      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage);
+      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey);
       setStep('saved');
       // Fire-and-forget: generate TTS audio in the background after save succeeds.
-      // The edge function caches MP3s in Supabase Storage and patches the unit row.
       generateAudio(saved.id, questions).catch(() => {});
     } catch (err) {
       Alert.alert('Save failed', err.message);
@@ -294,6 +308,7 @@ export default function ScanScreen() {
   function reset() {
     setImages([]); setVisualImages([]); setQuestions(null);
     setPassage(null); setUnitTitle(''); setStep('pick'); setValidationError(null);
+    setSelectedSubject(null); setCreatingSubject(false); setNewSubjectName('');
   }
 
   // ── Not logged in ──────────────────────────────────────────
@@ -397,6 +412,65 @@ export default function ScanScreen() {
             placeholder="e.g. Chapter 7 — Fractions"
             placeholderTextColor="#64748b"
           />
+
+          {/* ── Subject picker ── */}
+          <Text style={styles.fieldLabel}>Subject</Text>
+          <View style={styles.subjectGrid}>
+            {DEFAULT_SUBJECTS.map(s => {
+              const active = selectedSubject === s.key && !creatingSubject;
+              return (
+                <TouchableOpacity
+                  key={s.key}
+                  style={[
+                    styles.subjectChip,
+                    { borderColor: s.color },
+                    active && { backgroundColor: s.color },
+                  ]}
+                  onPress={() => { setSelectedSubject(s.key); setCreatingSubject(false); setNewSubjectName(''); }}
+                  activeOpacity={0.78}
+                >
+                  <Image source={s.image} style={styles.subjectChipIcon} resizeMode="contain" />
+                  <Text style={[styles.subjectChipLabel, active && styles.subjectChipLabelActive]}>
+                    {s.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* Create your own subject */}
+            <TouchableOpacity
+              style={[
+                styles.subjectChip,
+                styles.subjectChipCustom,
+                creatingSubject && styles.subjectChipCustomActive,
+              ]}
+              onPress={() => { setCreatingSubject(true); setSelectedSubject(null); }}
+              activeOpacity={0.78}
+            >
+              <Ionicons name="add" size={15} color={creatingSubject ? '#fff' : '#94a3b8'} />
+              <Text style={[styles.subjectChipLabel, creatingSubject && styles.subjectChipLabelActive]}>
+                {creatingSubject ? 'New subject' : 'Create your own'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {creatingSubject && (
+            <TextInput
+              style={[styles.titleInput, { marginTop: 8 }]}
+              value={newSubjectName}
+              onChangeText={setNewSubjectName}
+              placeholder="e.g. Spanish, Art, Health…"
+              placeholderTextColor="#64748b"
+              autoFocus
+              returnKeyType="done"
+            />
+          )}
+
+          {!selectedSubject && !creatingSubject && (
+            <Text style={styles.subjectSkipHint}>
+              No subject selected — lesson will appear in "Unassigned"
+            </Text>
+          )}
 
           {passage && (
             <View style={styles.passagePreviewCard}>
@@ -1029,6 +1103,32 @@ function createStyles(t) {
       fontSize: 11, fontWeight: '700', color: t.textMuted,
       textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8,
     },
+
+    // Subject picker
+    subjectGrid: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6,
+    },
+    subjectChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      paddingHorizontal: 13, paddingVertical: 9,
+      borderRadius: 12, borderWidth: 1.5,
+      backgroundColor: 'transparent',
+    },
+    subjectChipIcon: { width: 22, height: 22 },
+    subjectChipLabel: { fontSize: 13, fontWeight: '700', color: t.textSub },
+    subjectChipLabelActive: { color: '#fff' },
+    subjectChipCustom: {
+      borderColor: '#475569',
+    },
+    subjectChipCustomActive: {
+      backgroundColor: '#475569',
+      borderColor: '#475569',
+    },
+    subjectSkipHint: {
+      fontSize: 11, color: t.textMuted, fontStyle: 'italic',
+      marginBottom: 14, marginTop: 2,
+    },
+
     titleInput: {
       backgroundColor: t.bgCard, borderRadius: 12,
       borderWidth: 1, borderColor: t.border,

@@ -181,6 +181,7 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 ### 7.C ? UX & Polish
 
+- [x] 7.39 Subject category system — `src/utils/subjects.js` with 4 default subjects (Reading, Math, Science, Social Studies); HomeScreen replaced with 2-col subject tile grid; ScanScreen review step has a subject picker + "Create your own" custom subject flow
 - [x] 7.12 Show a visible error state (with retry button) on HomeScreen when unit loading fails
 - [x] 7.13 Show a visible error state on KidSelectScreen when kid profiles fail to load
 - [x] 7.14 Wire up Privacy Policy and Terms of Service rows in AccountScreen (done in Phase 5)

@@ -6,6 +6,47 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Subject Categories + HomeScreen Grid Redesign — 2026-04-20
+
+#### Fixed — HomeScreen grid polish (follow-up)
+
+- **Strict 2-column grid** — replaced `flexWrap` approach (which could produce uneven rows) with a `chunkPairs()` helper; tiles are now always rendered as explicit 2-per-row `View` rows with a transparent spacer when there is an odd number of subjects
+- **Global search on landing page** — search bar now lives on the main subject grid screen (always visible when lessons exist); typing switches the entire view from subject tiles to a flat, cross-subject lesson list in real time; clearing the input returns to the tile grid; the search bar inside a drilled-in subject still scopes to that subject only
+- **Rounded icon images** — each subject icon now sits inside a `tileIconWrapper` with `borderRadius: 18`, a soft semi-transparent white background, and `overflow: hidden` so the PNG asset is cleanly clipped to match the card's rounded corners
+- **Hooks order fix** — moved all `useMemo` calls above the `if (loading)` and `if (loadError)` early returns to comply with React Rules of Hooks (was causing a "change in order of Hooks" console error)
+- Removed stale `subjectHeaderEmoji` text node from drill-in header; replaced with a small rounded `Image` using the subject's PNG icon
+
+---
+
+#### Added — Subject System (`src/utils/subjects.js`)
+
+- New `DEFAULT_SUBJECTS` constant: **Reading, Math, Science, Social Studies** — each has a stable DB key, display label, emoji, and tile colour
+- `UNASSIGNED_SUBJECT` fallback for lessons with no subject set
+- `buildSubjectList(units, customSubjects)` — merges defaults + any parent-created subject keys found in loaded lessons; custom keys sorted alphabetically after the defaults
+- `resolveSubject(key, allSubjects)` — safely maps a DB key back to a full subject object with fallback
+
+#### Changed — HomeScreen: Subject Grid Layout
+
+- **Landing view** replaced flat colour-coded lesson list with a **2-column subject tile grid** (inspired by kid-friendly education app design)
+- Each tile is a large rounded square showing the subject emoji, name, and lesson count badge
+- Tapping a tile drills into that subject's lesson list with a back button + subject header
+- Lessons are still displayed as full-width colour cards (same as before) once inside a subject
+- Search bar still appears at 3+ lessons within a subject
+- **Unassigned** bucket appears automatically for any lessons without a subject
+- Empty-state tiles for unused default subjects replaced by a subtle hint prompt
+
+#### Changed — ScanScreen: Subject Picker in Review Step
+
+- Subject picker appears in the review/save step between the lesson title and questions
+- Four default subject chips (Reading, Math, Science, Social Studies) with colour-coded borders; tap to select; selected chip fills with the subject colour
+- **"Create your own"** chip expands a text input so parents can name a custom subject (e.g. "Spanish", "Art", "Health") — name is converted to a stable `snake_case` DB key on save
+- If no subject is selected, lesson saves to "Unassigned" with a hint explaining this
+
+#### Changed — `saveCustomUnit` in `supabase.js`
+
+- Added `subject` parameter (5th arg, defaults to `'unassigned'`)
+- Previously hardcoded `subject: 'custom'` replaced with the passed-in value
+
 ### Scan Flow UX, Reading Passage & Visual Aid Overhaul — 2026-04-19
 
 #### Added — Reading Passage (📖 Read Along)
