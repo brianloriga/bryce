@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -18,6 +17,62 @@ import { findGame, AVAILABLE_GAMES, GAME_REGISTRY } from '../minigames/registry'
 import { getEnabledMap } from '../services/gameSettings';
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
+
+// ── Fill-in answer matching helpers ──────────────────────────
+
+// True when the string looks like a math/numeric answer (digits, decimals,
+// fractions, currency symbols, percentages). Numeric answers stay exact-match
+// only so "0.35" never accidentally accepts "0.3".
+function isNumericAnswer(s) {
+  return /^[\d\s.,¢$%\/\\-]+$/.test(s.trim());
+}
+
+// Levenshtein edit distance — used for spelling tolerance.
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// How many edit-distance mistakes we allow based on correct answer length.
+// Very short words (≤3 chars) get no tolerance — "cat"→"car" must be exact.
+function spellingTolerance(len) {
+  if (len <= 3)  return 0;
+  if (len <= 6)  return 1;
+  return 2;
+}
+
+// Returns true if the typed answer should be counted correct against one
+// candidate answer string. Handles three cases beyond exact match:
+//   1. Extra trailing words — "main entrance" typed when answer is "main"
+//   2. Spelling mistakes    — within Levenshtein tolerance for non-numeric
+//   3. Already covered by exact/acceptedAnswers match upstream
+function isFuzzyMatch(typed, correct) {
+  if (isNumericAnswer(correct)) return false; // math stays exact
+
+  // 1. Starts-with word-boundary: correct answer sits at the front of what
+  //    was typed, followed by a space or end of string.
+  //    "main entrance" → correct "main" → typed[4] === ' ' ✓
+  if (
+    typed.length > correct.length &&
+    typed.startsWith(correct) &&
+    typed[correct.length] === ' '
+  ) return true;
+
+  // 2. Spelling tolerance (Levenshtein).
+  const tolerance = spellingTolerance(correct.length);
+  if (tolerance > 0 && levenshtein(typed, correct) <= tolerance) return true;
+
+  return false;
+}
 
 const TYPE_LABELS = {
   fill_in:    'Fill in the blank',
@@ -331,7 +386,7 @@ function FillInRenderer({ q, onResolve, styles }) {
     const norm = (s) => s.toLowerCase().trim().replace(/\s+/g, ' ');
     const ans  = norm(value);
     const all  = [q.correctAnswer, ...(q.acceptedAnswers ?? [])].map(norm);
-    const correct = all.includes(ans);
+    const correct = all.includes(ans) || all.some(c => isFuzzyMatch(ans, c));
     setFeedback(correct ? 'correct' : 'wrong');
     if (correct) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -635,8 +690,6 @@ export default function QuizScreen() {
   const [answered, setAnswered]             = useState(false);
   const [finished, setFinished]             = useState(false);
   const [hintVisible, setHintVisible]       = useState(false);
-  const [audioPlaying, setAudioPlaying]     = useState(false);
-  const [audioLoading, setAudioLoading]     = useState(false);
   const [passageVisible, setPassageVisible] = useState(false);
   const [zoomImage, setZoomImage]           = useState(null);
   const [enabledGames, setEnabledGames]     = useState({});
@@ -649,47 +702,17 @@ export default function QuizScreen() {
   const hintAnim      = useRef(new Animated.Value(0)).current;
   const celebAnim     = useRef(new Animated.Value(1)).current;
   const answerTimeout = useRef(null);
-  const soundRef      = useRef(null);
-
-  async function unloadSound() {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync().catch(() => {});
-      soundRef.current = null;
-    }
-    setAudioPlaying(false);
-  }
-
   useEffect(() => {
     setHintVisible(false);
     hintAnim.setValue(0);
     celebAnim.setValue(1);
-    unloadSound();
   }, [currentIndex]);
 
   useEffect(() => {
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true }).catch(() => {});
     return () => {
       if (answerTimeout.current) clearTimeout(answerTimeout.current);
-      unloadSound();
     };
   }, []);
-
-  const toggleAudio = useCallback(async () => {
-    if (audioPlaying) { await unloadSound(); return; }
-    const url = questions[currentIndex]?.audio_url;
-    if (!url) return;
-    setAudioLoading(true);
-    try {
-      await unloadSound();
-      const { sound } = await Audio.Sound.createAsync({ uri: url }, { shouldPlay: true });
-      soundRef.current = sound;
-      setAudioPlaying(true);
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.didJustFinish || status.error) { setAudioPlaying(false); soundRef.current = null; }
-      });
-    } catch (_) { setAudioPlaying(false); }
-    finally { setAudioLoading(false); }
-  }, [audioPlaying, currentIndex, questions]);
 
   const toggleHint = useCallback(() => {
     const next = !hintVisible;
@@ -722,7 +745,6 @@ export default function QuizScreen() {
 
   // ── Shared answer resolution ─────────────────────────────────
   function resolveAnswer(isCorrect) {
-    unloadSound();
     const newScore = isCorrect ? score + 1 : score;
     if (isCorrect) {
       setScore(newScore);
@@ -758,7 +780,6 @@ export default function QuizScreen() {
     if (answered) return;
     setSelectedIndex(index);
     setAnswered(true);
-    unloadSound();
     const isCorrect = index === safeCorrectIdx;
     const newScore  = isCorrect ? score + 1 : score;
     if (isCorrect) {
@@ -797,7 +818,7 @@ export default function QuizScreen() {
   function restart() {
     setCurrentIndex(0); setSelectedIndex(null); setScore(0);
     setAnswered(false); setFinished(false); setHintVisible(false);
-    unloadSound(); animateProgress(0);
+    animateProgress(0);
   }
 
   function mcOptionStyle(index) {
@@ -934,13 +955,6 @@ export default function QuizScreen() {
                   {typeLabel ?? (isVisual ? 'Visual Question' : `Question ${currentIndex + 1}`)}
                 </Text>
               </View>
-              {q.audio_url ? (
-                <TouchableOpacity onPress={toggleAudio} style={styles.audioBtn} activeOpacity={0.7} disabled={audioLoading}>
-                  <Text style={[styles.audioBtnIcon, audioPlaying && styles.audioBtnActive]}>
-                    {audioLoading ? '⏳' : audioPlaying ? '🔊' : '🔈'}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
 
             {q.image_url && (
@@ -1142,9 +1156,6 @@ const styles = StyleSheet.create({
   passageDoneBtnText: { fontSize: 15, fontWeight: '700', color: '#94a3b8' },
 
   // Audio
-  audioBtn:       { padding: 4 },
-  audioBtnIcon:   { fontSize: 20, opacity: 0.55 },
-  audioBtnActive: { opacity: 1 },
 
   // Hint
   hintRow:     { marginBottom: 16 },

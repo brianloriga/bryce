@@ -6,6 +6,32 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Question Quality & UX Hardening — 2026-04-22
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **`fill_in` restricted to math only** — fill-in-the-blank questions are now exclusively used for math and number calculations (decimals, fractions, currency, measurements). Science, reading, social studies, and vocabulary questions must use `multiple_choice`, `true_false`, or `word_bank` instead. Restriction stated in three places in the prompt to eliminate ambiguity.
+- **`visual_mc` guardrails tightened** — all three conditions must now be met before `visual_mc` is allowed (emoji-representable answers, no worksheet text available, and visual representation genuinely helps). Explicit negative examples added: "What is the main idea?", "Which best describes how traits affect organisms?", and any question whose answer is a word or sentence are all banned from `visual_mc`. `CRITICAL` note added to the final user-content message.
+- **`word_bank` unambiguous answer rule** — AI must now mentally test every word in the word bank against the blank before finalising. If more than one word produces a grammatically correct or factually defensible sentence, the sentence must be rewritten until only one word fits. Failing example added to the prompt ("Both humans and animals can \_\_\_ new behaviors" where learn/inherit/affect all work).
+- **Visual aid questions auto-anchored to lesson topic** — visual aid questions are now explicitly instructed to use the scanned text pages as context and ask questions that connect the image to a concept from the lesson. Trivial identification questions ("what animal is shown", "what colour is this") are banned unless that is the lesson topic.
+
+#### Changed — `ScanScreen` (`src/screens/ScanScreen.js`)
+
+- **Visual Aid section description updated** — copy now explicitly mentions "map, labeled illustration, or any image your child needs to see to answer questions" so parents recognise it applies to book imagery, not just charts/graphs.
+- **Visual Aid slot label updated** — empty slot now reads "Diagram, map, or picture (optional)" instead of the generic "Visual Aid (optional)".
+- **"How it works" step added** — new step explains that Visual Aid photos appear directly in the quiz so the child never needs the physical book.
+- **Caption field removed** — previously added caption input removed after feedback that parents don't know what the lesson is about at scan time; the AI now derives context automatically from the lesson text pages.
+- **`generateAudio` removed** — audio generation call removed from `handleSave`; TTS pipeline no longer triggered after saving a lesson.
+
+#### Changed — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **Audio playback fully removed** — `expo-av` import, `Audio.setAudioModeAsync`, `soundRef`, `unloadSound`, `toggleAudio`, `audioPlaying`/`audioLoading` state, the 🔈/🔊 speaker button, and audio button styles all removed. Audio was inconsistent and not well received.
+- **Fill-in fuzzy answer matching** — two new matching layers added on top of the existing exact match, so young children are not penalised for minor typing issues:
+  - *Starts-with word-boundary check*: if the typed answer begins with the correct answer followed by a space (e.g. "main entrance" when answer is "main"), it is accepted. Intentionally skipped for numeric answers so "0.35" never passes for "0.3".
+  - *Levenshtein spelling tolerance*: answers ≤ 3 chars require exact match; 4–6 chars allow 1 edit; 7+ chars allow 2 edits. Numeric answers are excluded entirely.
+
+---
+
 ### Parent Progress Dashboard (7.20) — 2026-04-20
 
 #### Added — `ProgressScreen` (`src/screens/ProgressScreen.js`)

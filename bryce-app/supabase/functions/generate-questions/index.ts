@@ -58,16 +58,23 @@ QUESTION TYPE RULES — choose the best type for each question:
    { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 1 }
 
 2. VISUAL MULTIPLE CHOICE — "type": "visual_mc"
-   - Use ONLY when the worksheet does NOT provide specific numbers or scenarios to extract, AND a visual/emoji representation would genuinely help a child understand the concept
-   - Do NOT use visual_mc to "decorate" a question that already has clear numbers or text on the worksheet — use fill_in or true_false instead
-   - Examples where visual_mc is appropriate: a blank pattern like 🔴🔵🔴❓, a counting exercise with no specific numbers given, an abstract concept with no worksheet text
-   - Examples where visual_mc is WRONG: the worksheet says "How much does the car and bike cost together?" → use fill_in; the worksheet says "8¢ + 20¢ = ?" → use fill_in
+   - Use ONLY when ALL THREE of these are true: (a) the answer choices themselves are genuinely representable as emoji symbols, (b) no worksheet text provides specific numbers or scenarios, AND (c) a visual representation meaningfully helps a child understand
+   - NEVER use visual_mc when the question or answer involves words, sentences, ideas, concepts, definitions, reading passages, science topics, vocabulary, or any text-based content — use regular multiple_choice instead
+   - NEVER use visual_mc just because the subject feels visual or abstract — "main idea", "what does this mean", "which best describes" are always regular multiple_choice
+   - The ONLY valid use cases are truly symbolic pattern questions: colour/shape sequences, counting with no given numbers, simple symbol matching
+   - Examples where visual_mc is appropriate: a blank pattern like 🔴🔵🔴❓, a shape sequence with no worksheet numbers
+   - Examples where visual_mc is ABSOLUTELY WRONG:
+     • "What is the main idea of this passage?" → multiple_choice with TEXT answers
+     • "Which best describes how traits affect organisms?" → multiple_choice with TEXT answers
+     • "What does photosynthesis produce?" → multiple_choice with TEXT answers
+     • "How much does the car and bike cost together?" → fill_in
    { "type": "visual_mc", "question": "🔴🔵🔴🔵❓ What comes next?", "hint": "...", "options": ["🔴","🔵","🟡","🟢"], "correctIndex": 0 }
 
 3. FILL IN THE BLANK — "type": "fill_in"
-   - PREFER for: math calculations, "write as a decimal/fraction/word form", coordinate answers, single-word answers
+   - USE ONLY for math and numbers: calculations, decimals, fractions, coordinates, measurements, currency amounts
+   - NEVER use fill_in for science, reading, social studies, vocabulary, definitions, or any question whose answer is a word or phrase — use multiple_choice or word_bank instead
    - correctAnswer: the expected answer as a string
-   - acceptedAnswers: array of equivalent acceptable forms (optional but recommended for math)
+   - acceptedAnswers: array of equivalent acceptable forms (required for math — cover common formats)
    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3", ".3", "0.30"] }
 
 4. ORDERING — "type": "ordering"
@@ -86,6 +93,9 @@ QUESTION TYPE RULES — choose the best type for each question:
    - The question string shows the sentence with ____ marking the blank
    - wordBank: 2–5 word choices
    - correctAnswer: the single correct word from wordBank
+   - CRITICAL — UNAMBIGUOUS ANSWERS ONLY: Before finalising a word_bank question, mentally test EVERY word in the word bank in the blank. If more than one word produces a grammatically correct or factually defensible sentence, rewrite the sentence so only one word fits, OR change the word bank so the distractors are clearly wrong.
+   - BAD EXAMPLE: "Both humans and animals can ____ new behaviors" with bank ["learn","inherit","affect"] — "learn" AND "inherit" both work, making the question unfair. Fix by rewriting: "Dogs can be trained to ____ new tricks through repetition" where only "learn" fits naturally.
+   - GOOD EXAMPLE: "My sister ____ a dancer." — only "is" is grammatically correct; "am" and "are" are clearly wrong for a singular third-person subject.
    { "type": "word_bank", "question": "My sister ____ a dancer.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "is" }
 
 GEOMETRY RULES (optional, math questions only):
@@ -146,7 +156,7 @@ Table (two groups):
 WORKSHEET EXTRACTION RULES (highest priority):
 - If the image shows a printed worksheet or problem set, your PRIMARY job is to faithfully reproduce those questions in digital form
 - Keep the SAME numbers, items, names, and scenarios from the worksheet
-- Use fill_in for every calculation question (e.g. "How much does the car and bike cost together?" → fill_in, correctAnswer "28¢")
+- Use fill_in ONLY for math/number calculations (e.g. "How much do the car and bike cost together?" → fill_in, correctAnswer "28¢") — never fill_in for text answers
 - Use ordering when the worksheet says "order from least to greatest" or similar
 - Use true_false when the worksheet asks to evaluate a statement
 - Use multiple_choice only when the worksheet itself provides answer choices
@@ -155,7 +165,7 @@ WORKSHEET EXTRACTION RULES (highest priority):
 - When a question needs the price/data table, include a "context" grid object so the kid never needs the paper
 
 VARIETY GUIDANCE:
-- Mix types naturally. A math worksheet → fill_in for calculations, ordering for sequences, true_false for comparisons. A grammar worksheet → word_bank for sentence completions. Do NOT force everything into multiple_choice.
+- Mix types naturally. A math worksheet → fill_in for calculations, ordering for sequences, true_false for comparisons. A science/reading/social studies worksheet → multiple_choice or true_false for concepts, word_bank for vocabulary. Do NOT use fill_in outside of math. Do NOT force everything into multiple_choice.
 
 Return ONLY this JSON and nothing else:
 {
@@ -489,12 +499,12 @@ serve(async (req) => {
       const perImageInstructions = rawVisuals.map((v, i) =>
         `Visual Aid ${i + 1} (image at position ${imageList.length + i + 1}): generate exactly ${v.questionCount ?? 1} question(s), mark each with "image_ref": ${i + 1}`
       ).join('. ');
-      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are specific diagrams or charts the parent wants questions about — they are NOT text pages. ${perImageInstructions}. For each visual aid question: reference "the image shown" or "the diagram above" in the question text. The remaining ${questionCount - totalVisualQs} questions come from the text pages only.`;
+      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are visual aids the parent photographed from the same lesson — they are NOT text pages. ${perImageInstructions}. CRITICAL for visual aid questions: you have already read the lesson text pages — use that topic and vocabulary as your anchor. Ask questions that use the image as evidence for a concept from the lesson (e.g. if the lesson is about traits, ask how the image illustrates an inherited or learned trait). Do NOT ask trivial identification questions like "what animal is shown" or "what colour is this" — the question must connect the image to a concept from the lesson text. Reference "the image shown" or "the diagram above" in the question text. The remaining ${questionCount - totalVisualQs} questions come from the text pages only.`;
     }
 
     userContent.push({
       type: 'text',
-      text: `${pageText}${visualAidInstruction} Every question must include a "hint" field. WORKSHEET EXTRACTION PRIORITY: if the image shows a worksheet or problem set, base the questions as closely as possible on the ACTUAL questions printed on the worksheet — same numbers, same scenarios, same level of difficulty. Do NOT simplify or restate the questions in a generic way. Use fill_in for calculation questions, ordering for sequence questions, true_false for comparisons, word_bank for grammar fill-ins. Only use visual_mc (with emoji/unicode) when the worksheet genuinely lacks specific numbers or context and a visual aid would help — do NOT default to visual_mc just to add emoji decoration.`,
+      text: `${pageText}${visualAidInstruction} Every question must include a "hint" field. WORKSHEET EXTRACTION PRIORITY: if the image shows a worksheet or problem set, base the questions as closely as possible on the ACTUAL questions printed on the worksheet — same numbers, same scenarios, same level of difficulty. Do NOT simplify or restate the questions in a generic way. Use fill_in ONLY for math/number calculations, ordering for sequence questions, true_false for comparisons, word_bank for vocabulary/grammar, multiple_choice for all other text-based answers. CRITICAL: visual_mc is ONLY for emoji/symbol pattern sequences (like colour patterns or shape sequences). NEVER use visual_mc for reading comprehension, main idea, vocabulary, science concepts, or any question whose answer is a word or sentence — use regular multiple_choice with text answers instead.`,
     });
 
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {

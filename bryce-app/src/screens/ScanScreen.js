@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
+import { generateQuestionsFromImage, regenerateQuestion } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
 import { DEFAULT_SUBJECTS } from '../utils/subjects';
 import { GAME_REGISTRY } from '../minigames/registry';
@@ -38,6 +38,7 @@ const HOW_IT_WORKS = [
   { icon: 'camera-outline',      text: 'Tap Camera to photograph a textbook page, or Library to pick an existing photo' },
   { icon: 'copy-outline',        text: 'Add up to 10 pages per lesson — tap the + tile in the strip to keep going' },
   { icon: 'options-outline',     text: 'Choose how many questions to generate: 5, 9, 15, or 20' },
+  { icon: 'image-outline',        text: 'If the page has a diagram, map, or labeled picture your child needs to see, add it as a Visual Aid — it will appear directly in the quiz question' },
   { icon: 'sparkles-outline',    text: 'AI reads every page and writes the questions — takes about 10–20 seconds' },
   { icon: 'create-outline',      text: 'Review each question, edit the text, and tap any option to mark it correct' },
   { icon: 'checkmark-circle-outline', text: 'Save the lesson — it appears instantly in the Learn tab for your child to play' },
@@ -299,8 +300,6 @@ export default function ScanScreen() {
       const rewardConfig = rewardGame ? { game: rewardGame } : null;
       const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null, rewardConfig);
       setStep('saved');
-      // Fire-and-forget: generate TTS audio in the background after save succeeds.
-      generateAudio(saved.id, questions).catch(() => {});
     } catch (err) {
       Alert.alert('Save failed', err.message);
     } finally {
@@ -871,7 +870,7 @@ export default function ScanScreen() {
             </View>
 
             <Text style={styles.visualDesc}>
-              Have a diagram, chart, or graph? Add up to {maxVisualSlots(questionCount)} photo{maxVisualSlots(questionCount) > 1 ? 's' : ''} and choose how many questions to ask about each one.
+              Does the page have a diagram, map, labeled illustration, or any image your child needs to see to answer questions? Add up to {maxVisualSlots(questionCount)} close-up photo{maxVisualSlots(questionCount) > 1 ? 's' : ''} here — they'll be shown directly in the quiz so your child doesn't need the book.
             </Text>
 
             {Array.from({ length: maxVisualSlots(questionCount) }).map((_, slotIdx) => {
@@ -883,7 +882,7 @@ export default function ScanScreen() {
                       <Text style={styles.visualSlotBadgeText}>{slotIdx + 1}</Text>
                     </View>
                     <Text style={styles.visualSlotCardTitle}>
-                      {vImg ? 'Visual Aid Added' : 'Visual Aid (optional)'}
+                      {vImg ? 'Visual Aid Added' : 'Diagram, map, or picture (optional)'}
                     </Text>
                     {vImg && (
                       <TouchableOpacity onPress={() => removeVisualSlot(slotIdx)} style={{ marginLeft: 'auto' }}>
