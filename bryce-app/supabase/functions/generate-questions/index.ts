@@ -204,6 +204,79 @@ QUESTION TYPE RULES — choose the best type for each question:
    - GOOD EXAMPLE: "My sister ____ a dancer." — only "is" is grammatically correct; "am" and "are" are clearly wrong for a singular third-person subject.
    { "type": "word_bank", "question": "My sister ____ a dancer.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "is" }
 
+7. NUMBER LINE — "type": "number_line"
+   The app DRAWS its own number line. The student NEVER sees the original worksheet.
+
+   ⚠️  DECIDE THE MODE FIRST — before writing any other field:
+   ┌────────────────────────────────────────────────────────────────────────────┐
+   │ What is the worksheet asking the student to DO?                            │
+   │                                                                            │
+   │ "Place/mark/where does X go on the line?"   → mode: PLACE  (omit field)   │
+   │ "What fraction/value does the dot/frog       → mode: "read"                │
+   │  represent?" / "Name the marked point"      → (app shows pre-placed dot)  │
+   │ "How many equal parts?" / "Count sections"  → mode: "count"               │
+   │                                             → (app shows tick marks)      │
+   └────────────────────────────────────────────────────────────────────────────┘
+
+   Three interaction modes — details for each:
+
+   MODE A — "place" (default, omit mode field)
+   Student drags a point to the correct position on the line.
+   Use for: "Place a point at X", "Where does N go?", "Mark X on the number line"
+   { "type": "number_line", "question": "Place a point at 3/4 on the number line.", "hint": "...", "correctAnswer": "0.75", "geometry": { "min": 0, "max": 1, "step": 0.25, "target": 0.75 } }
+   { "type": "number_line", "question": "Where does 14 go on the number line?", "hint": "...", "correctAnswer": "14", "geometry": { "min": 10, "max": 20, "step": 1, "target": 14 } }
+
+   MODE B — "read" (mode: "read")
+   App draws the number line with a pre-placed colored dot. Student identifies its value from MC options.
+   Use for: "What fraction does the point represent?", "What value is marked?", worksheet questions
+     where a specific point is shown on the number line and the student must name it.
+   TRANSFORMATION RULE: when a worksheet shows a labeled point on a number line, use mode "read" —
+     the app draws the same line and point, making the question fully self-contained.
+   geometry: same as place mode but MUST include "target" (where the dot goes) and optionally "pointColor"
+   pointColor options: "green" | "purple" | "blue" | "orange" | "red" | "yellow"
+   Also requires: "options" array (4 MC choices) and "correctIndex"
+   { "type": "number_line", "mode": "read", "question": "A point is marked on the number line below. What fraction does it represent?", "hint": "Count how many parts the line is divided into and where the dot lands.", "options": ["1/4","1/2","3/4","1"], "correctIndex": 1, "correctAnswer": "1/2", "geometry": { "min": 0, "max": 1, "step": 0.5, "target": 0.5, "pointColor": "green" } }
+   { "type": "number_line", "mode": "read", "question": "A purple point is marked on the number line. What fraction is it?", "hint": "The line is divided into 4 equal parts. Count from 0.", "options": ["1/4","1/2","0/4","1/3"], "correctIndex": 0, "correctAnswer": "1/4", "geometry": { "min": 0, "max": 1, "step": 0.25, "target": 0.25, "pointColor": "purple" } }
+
+   MODE C — "count" (mode: "count")
+   App draws the number line with tick marks showing equal parts. Student counts the parts from MC options.
+   Use for: "How many equal parts is this number line divided into?"
+   TRANSFORMATION RULE: when a worksheet asks to count tick-mark intervals, use mode "count" —
+     set step so the number of intervals equals the correct answer.
+   Also requires: "options" array (4 MC choices) and "correctIndex"
+   correctAnswer = number of equal parts as a string
+   { "type": "number_line", "mode": "count", "question": "The number line below is divided into equal parts. How many equal parts are there?", "hint": "Count the spaces between the tick marks, not the tick marks themselves.", "options": ["2","3","4","5"], "correctIndex": 0, "correctAnswer": "2", "geometry": { "min": 0, "max": 1, "step": 0.5 } }
+   { "type": "number_line", "mode": "count", "question": "The number line below is divided into equal parts. How many equal parts are there?", "hint": "Count each section from one tick mark to the next.", "options": ["3","5","4","6"], "correctIndex": 1, "correctAnswer": "5", "geometry": { "min": 0, "max": 1, "step": 0.2 } }
+
+   CRITICAL MODE SELECTION — choose mode FIRST based on what the student must do:
+   ┌──────────────────────────────────────────────────────────────────────────────────────┐
+   │ Worksheet asks…                          → Use this mode                            │
+   │ "Place / mark / where does X go?"        → place  (student drags to the value)      │
+   │ "What fraction does the point/frog/dot   → read   (app shows pre-placed dot; MC)    │
+   │  represent?" or "What value is marked?"  →                                          │
+   │ "How many equal parts?"                  → count  (app shows tick marks; MC)        │
+   └──────────────────────────────────────────────────────────────────────────────────────┘
+   HARD RULE: NEVER generate mode "place" for a question that asks the student to identify
+   the value of an already-marked point. "place" shows NOTHING pre-placed — the student
+   would have no information. Use "read" mode so the app draws the dot they must identify.
+
+   GENERAL number_line rules:
+   - Keep ranges realistic: step should produce 2–20 tick intervals
+   - Integers: step 1 or 2 (e.g. 0–20); Halves: step 0.5; Quarters: step 0.25; Tenths: step 0.1
+   - NEVER produce more than 20 tick intervals (keep max − min ≤ 20 × step)
+   - For read/count modes: selfContained must be true — the APP is drawing the number line
+
+VISUAL INTERACTION FALLBACK RULE (7.G.0):
+If the scanned worksheet shows a question format you cannot cleanly represent with the types above
+(examples: an analog clock face to read, a coordinate grid to plot points on, a Venn diagram to fill,
+a calendar, a coin/money display, a pictograph you cannot embed, a map you cannot embed), you MUST
+fall back to a regular multiple_choice question about the CONCEPT shown instead. Never produce
+broken JSON, empty geometry objects, or placeholder fields for unsupported renderers.
+BAD:  { "type": "clock", "question": "What time is shown?", "geometry": {} }  ← unsupported
+GOOD: { "question": "A clock shows the hour hand at 3 and the minute hand at 12. What time is it?",
+        "hint": "...", "options": ["3:00","12:03","3:12","12:15"], "correctIndex": 0 }
+The fallback question must be fully self-contained and answerable from the question text alone.
+
 GEOMETRY RULES (optional, math questions only):
 - MAY include a "geometry" object when it genuinely helps visualise the concept
 - Pie: { "type": "pie", "slices": [{ "fraction": 0.75, "color": "#6366f1", "label": "shaded" }, { "fraction": 0.25, "color": "#1e293b", "label": "unshaded" }] } — fractions must sum to 1.0
@@ -216,79 +289,48 @@ PASSAGE RULES:
 - Do NOT include a passage for pure math, diagrams, or vocabulary lists.
 - Omit the field if not needed.
 
-SELF-CONTAINED QUESTION RULE (mandatory — applies to EVERY question type without exception):
-A child using this app cannot see the worksheet. Every single question must be fully answerable
-using only what is written in the question text, the context card (if provided), or what the app
-draws from the geometry object. If a question would be unanswerable without the paper, transform it.
+SELF-CONTAINED RULE — REQUIRED FIELD "selfContained" ON EVERY QUESTION:
+Every question must include "selfContained": true or "selfContained": false.
 
-── UNIVERSAL FORBIDDEN PHRASES (ban in ALL question types) ──
-Never use any of the following in any question field:
-  Pointing at the image/page:
-    "shown above" | "shown below" | "shown here" | "shown on this page"
-    "in the image" | "in the picture" | "in the photo" | "in the illustration"
-    "in the diagram" | "in the diagram above" | "in the diagram below"
-    "in the figure" | "Figure 1" | "Figure A" | "the figure shown" | "see figure"
-    "look at" | "refer to" | "using the" (when the thing isn't embedded in the question)
-  Pointing at chart / graph / table / map:
-    "on the chart" | "the chart shows" | "from the chart" | "in the chart above"
-    "on the graph" | "the graph shows" | "from the graph" | "reading the graph"
-    "in the table" | "from the table" | "in the table above" | "the table shows"
-    "on the map" | "the map shows" | "using the map" | "according to the map"
-    "in the pictograph" | "from the pictograph" | "the pictograph shows"
-    "based on the [chart|graph|table|map|diagram|data]" — unless that data is embedded
-  Pointing at a numbered item:
-    "in question N" | "in problem N" | "question 1" | "problem 2" | "number 3"
-    "part A" | "part B" | "item 1" | "item 2"
-  Pointing at the physical worksheet:
-    "on your worksheet" | "on the worksheet" | "from your worksheet"
-    "on the page" | "on this page" | "from the page"
-  Generic demonstrative references (when the thing isn't in the question):
-    "this graph" | "this chart" | "this table" | "this diagram" | "this map"
-    "this ruler" | "this angle" | "this picture" | "this image"
-    "the ruler shown" | "the angle shown" | "the graph shown"
-    "the second ruler" | "ruler A" | "ruler B" | "graph A" | "graph B"
-    "the arrow" | "shown by the arrow" | "the arrow points to"
+Before writing this field, ask yourself ONE question:
+  "Could a child on a desert island — with ONLY this question text, context card, and
+   geometry object — answer this correctly, without ever seeing the original worksheet?"
 
-── HOW TO FIX EACH CASE ──
-  Chart/graph data on the worksheet:
-    → Embed the values in the question text OR use a context card.
-    BAD:  "According to the bar graph, how many students chose pizza?"
-    GOOD: "Pizza = 8 students, Tacos = 5 students, Salad = 3 students. How many more students chose pizza than salad?"
-    GOOD: Use a context "grid" object so the app shows the data above the question.
+- If YES  → write "selfContained": true
+- If NO   → you MUST transform/rewrite the question to make it self-contained, THEN write true
+- Only write "selfContained": false if transformation is impossible (the server will drop it)
 
-  Map or diagram on the worksheet:
-    → Extract the relevant fact and embed it: "City A is 40 km from City B."
-    → If the diagram is a shape/angle/fraction, use the geometry field so the app draws it.
-    BAD:  "Using the map, find the distance from A to B."
-    GOOD: "City A is 40 km from City B. City B is 25 km from City C. How far is A from C?"
+A question is NOT self-contained when:
+  • It references worksheet content the student cannot see:
+    "the third number line", "the second row", "the pattern above", "shown in the diagram",
+    "the arrow points to", "in Figure 1", "on this ruler", any ordinal reference to rows/lines
+  • The answer would change on a different version of the same worksheet type:
+    "What does the arrow point to?", "What number is on this ruler?", "Which bar is tallest?"
+  • "Fill in the missing number" / "complete the pattern" without embedding the actual sequence
 
-  Ruler / measurement on the worksheet:
-    → Never copy the arrow/pointer reference. Generate a ruler geometry object.
-    → See RULER / MEASUREMENT WORKSHEET EXCEPTION for full transformation instructions.
-    BAD:  "What measurement is shown by the arrow on the second ruler?"
-    GOOD: { measurementTool: "ruler", geometry: { type: "segment", length: 3.5, ... } }
+HOW TO TRANSFORM (make self-contained before writing true):
+  External sequence / missing-number number line:
+    BAD (selfContained: false):  "Fill in the missing number on the third number line between 20 and 30."
+    GOOD (selfContained: true):  "Count by 3s. What number is missing: 3, 6, ___, 12, 15?"
+    GOOD (selfContained: true):  "Count by 10s. What is missing: 10, 20, 30, 40, ___, 60?"
 
-  Picture/image on the worksheet:
-    → If the image contains countable objects or data, extract and embed that data.
-    → If it is purely visual with no extractable data, generate a conceptual question on the same topic instead.
-    BAD:  "Look at the picture. How many birds are sitting on the fence?"
-    GOOD: "A fence has 5 birds sitting on it. 2 fly away. How many birds are left?"
+  External chart / graph / table:
+    BAD (selfContained: false):  "According to the bar graph, how many students chose pizza?"
+    GOOD (selfContained: true):  "Pizza = 8, Tacos = 5, Salad = 3. How many more chose pizza than salad?"
+    GOOD (selfContained: true):  Use a "context" grid object so the data appears above the question.
 
-── PRE-OUTPUT CHECKLIST (run mentally on every question before writing it) ──
-  1. Can a child answer this question using ONLY the question text + context card + geometry? → YES required
-  2. Does the question contain any phrase from the UNIVERSAL FORBIDDEN PHRASES list above? → must be ZERO
-  3. If the question references a number, name, measurement, or fact — is that fact present in the output? → YES required
-  4. ANSWER INDEPENDENCE CHECK — Could a different version of this worksheet produce a different
-     correct answer? If YES, the question is externally-dependent even if the phrasing looks clean.
-     EXAMPLES of answer-dependent questions (REJECT even without forbidden phrases):
-       • "What unit of measurement is used on this ruler?" — answer is Inches on one worksheet, Centimeters on another
-       • "What number does the arrow point to?" — answer changes per worksheet
-       • "What is the temperature shown?" — answer changes per worksheet
-       • "Which bar is tallest?" — answer changes per chart
-       • "What color is the longest bar?" — answer changes per chart
-     WHAT TO DO: replace with a question where the correct answer is the same on every possible
-     worksheet — either by embedding the specific data, or by rephrasing as general knowledge.
-  5. If ALL checks pass, the question is valid. Fail on any one → transform or rewrite.
+  External diagram / map:
+    BAD (selfContained: false):  "Using the map, find the distance from A to B."
+    GOOD (selfContained: true):  "City A is 40 km from City B. City B is 25 km from City C. How far is A from C?"
+    GOOD (selfContained: true):  Use a geometry object so the app draws the shape.
+
+  External ruler / measurement:
+    BAD (selfContained: false):  "What measurement is shown by the arrow on the second ruler?"
+    GOOD (selfContained: true):  { measurementTool: "ruler", geometry: { type: "segment", length: 3.5, ... } }
+
+  External picture / image:
+    BAD (selfContained: false):  "Look at the picture. How many birds are on the fence?"
+    GOOD (selfContained: true):  "A fence has 5 birds. 2 fly away. How many are left?"
 
 CONTEXT RULES — visual reference card shown above the question:
 - Include a "context" object when the question references a set of items with values (prices, scores, lengths, tallies, temperatures, etc.) that are best shown as a compact reference rather than a long sentence
@@ -377,6 +419,7 @@ Return ONLY this JSON and nothing else:
   "passage": "Optional reading passage — omit if not needed.",
   "questions": [
     {
+      "selfContained": true,
       "context": { "type": "grid", "title": "Toy Sale Prices", "items": [
         { "label": "Cat", "icon": "paw", "value": "10¢" },
         { "label": "Dog", "icon": "paw", "value": "15¢" },
@@ -389,10 +432,10 @@ Return ONLY this JSON and nothing else:
       "correctAnswer": "28¢",
       "acceptedAnswers": ["28¢","28 cents","28c"]
     },
-    { "question": "Multiple choice — no context needed", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 2 },
-    { "type": "ordering", "question": "Order least to greatest: 15¢, 8¢, 20¢, 10¢", "hint": "...", "items": ["15¢","8¢","20¢","10¢"], "correctOrder": [1,3,0,2] },
-    { "type": "true_false", "question": "1/2 > 3/4. True or False?", "hint": "...", "correctAnswer": false },
-    { "type": "word_bank", "question": "The children ____ at school.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "are" }
+    { "selfContained": true, "question": "Multiple choice — no context needed", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 2 },
+    { "selfContained": true, "type": "ordering", "question": "Order least to greatest: 15¢, 8¢, 20¢, 10¢", "hint": "...", "items": ["15¢","8¢","20¢","10¢"], "correctOrder": [1,3,0,2] },
+    { "selfContained": true, "type": "true_false", "question": "1/2 > 3/4. True or False?", "hint": "...", "correctAnswer": false },
+    { "selfContained": true, "type": "word_bank", "question": "The children ____ at school.", "hint": "...", "wordBank": ["am","is","are"], "correctAnswer": "are" }
   ]
 }`;
 
@@ -414,6 +457,7 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
 - ordering: { "type": "ordering", "question": "...", "hint": "...", "items": [...], "correctOrder": [...] }
 - true_false: { "type": "true_false", "question": "...", "hint": "...", "correctAnswer": true|false }
 - word_bank: { "type": "word_bank", "question": "sentence with ____", "hint": "...", "wordBank": [...], "correctAnswer": "..." }
+- number_line: { "type": "number_line", "question": "Place a point at X on the number line.", "hint": "...", "correctAnswer": "X", "geometry": { "min": 0, "max": 10, "step": 1, "target": X } }
 
 SELF-CONTAINED RULE: the replacement must be answerable without any external materials. If the original had a "context" reference card, keep an equivalent context in the replacement.
 If a "context" is needed, use this structure: { "type": "grid", "title": "...", "items": [{ "label": "...", "icon": "car|bicycle|paw|book|cash|flask|person|star|grid|...", "value": "..." }] }
@@ -463,6 +507,20 @@ function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
     }
   }
 
+  // number_line fields
+  if (q.type === 'number_line') {
+    sanitized.correctAnswer = serverSanitize(String(q.correctAnswer ?? ''));
+    if (Array.isArray(q.acceptedAnswers)) {
+      sanitized.acceptedAnswers = (q.acceptedAnswers as string[]).map(serverSanitize);
+    }
+    if (q.mode) sanitized.mode = q.mode;
+    // read + count modes need MC options
+    if (Array.isArray(q.options)) {
+      sanitized.options      = (q.options as string[]).map(serverSanitize);
+      sanitized.correctIndex = q.correctIndex;
+    }
+  }
+
   // ordering fields
   if (q.type === 'ordering') {
     if (Array.isArray(q.items))        sanitized.items        = (q.items as string[]).map(serverSanitize);
@@ -482,7 +540,7 @@ function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
     }
   }
 
-  // Optional extras
+  // Optional extras (selfContained is intentionally NOT forwarded — it's internal only)
   if (q.geometry)        sanitized.geometry        = q.geometry;
   if (q.image_ref)       sanitized.image_ref       = true;
   if (q.context)         sanitized.context         = q.context;
@@ -497,7 +555,27 @@ function sanitizeResponse(obj: Record<string, unknown>): Record<string, unknown>
   if (obj.valid === false) {
     return { valid: false, reason: serverSanitize(String(obj.reason ?? '')) };
   }
-  const questions = (obj.questions as Array<Record<string, unknown>> ?? []).map(sanitizeQuestion);
+
+  const raw = (obj.questions as Array<Record<string, unknown>> ?? []);
+
+  // Log any questions GPT flagged or that slipped through without the field
+  const dropped = raw.filter((q) => q.selfContained === false);
+  const missing = raw.filter((q) => q.selfContained === undefined);
+  if (dropped.length > 0) {
+    console.warn(`[generate-questions] DROPPED ${dropped.length} question(s) marked selfContained:false:`);
+    dropped.forEach((q, i) => console.warn(`  [${i + 1}] "${q.question}"`));
+  }
+  if (missing.length > 0) {
+    console.warn(`[generate-questions] ${missing.length} question(s) missing selfContained field (kept, but investigate):`);
+    missing.forEach((q, i) => console.warn(`  [${i + 1}] "${q.question}"`));
+  }
+
+  const questions = raw
+    .filter((q) => q.selfContained !== false) // drop any GPT flagged as not self-contained
+    .map(sanitizeQuestion);
+
+  console.log(`[generate-questions] title="${obj.title}" raw=${raw.length} kept=${questions.length} dropped=${dropped.length} missingField=${missing.length}`);
+
   const result: Record<string, unknown> = {
     valid: true,
     title: serverSanitize(String(obj.title ?? '')),
@@ -507,6 +585,202 @@ function sanitizeResponse(obj: Record<string, unknown>): Record<string, unknown>
     result.passage = serverSanitize(obj.passage.trim());
   }
   return result;
+}
+
+// ── Independent self-containedness validator ─────────────────────────────────
+// Uses gpt-4o-mini as a separate reviewer with no knowledge of the original
+// generation. Returns a boolean per question — true = passes, false = drop.
+// Fails open: if the validation call itself errors, all questions are kept.
+// ── Number-line auto-enrichment ───────────────────────────────────────────────
+// GPT frequently omits the `mode` field or uses place-mode for count/read questions.
+// This function fixes what it can deterministically and DROPS the rest.
+// It runs BEFORE Pass-2 so the validator sees the correct nlMode.
+
+function parseFractionOrDecimal(s: string): number {
+  const m = String(s ?? '').trim().match(/^(\d+)\/(\d+)$/);
+  if (m) return parseInt(m[1], 10) / parseInt(m[2], 10);
+  return parseFloat(String(s ?? ''));
+}
+
+function shuffleInPlace(arr: string[]): string[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function enrichNumberLineQuestions(
+  questions: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+
+  for (const q of questions) {
+    if (q.type !== 'number_line') { out.push(q); continue; }
+
+    const text = String(q.question ?? '').toLowerCase();
+    const geo  = (q.geometry ?? {}) as Record<string, number>;
+    const mode = String(q.mode ?? 'place');
+
+    // ── 1. Count-mode detection & auto-enrichment ─────────────────────────────
+    const isCountPattern = /how many (equal )?parts|how many sections|divided into.*parts/.test(text);
+
+    if (isCountPattern && (!q.mode || mode === 'place')) {
+      const min      = typeof geo.min  === 'number' ? geo.min  : 0;
+      const max      = typeof geo.max  === 'number' ? geo.max  : 1;
+      const rawStep  = typeof geo.step === 'number' && geo.step > 0 ? geo.step : 0.25;
+      const numSteps = Math.min(Math.round((max - min) / rawStep), 20);
+
+      if (numSteps > 0) {
+        const correct    = numSteps;
+        const pool = [correct - 2, correct - 1, correct + 1, correct + 2].filter((n) => n > 0 && n !== correct);
+        const distractors = pool.slice(0, 3);
+        while (distractors.length < 3) distractors.push(correct + distractors.length + 3);
+        const opts = shuffleInPlace([String(correct), ...distractors.slice(0, 3).map(String)]);
+        const correctIndex = opts.indexOf(String(correct));
+        // Normalize question text — remove worksheet-specific language for Pass-2
+        const cleanQ = 'The number line below is divided into equal parts. How many equal parts does it have?';
+        console.info(`[generate-questions] Auto-enriched count mode: "${q.question}" → ${correct} parts`);
+        out.push({ ...q, question: cleanQ, mode: 'count', options: opts, correctIndex, correctAnswer: String(correct), selfContained: true });
+        continue;
+      }
+      // If we couldn't compute numSteps, drop — can't render sensibly
+      console.warn(`[generate-questions] Dropping count-pattern NL (bad geometry): "${q.question}"`);
+      continue;
+    }
+
+    // ── 2. Read-mode detection & auto-enrichment ──────────────────────────────
+    // These patterns mean the student must identify an already-placed point.
+    const isReadPattern = /what fraction|name of the point|name.*point|what.*point.*represent|frog represent|dot represent|point.*shown|value.*marked|marked.*value/.test(text);
+
+    if (isReadPattern && (!q.mode || mode === 'place')) {
+      // We MUST have options to render read mode — drop if absent
+      if (!Array.isArray(q.options) || q.options.length === 0) {
+        console.warn(`[generate-questions] Dropping read-pattern NL (no options — unrenderable as place): "${q.question}"`);
+        continue;
+      }
+
+      // Resolve the target position from correctAnswer or the correct option
+      let target = typeof geo.target === 'number' ? geo.target : NaN;
+      if (isNaN(target)) target = parseFractionOrDecimal(String(q.correctAnswer ?? ''));
+      if (isNaN(target) && typeof q.correctIndex === 'number') {
+        target = parseFractionOrDecimal((q.options as string[])[q.correctIndex as number] ?? '');
+      }
+
+      if (!isNaN(target)) {
+        // Normalize question text — strip worksheet-specific nouns (frog, purple dot, etc.)
+        // Replace with neutral "a point is marked" phrasing so Pass-2 never sees "the frog"
+        const cleanQ = 'A point is marked on the number line below. What fraction does it represent?';
+        const updatedGeo = { ...geo, target };
+        console.info(`[generate-questions] Auto-enriched read mode: "${q.question}" → target=${target}`);
+        out.push({ ...q, question: cleanQ, mode: 'read', geometry: updatedGeo, selfContained: true });
+        continue;
+      }
+
+      // Has options but no parseable target — drop (can't place the dot)
+      console.warn(`[generate-questions] Dropping read-pattern NL (no parseable target): "${q.question}"`);
+      continue;
+    }
+
+    // ── 3. Explicit read mode without options → drop ──────────────────────────
+    if (mode === 'read' && !Array.isArray(q.options)) {
+      console.warn(`[generate-questions] Dropping read-mode NL (no options): "${q.question}"`);
+      continue;
+    }
+
+    // ── 4. GPT already set mode:"count" — validate geometry matches answer ────
+    // If step draws 5 sections but correctAnswer says 4, fix the step so the
+    // drawn number line is consistent with what the student needs to select.
+    if (mode === 'count') {
+      const min       = typeof geo.min  === 'number' ? geo.min  : 0;
+      const max       = typeof geo.max  === 'number' ? geo.max  : 1;
+      const rawStep   = typeof geo.step === 'number' && geo.step > 0 ? geo.step : 0.25;
+      const numSteps  = Math.min(Math.round((max - min) / rawStep), 20);
+      const claimed   = parseInt(String(q.correctAnswer ?? '0'), 10);
+
+      if (!isNaN(claimed) && claimed > 0 && numSteps !== claimed) {
+        const fixedStep = (max - min) / claimed;
+        console.info(`[generate-questions] Fixed count-mode geometry step: ${rawStep} → ${fixedStep} (numSteps ${numSteps} → ${claimed})`);
+        out.push({ ...q, geometry: { ...geo, step: fixedStep } });
+        continue;
+      }
+    }
+
+    out.push(q);
+  }
+
+  return out;
+}
+
+async function validateSelfContained(
+  questions: Array<Record<string, unknown>>,
+  openaiKey: string,
+): Promise<boolean[]> {
+  if (questions.length === 0) return [];
+
+  const items = questions.map((q, i) => ({
+    i,
+    q: String(q.question ?? ''),
+    hasContext:  !!q.context,
+    hasGeometry: !!q.geometry,
+    // "read" mode = app draws a pre-placed dot (self-contained); "place" mode = student drags, no dot shown
+    nlMode: String(q.mode ?? (q.type === 'number_line' ? 'place' : '')),
+  }));
+
+  const validationPrompt = `You are a strict quality-control checker for children's educational quiz questions.
+
+For each question, answer ONE thing: can a child answer it correctly using ONLY what the app shows
+them — with NO access to any worksheet, image, diagram, or external material?
+
+RULE 0 — UNCONDITIONAL OVERRIDE (check this first before anything else):
+If nlMode="count" → ALWAYS return ok:true. No further checks needed.
+If nlMode="read"  → ALWAYS return ok:true. No further checks needed.
+The server has already verified geometry, options, and target for these modes.
+
+RULE 1 — place mode (nlMode="place" or nlMode="" ):
+  ✅ PASS: question explicitly names a target value — "Place a point at 3/4", "Mark 14", "Where does 0.5 go?"
+  ❌ FAIL: question asks the student to read/identify/count an existing marker or parts
+
+RULE 2 — other geometry (rulers, angles, protractors):
+  hasGeometry=true means the app draws the tool. ✅ PASS.
+
+RULE 3 — no geometry, text-only questions:
+  ✅ PASS: answerable from text alone with no external materials
+  ❌ FAIL: references an unseen visual ("this diagram", "the chart", "shown above")
+  ❌ FAIL: ordinal worksheet reference ("the third number line", "the second row")
+
+Return ONLY a JSON array — one object per input, same order:
+[{"i":0,"ok":true},{"i":1,"ok":false},...]`;
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 300,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: validationPrompt },
+          { role: 'user',   content: JSON.stringify(items) },
+        ],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`validation HTTP ${res.status}`);
+
+    const json    = await res.json();
+    const text    = json.choices?.[0]?.message?.content ?? '';
+    const match   = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('no JSON array in validation response');
+
+    const results = JSON.parse(match[0]) as Array<{ i: number; ok: boolean }>;
+    const okMap   = new Map(results.map((r) => [r.i, r.ok !== false]));
+    return questions.map((_, idx) => okMap.get(idx) ?? true); // default allow if missing
+  } catch (err) {
+    console.warn('[generate-questions] Validation pass failed, allowing all through:', (err as Error).message);
+    return questions.map(() => true);
+  }
 }
 
 const MAX_SCANS_PER_DAY = 20;
@@ -742,7 +1016,104 @@ serve(async (req) => {
       throw new Error('AI did not return valid JSON. Please try again.');
     }
     const parsed = JSON.parse(jsonMatch[0]);
-    const safe   = sanitizeResponse(parsed);
+
+    // ── Pass 1 logging: what did GPT declare about each question? ────────────
+    if (Array.isArray(parsed.questions)) {
+      console.log(`[generate-questions] GPT returned ${parsed.questions.length} question(s) for "${parsed.title}":`);
+      (parsed.questions as Array<Record<string, unknown>>).forEach((q, i) => {
+        const sc   = q.selfContained;
+        const flag = sc === false ? '❌ NOT self-contained' : sc === true ? '✅' : '⚠️  missing selfContained';
+        console.log(`  [${i + 1}] ${flag} | type=${q.type ?? 'mc'} | "${q.question}"`);
+      });
+    }
+
+    // ── Auto-enrich number_line questions before Pass-2 ──────────────────────
+    // Converts count-pattern questions to mode:"count" with auto-generated MC options.
+    // Drops read-mode questions that are missing options (unrenderable).
+    if (Array.isArray(parsed.questions)) {
+      parsed.questions = enrichNumberLineQuestions(parsed.questions as Array<Record<string, unknown>>);
+    }
+
+    // ── Pass 2: independent validation via gpt-4o-mini ───────────────────────
+    // GPT-4o sometimes marks externally-dependent questions as selfContained:true.
+    // A second, stateless model reviews just the question texts with no prior context.
+    if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      const qs      = parsed.questions as Array<Record<string, unknown>>;
+      const allowed = await validateSelfContained(qs, openaiKey);
+      const before  = qs.length;
+      parsed.questions = qs.filter((_, i) => allowed[i]);
+      const dropped2 = qs.filter((_, i) => !allowed[i]);
+      if (dropped2.length > 0) {
+        console.warn(`[generate-questions] PASS-2 dropped ${dropped2.length} question(s) GPT mislabelled as self-contained:`);
+        dropped2.forEach((q, i) => console.warn(`  [${i + 1}] "${q.question}"`));
+      }
+      console.log(`[generate-questions] Pass-2 result: ${before} → ${parsed.questions.length} questions kept`);
+
+      // If every question was dropped, return a validation failure rather than an empty lesson
+      if (parsed.questions.length === 0) {
+        console.warn('[generate-questions] All questions failed Pass-2 — worksheet is too visually dependent to digitize');
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            reason: 'Every question on this worksheet refers to a diagram or visual that the app cannot reproduce. Try a worksheet where the questions can stand on their own — for example, one with written problems, sequences, or vocabulary rather than diagrams to read.',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // ── Retry pass: fill the gap if Pass-2 dropped some questions ────────────
+      // One attempt only — no infinite loops.
+      const shortfall = questionCount - (parsed.questions as Array<Record<string, unknown>>).length;
+      if (shortfall > 0) {
+        console.log(`[generate-questions] Shortfall of ${shortfall} — attempting retry pass`);
+        try {
+          const coveredTopics = (parsed.questions as Array<Record<string, unknown>>)
+            .map((q) => String(q.question ?? '').slice(0, 80))
+            .join(' | ');
+
+          const retryContent: unknown[] = imageList.map((b64) => ({
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' },
+          }));
+          retryContent.push({
+            type: 'text',
+            text: `Generate exactly ${shortfall} MORE practice questions from this page. Every question must include a "hint" field. IMPORTANT: do NOT repeat any of these already-covered topics: ${coveredTopics}. Focus on parts of the worksheet not yet covered. Apply all the same rules as before (self-contained, correct type/mode, etc.).`,
+          });
+
+          const retryResp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              max_tokens: 4000,
+              messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user',   content: retryContent },
+              ],
+            }),
+          });
+
+          if (retryResp.ok) {
+            const retryData  = await retryResp.json();
+            const retryText  = retryData.choices?.[0]?.message?.content ?? '';
+            const retryMatch = retryText.match(/\{[\s\S]*\}/);
+            if (retryMatch) {
+              const retryParsed = JSON.parse(retryMatch[0]);
+              let retryQs = (retryParsed.questions as Array<Record<string, unknown>> ?? []);
+              retryQs = enrichNumberLineQuestions(retryQs);
+              const retryAllowed = await validateSelfContained(retryQs, openaiKey);
+              const retryKept   = retryQs.filter((_, i) => retryAllowed[i]);
+              console.log(`[generate-questions] Retry kept ${retryKept.length} / ${retryQs.length} question(s)`);
+              (parsed.questions as Array<Record<string, unknown>>).push(...retryKept.slice(0, shortfall));
+            }
+          }
+        } catch (retryErr) {
+          console.warn('[generate-questions] Retry pass failed (non-fatal):', (retryErr as Error).message);
+        }
+      }
+    }
+
+    const safe = sanitizeResponse(parsed);
 
     // Log the scan for rate limiting (fire-and-forget)
     if (userId) {

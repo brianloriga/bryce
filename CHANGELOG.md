@@ -6,6 +6,107 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Number Line Pipeline — Full Fix — 2026-04-23
+
+#### Root Cause Fixed — `aiService.js` (`src/services/aiService.js`)
+
+- **`mode` field was silently dropped** in both `generateQuestionsFromImage` and `regenerateQuestion` mappers — every `number_line` question arrived at QuizScreen without a mode, forcing `place` (drag) regardless of what the server sent
+- **`options` / `correctIndex` / `correctAnswer` were not mapped for `number_line` type** — the MC options for `read` and `count` modes were discarded before reaching the renderer
+- **`rulerSubtype` was also missing** from the mapper — added for completeness
+- Both mapper functions now correctly forward: `mode`, `rulerSubtype`, and the full `number_line` type block (`correctAnswer`, `acceptedAnswers`, `options`, `correctIndex`)
+
+#### Added — `generate-questions` Edge Function
+
+- **`enrichNumberLineQuestions` function** — runs between Pass-1 logging and Pass-2 validation; deterministically repairs GPT's common failures:
+  - **Count-mode auto-enrichment**: detects "how many equal parts" text patterns, computes `numSteps` from geometry, auto-generates shuffled MC options, normalizes question text, forces `mode:"count"` — no GPT cooperation required
+  - **Read-mode auto-enrichment**: detects "what fraction does the point represent" / "name of the point" patterns, resolves `geometry.target` from `correctAnswer` or option text via `parseFractionOrDecimal`, normalizes question text to "A point is marked on the number line below…", forces `mode:"read"`; drops question if no options are present (unrenderable)
+  - **Count-mode geometry validation** (for GPT-generated `mode:"count"` questions): if `numSteps` computed from `step` doesn't match `correctAnswer`, recalculates `step` so the drawn line is always consistent with the claimed answer
+  - **Read-mode guard**: drops explicit `mode:"read"` questions that have no `options` array
+- **Retry pass**: after Pass-2 filtering, if `kept < questionCount`, a single follow-up GPT call requests exactly the shortfall, passing already-covered topics to avoid duplicates; retry batch goes through the same enrichment + Pass-2 pipeline
+- **Pass-2 unconditional Rule 0**: `nlMode="count"` or `nlMode="read"` → always pass (server has already validated geometry/options/target); eliminates false drops caused by "this number line" language in question text
+- **`parseFractionOrDecimal` helper** — parses both `"1/4"` fraction strings and decimal strings to `number`; used by enrichment to resolve read-mode targets
+- **`shuffleInPlace` helper** — Fisher-Yates shuffle for auto-generated MC option arrays
+
+#### Fixed — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **`NumberLineRenderer` read-mode target**: was using `parseFloat(correctAnswer)` first — fails silently for fraction strings like `"1/4"` (returns `NaN`); now prefers `geo.target` (always a number set by enrichment), falling back to `parseFloat` only for legacy questions; dot was invisible before this fix
+- **Read + count modes now show only endpoint labels** (`endLabelsOnly`) — intermediate tick labels (e.g., `½`) used different notation than MC answer options (e.g., `2/4`), confusing students; removing them eliminates the mismatch
+- **Count mode section numbers**: small `1 2 3 4…` labels now appear above each gap between tick marks, making it visually clear that "equal parts" means the *spaces* not the tick marks themselves; eliminates the common student mistake of counting ticks instead of sections
+- **`min`/`max` reference error in `NumberLineRenderer`**: `read` mode dispatch block referenced `min`/`max` variables that were only in scope inside child components; fixed by deriving `gMin`/`gMax` locally from `q.geometry`
+- **`nlStyles.sectionNum`** — new style for the section-number labels
+
+### Number Line Read + Count Modes — 2026-04-23
+
+#### Added — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **`number_line` renderer refactored into three modes:**
+  - **`place`** (default): existing drag-to-target behavior — unchanged
+  - **`read`**: app draws the number line with a pre-placed colored dot; student picks the fraction/value from 4 MC options. Handles worksheet questions like "What fraction does the point represent?" and "What is the name of the point shown in purple?"
+  - **`count`**: app draws the number line with equal-part tick marks; student picks the count from 4 MC options. Handles "How many equal parts is this number line divided into?"
+- **`StaticNumberLine` component** — shared by `read` and `count` modes; draws line, ticks, labels, and an optional pre-placed dot (no drag handlers)
+- **`NLMCMode` component** — shared MC interaction layer for `read` and `count`; same color feedback logic as `CompareRulerVariant`
+- **`NLPlaceMode` component** — the existing drag behavior extracted for clarity
+- **`useNLGeo` hook** — extracts and normalizes geometry fields (`min`, `max`, `step`, `numSteps`, `ticks`, `labelEvery`) shared across all three modes; eliminates repeated parsing
+- **`NL_POINT_COLORS` map** — named color values (`green`, `blue`, `purple`, `orange`, `red`, `yellow`) for pre-placed dots
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **`number_line` prompt expanded with Modes B and C:**
+  - Mode B (`read`): transformation rule for worksheet "labeled point on a number line" questions → app draws the line + dot, student identifies the value; requires `options`, `correctIndex`, `geometry.target`, optional `geometry.pointColor`
+  - Mode C (`count`): transformation rule for "how many equal parts?" questions → app draws the line with equal parts; requires `options`, `correctIndex`; `step` determines the part count
+- **`sanitizeQuestion` updated** — passes through `mode`, `options`, `correctIndex` for `number_line` questions
+- **Pass-2 validator updated** — recognizes that `hasGeometry: true` means the app draws its own visual; questions referencing "the number line below" or "a point is marked" with geometry now correctly PASS instead of being dropped
+
+### Pass-2 Validation Hardening — 2026-04-23
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Pass-2 validation prompt tightened** — gpt-4o-mini reviewer now explicitly catches the subtle `"this [noun]"` pattern that previously slipped through:
+  - "How many equal parts are on **this** number line?" → FAIL (number line not in question text)
+  - "What is the name of **the** point?" → FAIL (which point? not described in text)
+  - Multiple-choice options explicitly noted as NOT rescuing an externally-dependent question
+- **Empty-lesson guard** — if Pass-2 drops every question (worksheet is entirely diagram-dependent), the server now returns `{ valid: false, reason: "..." }` with a friendly message instead of saving an empty lesson. The app's existing content-validation error UI handles this gracefully.
+
+---
+
+### Self-Contained Field, Number Line Renderer & Ordering Fix — 2026-04-23
+
+#### Added — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **`selfContained` required field** — every generated question must now include `"selfContained": true` or `false`. GPT must ask itself "could a child answer this without seeing the worksheet?" before writing the field. If the answer would be `false`, it must transform the question first. Writing `false` is only allowed when transformation is impossible.
+- **Server-side filter** — `sanitizeResponse` now filters out any question where `selfContained === false` before the response is returned or saved. The field is then stripped from the output so the client never sees it.
+- **Diagnostic logging** — every scan now logs to Supabase Edge Function logs:
+  - One line per GPT-generated question: `✅` (selfContained:true), `❌` (selfContained:false, will be dropped), or `⚠️` (field missing entirely)
+  - A summary line: `raw=N kept=N dropped=N missingField=N`
+  - A `DROPPED` warn log listing the question text of any filtered questions
+  - A `missingField` warn log listing questions that skipped the self-check entirely
+- **`HOW TO TRANSFORM` examples** — self-contained rule now includes positive BAD→GOOD rewrites for sequences, charts, diagrams, rulers, and images instead of relying solely on a forbidden-phrase blocklist
+- **`number_line` question type** — new type `"type": "number_line"` for "place a point at X" questions; student drags a point on a rendered number line; tolerance ±half a step; supports integers, fractions, and decimals
+  - Schema: `{ "geometry": { "min": 0, "max": 1, "step": 0.25, "target": 0.75 } }`
+  - Guardrail: max 20 tick intervals; grade-appropriate range examples in prompt
+- **`7.G.0` fallback rule** — GPT must fall back to `multiple_choice` for any question format it cannot render (clocks, coordinate grids, Venn diagrams, etc.) rather than producing broken JSON
+
+#### Added — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **`NumberLineRenderer`** — new renderer for `"type": "number_line"` questions:
+  - Draws a labeled horizontal number line (min → max with tick marks at every step)
+  - Draggable point (purple) snaps to nearest step; turns green/red on submit
+  - Live readout shows selected value while dragging; hidden until first drag
+  - Displays fractions as ¼ ½ ¾ glyphs when step ≤ 0.5, decimals with correct precision otherwise
+  - Post-answer reveal: correct position label on pass; chosen vs. correct on fail
+  - Shake animation + haptics on wrong answer
+- **`useNumberLineDrag` hook** — `PanResponder`-based drag hook following the same stale-closure-safe pattern as `useRulerDrag`; `lockedRef` blocks dragging after submission
+- **`formatNLValue(v, step)`** — formats number line values: whole numbers as integers, quarter/half fractions as ¼ ½ ¾, decimals with step-appropriate precision
+- **`NL_W / NL_PAD / NL_USABLE` constants** — layout constants for the number line component
+- **`nlStyles`** — dark-themed StyleSheet for the number line (line bar, ticks, labels, draggable point)
+- **`number_line` label** — added to `TYPE_LABELS` map as `'Number Line'`
+
+#### Fixed — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **Ordering: no way to undo a placed chip** — tapping a filled slot now removes that chip and all chips placed after it (rewinds the order to that point), allowing correction without clearing everything. A small `✕` badge appears on each filled slot to signal it is tappable.
+
+---
+
 ### Ruler Question Subtypes, Self-Contained Guardrails & Subtype Routing Fix — 2026-04-23
 
 #### Added — `QuizScreen` (`src/screens/QuizScreen.js`)

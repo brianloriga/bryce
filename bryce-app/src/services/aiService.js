@@ -52,10 +52,12 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
 
     if (q.hint)            mapped.hint            = q.hint;
     if (q.type)            mapped.type            = q.type;
+    if (q.mode)            mapped.mode            = q.mode;
     if (q.geometry)        mapped.geometry        = q.geometry;
     if (q.context)         mapped.context         = q.context;
     if (q.measurementTool) mapped.measurementTool = q.measurementTool;
     if (q.rulerMaxCm)      mapped.rulerMaxCm      = q.rulerMaxCm;
+    if (q.rulerSubtype)    mapped.rulerSubtype    = q.rulerSubtype;
 
     // multiple_choice / visual_mc
     if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
@@ -69,6 +71,17 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
     if (q.type === 'fill_in') {
       mapped.correctAnswer   = String(q.correctAnswer ?? '');
       if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+    }
+
+    // number_line — correctAnswer + mode-specific options
+    if (q.type === 'number_line') {
+      mapped.correctAnswer = String(q.correctAnswer ?? '');
+      if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+      // read + count modes need MC options (auto-enriched server-side)
+      if (Array.isArray(q.options) && q.options.length >= 2) {
+        mapped.options      = q.options;
+        mapped.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+      }
     }
 
     // ordering
@@ -173,10 +186,12 @@ export async function regenerateQuestion(base64Images, existingQuestion, isVisua
   const mapped = { question: q.question ?? existingQuestion };
   if (q.hint)            mapped.hint            = q.hint;
   if (q.type)            mapped.type            = q.type;
+  if (q.mode)            mapped.mode            = q.mode;
   if (q.geometry)        mapped.geometry        = q.geometry;
   if (q.context)         mapped.context         = q.context;
   if (q.measurementTool) mapped.measurementTool = q.measurementTool;
   if (q.rulerMaxCm)      mapped.rulerMaxCm      = q.rulerMaxCm;
+  if (q.rulerSubtype)    mapped.rulerSubtype    = q.rulerSubtype;
 
   if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
     mapped.options      = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A','Option B','Option C','Option D'];
@@ -185,6 +200,14 @@ export async function regenerateQuestion(base64Images, existingQuestion, isVisua
   if (q.type === 'fill_in') {
     mapped.correctAnswer = String(q.correctAnswer ?? '');
     if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+  }
+  if (q.type === 'number_line') {
+    mapped.correctAnswer = String(q.correctAnswer ?? '');
+    if (Array.isArray(q.acceptedAnswers)) mapped.acceptedAnswers = q.acceptedAnswers;
+    if (Array.isArray(q.options) && q.options.length >= 2) {
+      mapped.options      = q.options;
+      mapped.correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+    }
   }
   if (q.type === 'ordering') {
     mapped.items        = Array.isArray(q.items)        ? q.items        : [];

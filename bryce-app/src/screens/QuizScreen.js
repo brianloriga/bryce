@@ -75,11 +75,12 @@ function isFuzzyMatch(typed, correct) {
 }
 
 const TYPE_LABELS = {
-  fill_in:    'Fill in the blank',
-  ordering:   'Put in order',
-  true_false: 'True or False',
-  word_bank:  'Word Bank',
-  visual_mc:  'Visual Question',
+  fill_in:     'Fill in the blank',
+  ordering:    'Put in order',
+  true_false:  'True or False',
+  word_bank:   'Word Bank',
+  visual_mc:   'Visual Question',
+  number_line: 'Number Line',
 };
 
 function getStars(correct, total) {
@@ -581,6 +582,29 @@ function formatMeasurement(val, unit) {
   return val.toFixed(1);
 }
 
+// Formats a number line value for display: whole numbers as integers, quarter/half
+// fractions as glyphs, decimals with the appropriate precision.
+function formatNLValue(v, step) {
+  const rounded = Math.round(v * 100000) / 100000;
+  // Whole number
+  if (Math.abs(rounded - Math.round(rounded)) < 0.001) return String(Math.round(rounded));
+  const whole = Math.floor(rounded);
+  const frac  = Math.round((rounded - whole) * 100000) / 100000;
+  // Quarter / half fractions
+  if (step <= 0.5 && step > 0) {
+    const f4 = Math.round(frac * 4) / 4;
+    const FL = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+    if (Math.abs(frac - f4) < 0.001 && FL[f4]) {
+      return whole === 0 ? FL[f4] : `${whole} ${FL[f4]}`;
+    }
+  }
+  // Decimal: use same number of decimal places as step
+  const places = step < 1 && step.toString().includes('.')
+    ? step.toString().split('.')[1].length
+    : 1;
+  return rounded.toFixed(places);
+}
+
 const stimStyles = StyleSheet.create({
   angleCanvas: {
     width: 280, height: 160, alignSelf: 'center',
@@ -1005,6 +1029,9 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
 // ── Shared ruler drag hook ─────────────────────────────────────
 // Extracted so all ruler variants can reuse the same pan+snap logic.
 const RULER_DISPLAY_W = 280;
+const NL_W     = 280;  // number line total width
+const NL_PAD   = 20;   // padding on each side so the point can reach min/max
+const NL_USABLE = NL_W - NL_PAD * 2;
 
 function useRulerDrag({ maxVal, snapStep, setScrollEnabled }) {
   const unitPx    = RULER_DISPLAY_W / maxVal;
@@ -1038,6 +1065,48 @@ function useRulerDrag({ maxVal, snapStep, setScrollEnabled }) {
   })).current;
 
   return { value, hasDragged, panResponder, unitPx };
+}
+
+// ── useNumberLineDrag — drag hook for the NumberLineRenderer ──
+function useNumberLineDrag({ min, max, step, setScrollEnabled }) {
+  const range  = max - min;
+  function snapNL(raw) {
+    const snapped = Math.round((raw - min) / step) * step + min;
+    const clamped = Math.max(min, Math.min(max, snapped));
+    return Math.round(clamped * 100000) / 100000;
+  }
+  const midVal = snapNL(min + range / 2);
+  const midX   = NL_PAD + ((midVal - min) / range) * NL_USABLE;
+
+  const [value,      setValue]      = useState(midVal);
+  const [hasDragged, setHasDragged] = useState(false);
+  const startXRef = useRef(midX);
+  const lockedRef = useRef(false); // set by renderer after submission to block further drags
+
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponderCapture: () => !lockedRef.current,
+    onMoveShouldSetPanResponderCapture:  () => !lockedRef.current,
+    onStartShouldSetPanResponder:        () => !lockedRef.current,
+    onMoveShouldSetPanResponder:         () => !lockedRef.current,
+    onPanResponderTerminationRequest:    () => false,
+    onPanResponderGrant: (e) => {
+      if (lockedRef.current) return;
+      setScrollEnabled?.(false);
+      setHasDragged(true);
+      const x = Math.max(NL_PAD, Math.min(NL_W - NL_PAD, e.nativeEvent.locationX));
+      startXRef.current = x;
+      setValue(snapNL(min + ((x - NL_PAD) / NL_USABLE) * range));
+    },
+    onPanResponderMove: (_, gs) => {
+      if (lockedRef.current) return;
+      const nx = Math.max(NL_PAD, Math.min(NL_W - NL_PAD, startXRef.current + gs.dx));
+      setValue(snapNL(min + ((nx - NL_PAD) / NL_USABLE) * range));
+    },
+    onPanResponderRelease:   () => setScrollEnabled?.(true),
+    onPanResponderTerminate: () => setScrollEnabled?.(true),
+  })).current;
+
+  return { value, hasDragged, panResponder, lockedRef };
 }
 
 // ── InteractiveRuler — the draggable answer ruler used by all variants ──
@@ -1613,6 +1682,284 @@ const measStyles = StyleSheet.create({
   },
 });
 
+// ── Number Line shared helpers ────────────────────────────────
+const NL_POINT_COLORS = {
+  green: '#4ade80', blue: '#60a5fa', purple: '#a78bfa',
+  orange: '#fb923c', red: '#f87171', yellow: '#fbbf24',
+};
+
+// Parses common geometry fields shared by all three modes
+function useNLGeo(q) {
+  const geo      = q.geometry ?? {};
+  const min      = typeof geo.min  === 'number' ? geo.min  : 0;
+  const max      = typeof geo.max  === 'number' ? geo.max  : 10;
+  const rawStep  = typeof geo.step === 'number' && geo.step > 0 ? geo.step : 1;
+  const numSteps = Math.min(Math.round((max - min) / rawStep), 20);
+  const step     = numSteps > 0 ? (max - min) / numSteps : 1;
+  const range    = max - min;
+  const ticks    = [];
+  for (let i = 0; i <= numSteps; i++) {
+    const v = Math.round((min + i * step) * 100000) / 100000;
+    const x = NL_PAD + (i / numSteps) * NL_USABLE;
+    ticks.push({ v, x, i });
+  }
+  const labelEvery = numSteps > 16 ? 4 : numSteps > 12 ? 2 : 1;
+  return { geo, min, max, step, numSteps, range, ticks, labelEvery };
+}
+
+// Static number line — no drag, optional pre-placed dot
+function StaticNumberLine({ min, range, step, ticks, labelEvery, dotValue, dotColor, endLabelsOnly, showSectionNums }) {
+  const dotX = dotValue !== undefined
+    ? NL_PAD + ((dotValue - min) / range) * NL_USABLE
+    : null;
+  return (
+    <View style={nlStyles.container}>
+      <View style={nlStyles.line} />
+      {ticks.map((t) => (
+        <View key={t.i} style={[nlStyles.tick, { left: t.x - 0.75 }]} />
+      ))}
+      {ticks.map((t) => {
+        const isEndpoint = t.i === 0 || t.i === ticks.length - 1;
+        const showLabel  = endLabelsOnly ? isEndpoint : t.i % labelEvery === 0;
+        return showLabel ? (
+          <Text key={`l${t.i}`} style={[nlStyles.tickLabel, { left: t.x - 16 }]}>
+            {formatNLValue(t.v, step)}
+          </Text>
+        ) : null;
+      })}
+      {/* Section numbers: label each gap between ticks for count mode */}
+      {showSectionNums && ticks.length > 1 && ticks.slice(0, -1).map((t, idx) => {
+        const nextT = ticks[idx + 1];
+        const midX  = (t.x + nextT.x) / 2;
+        return (
+          <Text key={`sn${idx}`} style={[nlStyles.sectionNum, { left: midX - 8 }]}>
+            {idx + 1}
+          </Text>
+        );
+      })}
+      {dotX !== null && (
+        <View
+          style={[nlStyles.point, {
+            left: dotX - 12,
+            backgroundColor: dotColor ?? '#7c3aed',
+            borderColor: '#a78bfa',
+          }]}
+          pointerEvents="none"
+        />
+      )}
+    </View>
+  );
+}
+
+// Shared MC interaction used by read + count modes
+function NLMCMode({ q, onResolve, styles, dotValue, sectionLabel, endLabelsOnly, showSectionNums }) {
+  const { geo, min, range, step, ticks, labelEvery } = useNLGeo(q);
+  const [selected, setSelected] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+
+  const options      = Array.isArray(q.options) ? q.options : [];
+  const correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+  const dotColor     = NL_POINT_COLORS[geo.pointColor] ?? '#7c3aed';
+
+  function handlePick(idx) {
+    if (feedback) return;
+    setSelected(idx);
+    const ok = idx === correctIndex;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    setTimeout(() => onResolve(ok), 1600);
+  }
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      {sectionLabel && (
+        <Text style={measStyles.rulerSectionLabel}>{sectionLabel}</Text>
+      )}
+      <StaticNumberLine
+        min={min} range={range} step={step}
+        ticks={ticks} labelEvery={labelEvery}
+        dotValue={dotValue} dotColor={dotColor}
+        endLabelsOnly={endLabelsOnly}
+        showSectionNums={showSectionNums}
+      />
+      <View style={{ width: NL_W, gap: 10, marginTop: 8 }}>
+        {options.map((opt, idx) => {
+          const isSelected = selected === idx;
+          const isCorrect  = feedback && idx === correctIndex;
+          const isWrong    = feedback && isSelected && idx !== correctIndex;
+          return (
+            <TouchableOpacity
+              key={idx}
+              style={[styles.fillInSubmit, { marginTop: 0,
+                backgroundColor: isCorrect ? '#166534' : isWrong ? '#7f1d1d' : isSelected ? '#1d4ed8' : '#1e3a5f',
+                borderWidth: 1, borderColor: isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#334155',
+              }]}
+              onPress={() => handlePick(idx)}
+              disabled={!!feedback}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.fillInSubmitText}>{opt}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {feedback && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center', marginTop: 10 }]}>
+          {feedback === 'correct'
+            ? <Text style={styles.fillInCorrectMsg}>Correct! 🎯</Text>
+            : <Text style={styles.fillInRevealLabel}>
+                Not quite — the answer is {options[correctIndex]}.
+              </Text>
+          }
+        </View>
+      )}
+    </View>
+  );
+}
+
+// Place mode — the existing drag-to-target behavior (extracted for clarity)
+function NLPlaceMode({ q, onResolve, styles, setScrollEnabled }) {
+  const { geo, min, max, step, numSteps, range, ticks, labelEvery } = useNLGeo(q);
+
+  const rawTarget = typeof geo.target === 'number'
+    ? geo.target
+    : parseFloat(String(q.correctAnswer ?? (min + range / 2)));
+  const target = isNaN(rawTarget) ? (min + max) / 2 : Math.max(min, Math.min(max, rawTarget));
+
+  const [feedback, setFeedback] = useState(null);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const { value, hasDragged, panResponder, lockedRef } = useNumberLineDrag({ min, max, step, setScrollEnabled });
+  lockedRef.current = !!feedback;
+
+  function shake() {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  }
+
+  function handleSubmit() {
+    if (feedback) return;
+    const ok = Math.abs(value - target) <= step / 2 + 0.0001;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else  { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(ok), 2000);
+  }
+
+  const isCorrect  = feedback === 'correct';
+  const isWrong    = feedback === 'wrong';
+  const pointX     = NL_PAD + ((value - min) / range) * NL_USABLE;
+  const pointColor = isCorrect ? '#4ade80' : isWrong ? '#f87171' : hasDragged ? '#a78bfa' : '#7c3aed';
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }], alignItems: 'center' }}>
+      <View style={nlStyles.container}>
+        <View style={nlStyles.line} />
+        {ticks.map((t) => (
+          <View key={t.i} style={[nlStyles.tick, { left: t.x - 0.75 }]} />
+        ))}
+        {ticks.map((t) =>
+          t.i % labelEvery === 0 ? (
+            <Text key={`l${t.i}`} style={[nlStyles.tickLabel, { left: t.x - 16 }]}>
+              {formatNLValue(t.v, step)}
+            </Text>
+          ) : null
+        )}
+        <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} {...panResponder.panHandlers} />
+        <View style={[nlStyles.point, { left: pointX - 12, backgroundColor: pointColor }]} pointerEvents="none" />
+      </View>
+      {!hasDragged && !feedback && (
+        <Text style={[measStyles.sliderHint, { width: NL_W }]}>Drag the point to the correct position</Text>
+      )}
+      {hasDragged && !feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: NL_W }]}>Selected: {formatNLValue(value, step)}</Text>
+      )}
+      {feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: NL_W },
+          isCorrect ? { color: '#4ade80' } : { color: '#f87171' }]}>
+          {formatNLValue(value, step)}
+        </Text>
+      )}
+      {isCorrect && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInCorrectMsg, { marginBottom: 4 }]}>Correct! 🎯</Text>
+          <Text style={measStyles.rulerExplanation}>{formatNLValue(target, step)} is in the right spot on the number line.</Text>
+        </View>
+      )}
+      {isWrong && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInRevealLabel, { marginBottom: 4 }]}>Not quite — you placed at {formatNLValue(value, step)}.</Text>
+          <Text style={[styles.fillInRevealAnswer, { marginTop: 4 }]}>Answer: {formatNLValue(target, step)}</Text>
+        </View>
+      )}
+      {!feedback && (
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 16, width: NL_W }]} onPress={handleSubmit} activeOpacity={0.8}>
+          <Text style={styles.fillInSubmitText}>Check Answer</Text>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+// ── NumberLineRenderer ────────────────────────────────────────
+// Dispatches to the correct mode sub-component.
+function NumberLineRenderer({ q, onResolve, styles, setScrollEnabled }) {
+  const mode = q.mode ?? q.geometry?.mode ?? 'place';
+  if (mode === 'read') {
+    const geo = q.geometry ?? {};
+    const gMin = typeof geo.min === 'number' ? geo.min : 0;
+    const gMax = typeof geo.max === 'number' ? geo.max : 1;
+    // Prefer geo.target (always a number, set by server enrichment).
+    // Fall back to correctAnswer only if geo.target is absent (e.g. legacy questions).
+    const rawTarget = typeof geo.target === 'number'
+      ? geo.target
+      : parseFloat(String(q.correctAnswer ?? 0));
+    const target = isNaN(rawTarget) ? (gMin + gMax) / 2 : Math.max(gMin, Math.min(gMax, rawTarget));
+    return <NLMCMode q={q} onResolve={onResolve} styles={styles} dotValue={target} sectionLabel="Read the number line" endLabelsOnly />;
+  }
+  if (mode === 'count') {
+    return <NLMCMode q={q} onResolve={onResolve} styles={styles} dotValue={undefined} sectionLabel="Count the equal parts" endLabelsOnly showSectionNums />;
+  }
+  return <NLPlaceMode q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+}
+
+const nlStyles = StyleSheet.create({
+  container: {
+    width: NL_W, height: 80,
+    alignSelf: 'center', marginBottom: 4, position: 'relative',
+  },
+  line: {
+    position: 'absolute', top: 28, left: NL_PAD, right: NL_PAD,
+    height: 2, backgroundColor: '#475569', borderRadius: 1,
+  },
+  tick: {
+    position: 'absolute', top: 28,
+    width: 1.5, height: 14, backgroundColor: '#64748b',
+  },
+  tickLabel: {
+    position: 'absolute', top: 44,
+    width: 32, textAlign: 'center',
+    fontSize: 10, color: '#94a3b8', fontWeight: '700',
+  },
+  point: {
+    position: 'absolute', top: 16,
+    width: 24, height: 24, borderRadius: 12,
+    borderWidth: 2.5, borderColor: '#a78bfa',
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5, shadowRadius: 4, elevation: 4,
+  },
+  sectionNum: {
+    position: 'absolute', top: 10,
+    width: 16, textAlign: 'center',
+    fontSize: 9, color: '#94a3b8', fontWeight: '700',
+  },
+});
+
+
 // ── FillInRenderer ────────────────────────────────────────────
 function FillInRenderer({ q, onResolve, styles }) {
   const [value, setValue]       = useState('');
@@ -1705,7 +2052,6 @@ function OrderingRenderer({ q, onResolve, styles }) {
     const next = [...placed, itemIdx];
     setPlaced(next);
     if (next.length === items.length) {
-      // Auto-check
       const correct = next.every((v, i) => v === q.correctOrder[i]);
       setFeedback(correct ? 'correct' : 'wrong');
       if (correct) {
@@ -1715,6 +2061,12 @@ function OrderingRenderer({ q, onResolve, styles }) {
       }
       setTimeout(() => onResolve(correct), 1800);
     }
+  }
+
+  // Tap a filled slot to remove it and everything placed after it
+  function removeFromSlot(slotIdx) {
+    if (feedback) return;
+    setPlaced(placed.slice(0, slotIdx));
   }
 
   function clear() {
@@ -1734,20 +2086,28 @@ function OrderingRenderer({ q, onResolve, styles }) {
           const filled  = placedItemIdx !== undefined;
           const correct = feedback && q.correctOrder[slotIdx] === placedItemIdx;
           const wrong   = feedback && !correct && filled;
+          const SlotEl  = filled && !feedback ? TouchableOpacity : View;
           return (
-            <View key={slotIdx} style={[
-              styles.orderingSlot,
-              filled && { backgroundColor: chipColors[placedItemIdx % chipColors.length] + '33', borderColor: chipColors[placedItemIdx % chipColors.length] },
-              correct && styles.orderingSlotCorrect,
-              wrong   && styles.orderingSlotWrong,
-            ]}>
+            <SlotEl key={slotIdx}
+              style={[
+                styles.orderingSlot,
+                filled && { backgroundColor: chipColors[placedItemIdx % chipColors.length] + '33', borderColor: chipColors[placedItemIdx % chipColors.length] },
+                correct && styles.orderingSlotCorrect,
+                wrong   && styles.orderingSlotWrong,
+              ]}
+              onPress={filled && !feedback ? () => removeFromSlot(slotIdx) : undefined}
+              activeOpacity={0.65}
+            >
               <Text style={styles.orderingSlotNum}>{slotIdx + 1}</Text>
               {filled && (
                 <Text style={[styles.orderingSlotText, correct && { color: '#4ade80' }, wrong && { color: '#f87171' }]}>
                   {items[placedItemIdx]}
                 </Text>
               )}
-            </View>
+              {filled && !feedback && (
+                <Text style={{ position: 'absolute', top: 3, right: 5, fontSize: 9, color: '#475569', fontWeight: '700' }}>✕</Text>
+              )}
+            </SlotEl>
           );
         })}
       </View>
@@ -2283,6 +2643,8 @@ export default function QuizScreen() {
             <RulerRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
+          ) : qType === 'number_line' ? (
+            <NumberLineRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'ordering' ? (
             <OrderingRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'true_false' ? (
