@@ -415,13 +415,21 @@ function AngleStimulus({ geometry }) {
   );
 }
 
-// ── SegmentStimulus — draws a ruler with a colored bar ────────
-function SegmentStimulus({ geometry }) {
-  const { length = 1, unit = 'inch', color = 'red', rulerMax = Math.ceil(length) + 1 } = geometry;
-  const W        = 280;
+// ── SegmentStimulus — draws a ruler with a colored bar ─────────
+// Supports an optional `start` offset so the bar can begin at a
+// non-zero position (used by the "offset" ruler subtype).
+function SegmentStimulus({ geometry, compact = false }) {
+  const {
+    length = 1, start = 0, unit = 'inch', color = 'red',
+    rulerMax: rawMax = Math.max(Math.ceil(length + start) + 1, 4),
+  } = geometry;
+  // Ensure the ruler is always wide enough to show the full bar
+  const rulerMax  = Math.max(rawMax, Math.ceil(start + length) + 1, 4);
+  const W         = 280;
   const pxPerUnit = W / rulerMax;
+  const barLeft   = Math.round(start * pxPerUnit);
   const barWidth  = Math.round(length * pxPerUnit);
-  const unitLabel = unit === 'inch' ? 'in' : unit;
+  const isInch    = unit === 'inch';
 
   const COLOR_MAP = {
     red: '#ef4444', blue: '#3b82f6', green: '#22c55e',
@@ -429,56 +437,148 @@ function SegmentStimulus({ geometry }) {
   };
   const barColor = COLOR_MAP[color] ?? color;
 
-  // Ticks: whole units + halves
+  const subdivisions = isInch ? 4 : 2;
+  const labelEvery   = rulerMax > 20 ? 5 : rulerMax > 10 ? 2 : 1;
   const ticks = [];
-  for (let i = 0; i <= rulerMax * 2; i++) {
-    const isWhole = i % 2 === 0;
-    const x = Math.round((i / 2) * pxPerUnit);
-    ticks.push({ x, isWhole, label: isWhole ? String(i / 2) : null });
+  for (let i = 0; i <= rulerMax * subdivisions; i++) {
+    const isWhole  = i % subdivisions === 0;
+    const isHalf   = !isWhole && i % (subdivisions / 2) === 0;
+    const unitVal  = i / subdivisions;
+    const x        = Math.round(unitVal * pxPerUnit);
+    const h        = isWhole ? 18 : isHalf ? 13 : 8;
+    const showLbl  = isWhole && unitVal % labelEvery === 0;
+    ticks.push({ x, isWhole, isHalf, h, label: showLbl ? String(unitVal) : null });
   }
 
-  // Layout (all positions relative to the outer canvas):
-  //   0–22  : colored bar
-  //   26–52 : ruler body (tick marks, no overflow needed)
-  //   54–70 : number labels (below ruler, outside ruler body)
-  //   72–82 : unit label
+  const canvasH = compact ? 74 : 90;
+  const barTop  = compact ? 3 : 5;
+  const barH    = compact ? 10 : 14;
+  const rulerTop = compact ? 20 : 28;
+
   return (
-    <View style={[stimStyles.segCanvas, { height: 88 }]}>
+    <View style={[stimStyles.segCanvas, { height: canvasH }]}>
+      {/* ── Dim guide line from 0 to start (shows where measurement begins) ── */}
+      {start > 0 && (
+        <View style={{ position: 'absolute', left: 0, top: barTop + barH / 2, height: 2,
+          width: barLeft, backgroundColor: '#334155', borderRadius: 1 }} />
+      )}
 
       {/* ── Colored bar with end caps ── */}
-      <View style={{ position: 'absolute', left: 0, top: 4, height: 16, width: barWidth, backgroundColor: barColor, borderRadius: 3 }} />
-      {/* left cap */}
-      <View style={{ position: 'absolute', left: 0,           top: 0, width: 2, height: 24, backgroundColor: barColor }} />
-      {/* right cap */}
-      <View style={{ position: 'absolute', left: barWidth - 2, top: 0, width: 2, height: 24, backgroundColor: barColor }} />
+      <View style={{ position: 'absolute', left: barLeft, top: barTop,
+        height: barH, width: barWidth, backgroundColor: barColor, borderRadius: 3 }} />
+      <View style={{ position: 'absolute', left: barLeft,              top: barTop - 4, width: 2, height: barH + 8, backgroundColor: barColor }} />
+      <View style={{ position: 'absolute', left: barLeft + barWidth - 2, top: barTop - 4, width: 2, height: barH + 8, backgroundColor: barColor }} />
 
-      {/* ── Ruler body (tick marks only, no text inside) ── */}
-      <View style={{ position: 'absolute', left: 0, top: 26, width: W, height: 28, backgroundColor: '#1e293b', borderRadius: 4, borderWidth: 1, borderColor: '#334155' }}>
+      {/* ── Ruler body ── */}
+      <View style={{ position: 'absolute', left: 0, top: rulerTop, width: W, height: 28,
+        backgroundColor: '#1e293b', borderRadius: 4, borderWidth: 1, borderColor: '#334155' }}>
+        <View style={{ position: 'absolute', left: 0, top: 0, width: 3, height: 18, backgroundColor: '#a78bfa', borderRadius: 1 }} />
         {ticks.map((t, i) => (
           <View key={i} style={{
             position: 'absolute', left: t.x - 0.75, top: 0,
-            width: 1.5, height: t.isWhole ? 18 : 10,
+            width: 1.5, height: t.h,
             backgroundColor: t.isWhole ? '#64748b' : '#475569',
           }} />
         ))}
       </View>
 
-      {/* ── Number labels — positioned in canvas, below the ruler body ── */}
+      {/* ── Number labels ── */}
       {ticks.filter(t => t.label !== null).map((t, i) => (
         <Text key={i} style={{
           position: 'absolute',
-          left: t.x - 10, top: 56,
+          left: t.x - 10, top: rulerTop + 30,
           width: 20, textAlign: 'center',
-          fontSize: 11, color: '#94a3b8', fontWeight: '700',
+          fontSize: 10, color: t.x === 0 ? '#a78bfa' : '#94a3b8', fontWeight: '700',
         }}>{t.label}</Text>
       ))}
-
-      {/* ── Unit label ── */}
-      <Text style={{ position: 'absolute', right: 2, top: 72, fontSize: 10, color: '#64748b', fontWeight: '600' }}>
-        {unitLabel}
-      </Text>
     </View>
   );
+}
+
+// ── TwoBarStimulus — two bars on the same ruler (compare / difference) ──
+function TwoBarStimulus({ geometry }) {
+  const {
+    length = 5, start = 0, unit = 'inch', color = 'red',
+    bar2 = { length: 3, color: 'blue' },
+    rulerMax: rawMax = 10,
+  } = geometry;
+  const b2len     = bar2.length ?? 3;
+  const b2color   = bar2.color  ?? 'blue';
+  const rulerMax  = Math.max(rawMax, Math.ceil(Math.max(length, b2len) + start) + 1, 4);
+  const W         = 280;
+  const pxPerUnit = W / rulerMax;
+  const isInch    = unit === 'inch';
+
+  const COLOR_MAP = {
+    red: '#ef4444', blue: '#3b82f6', green: '#22c55e',
+    orange: '#f97316', purple: '#a855f7', yellow: '#eab308',
+  };
+  const c1 = COLOR_MAP[color]   ?? color;
+  const c2 = COLOR_MAP[b2color] ?? b2color;
+
+  const subdivisions = isInch ? 4 : 2;
+  const labelEvery   = rulerMax > 20 ? 5 : rulerMax > 10 ? 2 : 1;
+  const ticks = [];
+  for (let i = 0; i <= rulerMax * subdivisions; i++) {
+    const isWhole = i % subdivisions === 0;
+    const isHalf  = !isWhole && i % (subdivisions / 2) === 0;
+    const unitVal = i / subdivisions;
+    const x       = Math.round(unitVal * pxPerUnit);
+    const h       = isWhole ? 18 : isHalf ? 13 : 8;
+    const showLbl = isWhole && unitVal % labelEvery === 0;
+    ticks.push({ x, isWhole, isHalf, h, label: showLbl ? String(unitVal) : null });
+  }
+
+  const b1w = Math.round(length * pxPerUnit);
+  const b2w = Math.round(b2len  * pxPerUnit);
+
+  // Layout: bar1 row (0-14), gap (14-20), bar2 row (20-34), ruler (38-66), labels (68+)
+  return (
+    <View style={[stimStyles.segCanvas, { height: 112 }]}>
+      {/* Bar 1 */}
+      <View style={{ position: 'absolute', left: 0, top: 2,  height: 12, width: b1w, backgroundColor: c1, borderRadius: 3 }} />
+      <View style={{ position: 'absolute', left: 0,     top: 0, width: 2, height: 16, backgroundColor: c1 }} />
+      <View style={{ position: 'absolute', left: b1w-2, top: 0, width: 2, height: 16, backgroundColor: c1 }} />
+
+      {/* Bar 2 */}
+      <View style={{ position: 'absolute', left: 0, top: 20, height: 12, width: b2w, backgroundColor: c2, borderRadius: 3 }} />
+      <View style={{ position: 'absolute', left: 0,     top: 18, width: 2, height: 16, backgroundColor: c2 }} />
+      <View style={{ position: 'absolute', left: b2w-2, top: 18, width: 2, height: 16, backgroundColor: c2 }} />
+
+      {/* Ruler body */}
+      <View style={{ position: 'absolute', left: 0, top: 38, width: W, height: 28,
+        backgroundColor: '#1e293b', borderRadius: 4, borderWidth: 1, borderColor: '#334155' }}>
+        <View style={{ position: 'absolute', left: 0, top: 0, width: 3, height: 18, backgroundColor: '#a78bfa', borderRadius: 1 }} />
+        {ticks.map((t, i) => (
+          <View key={i} style={{ position: 'absolute', left: t.x - 0.75, top: 0,
+            width: 1.5, height: t.h, backgroundColor: t.isWhole ? '#64748b' : '#475569' }} />
+        ))}
+      </View>
+
+      {/* Number labels */}
+      {ticks.filter(t => t.label !== null).map((t, i) => (
+        <Text key={i} style={{
+          position: 'absolute', left: t.x - 10, top: 68,
+          width: 20, textAlign: 'center',
+          fontSize: 10, color: t.x === 0 ? '#a78bfa' : '#94a3b8', fontWeight: '700',
+        }}>{t.label}</Text>
+      ))}
+    </View>
+  );
+}
+
+// ── formatMeasurement — renders fractions for inches ──────────
+function formatMeasurement(val, unit) {
+  if (unit === 'inch') {
+    const whole = Math.floor(val);
+    const frac  = Math.round((val - whole) * 4) / 4;
+    const FRAC_LABELS = { 0: '', 0.25: '¼', 0.5: '½', 0.75: '¾' };
+    const fracStr = FRAC_LABELS[frac] ?? '';
+    if (whole === 0 && fracStr) return fracStr;
+    if (whole === 0) return '0';
+    return fracStr ? `${whole} ${fracStr}` : `${whole}`;
+  }
+  return val.toFixed(1);
 }
 
 const stimStyles = StyleSheet.create({
@@ -872,9 +972,6 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
         <Text style={measStyles.scaleChoiceError}>{scaleError}</Text>
       )}
 
-      {!q.image_url && !q.geometry && (
-        <Text style={measStyles.worksheetHint}>📖 Reference your worksheet to see the angle</Text>
-      )}
 
       {/* ── Wrong-answer feedback ── */}
       {isWrong && (
@@ -905,24 +1002,114 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
   );
 }
 
-// ── RulerRenderer ─────────────────────────────────────────────
+// ── Shared ruler drag hook ─────────────────────────────────────
+// Extracted so all ruler variants can reuse the same pan+snap logic.
 const RULER_DISPLAY_W = 280;
 
-function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
-  // Prefer geometry.rulerMax (set by AI alongside unit), fall back to rulerMaxCm
-  const rulerUnit = q.geometry?.unit ?? 'cm';
-  const unitLabel = rulerUnit === 'inch' ? 'in' : rulerUnit;
-  const maxCm     = q.geometry?.rulerMax ?? q.rulerMaxCm ?? 10;
-  const cmPx      = RULER_DISPLAY_W / maxCm; // pixels per unit
-  const [valueCm,  setValueCm]  = useState(maxCm / 2);
-  const [feedback, setFeedback] = useState(null);
-  const valueXRef  = useRef((maxCm / 2) * cmPx);
-  const startXRef  = useRef(valueXRef.current);
-  const shakeAnim  = useRef(new Animated.Value(0)).current;
+function useRulerDrag({ maxVal, snapStep, setScrollEnabled }) {
+  const unitPx    = RULER_DISPLAY_W / maxVal;
+  const [value,      setValue]      = useState(maxVal / 2);
+  const [hasDragged, setHasDragged] = useState(false);
+  const valueXRef = useRef((maxVal / 2) * unitPx);
+  const startXRef = useRef(valueXRef.current);
 
-  // Mutable ref read at gesture time — avoids stale closure from useRef/PanResponder.create
-  const rulerFeedbackRef = useRef(null);
-  rulerFeedbackRef.current = feedback;
+  function snap(raw) { return Math.round(raw / snapStep) * snapStep; }
+
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponderCapture: () => false,
+    onMoveShouldSetPanResponderCapture:  () => true,
+    onStartShouldSetPanResponder:        () => true,
+    onMoveShouldSetPanResponder:         () => true,
+    onPanResponderTerminationRequest:    () => false,
+    onPanResponderGrant: (e) => {
+      setScrollEnabled?.(false);
+      setHasDragged(true);
+      const x = Math.max(0, Math.min(RULER_DISPLAY_W, e.nativeEvent.locationX));
+      valueXRef.current = x; startXRef.current = x;
+      setValue(snap((x / RULER_DISPLAY_W) * maxVal));
+    },
+    onPanResponderMove: (_, gs) => {
+      const nx = Math.max(0, Math.min(RULER_DISPLAY_W, startXRef.current + gs.dx));
+      valueXRef.current = nx;
+      setValue(snap((nx / RULER_DISPLAY_W) * maxVal));
+    },
+    onPanResponderRelease:   () => setScrollEnabled?.(true),
+    onPanResponderTerminate: () => setScrollEnabled?.(true),
+  })).current;
+
+  return { value, hasDragged, panResponder, unitPx };
+}
+
+// ── InteractiveRuler — the draggable answer ruler used by all variants ──
+function InteractiveRuler({ maxVal, snapStep, isInch, unitLabel, feedback, value, hasDragged, panResponder }) {
+  const unitPx       = RULER_DISPLAY_W / maxVal;
+  const isCorrect    = feedback === 'correct';
+  const isWrong      = feedback === 'wrong';
+  const markerLeft   = (value / maxVal) * RULER_DISPLAY_W;
+  const subdivisions = isInch ? 4 : 2;
+  const labelEvery   = maxVal > 20 ? 5 : maxVal > 10 ? 2 : 1;
+  const ticks = [];
+  for (let i = 0; i <= maxVal * subdivisions; i++) {
+    const isWhole   = i % subdivisions === 0;
+    const isHalf    = !isWhole && i % (subdivisions / 2) === 0;
+    const unitVal   = i / subdivisions;
+    const xPos      = Math.round(unitVal * unitPx);
+    const h         = isWhole ? 16 : isHalf ? 11 : 7;
+    const showLabel = isWhole && unitVal % labelEvery === 0;
+    ticks.push({ x: xPos, h, isWhole, isHalf, label: showLabel ? String(unitVal) : null });
+  }
+
+  return (
+    <>
+      <View style={measStyles.rulerContainer}>
+        <View style={measStyles.rulerBody}>
+          <View style={{ position: 'absolute', left: 0, top: 0, width: 3, height: 16, backgroundColor: '#a78bfa', borderRadius: 1 }} />
+          {ticks.map((t, idx) => (
+            <View key={idx} style={{ position: 'absolute', left: t.x - 0.75, top: 0,
+              width: 1.5, height: t.h, backgroundColor: t.isWhole ? '#64748b' : '#475569' }} />
+          ))}
+        </View>
+        {ticks.filter(t => t.label !== null).map((t, idx) => (
+          <Text key={`l${idx}`} style={[measStyles.rulerTickLabel,
+            { left: t.x - 8, top: 34, color: t.x === 0 ? '#a78bfa' : '#94a3b8' }]}>
+            {t.label}
+          </Text>
+        ))}
+        <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} {...panResponder.panHandlers} />
+        <View style={[measStyles.rulerMarker, { left: markerLeft - 1.5,
+          backgroundColor: isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#7c3aed' }]} pointerEvents="none" />
+        <View style={[measStyles.rulerMarkerHandle, { left: markerLeft - 12 }]} pointerEvents="none" />
+      </View>
+      {hasDragged
+        ? <Text style={[measStyles.sliderHint, { width: RULER_DISPLAY_W }]}>Tap or drag anywhere on the ruler</Text>
+        : <Text style={[measStyles.sliderHint, { width: RULER_DISPLAY_W }]}>Drag the marker to where the bar ends</Text>
+      }
+    </>
+  );
+}
+
+// ── OffsetRulerVariant — bar starts at a non-zero mark ─────────
+// The student must compute length = endpoint − start, not just read the endpoint.
+function OffsetRulerVariant({ q, onResolve, styles }) {
+  const rulerUnit = q.geometry?.unit ?? (/(inch|inches|\bin\b)/i.test(q.question ?? '') ? 'inch' : 'cm');
+  const unitLabel = rulerUnit === 'inch' ? 'in' : rulerUnit;
+  const isInch    = rulerUnit === 'inch';
+  const snapStep  = isInch ? 0.25 : 0.5;
+
+  const rawCorrect = parseFloat(q.correctAnswer ?? '0');
+  const correct    = isNaN(rawCorrect)
+    ? (isInch ? 3 : 7)
+    : (isInch ? Math.min(Math.max(rawCorrect, 0.25), 12) : Math.min(Math.max(rawCorrect, 0.5), 30));
+  const startVal   = parseFloat(String(q.geometry?.start ?? '0'));
+  const maxVal     = Math.max(Math.ceil(startVal + correct) + 1, 4);
+
+  const BAR_COLOR_NAMES = ['red','blue','green','orange','purple','yellow'];
+  const detectedColor   = BAR_COLOR_NAMES.find(c => new RegExp(`\\b${c}\\b`, 'i').test(q.question ?? ''));
+  const barColor        = q.geometry?.color ?? detectedColor ?? 'green';
+
+  const [feedback, setFeedback] = useState(null);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const { value, hasDragged, panResponder } = useRulerDrag({ maxVal, snapStep, setScrollEnabled: null });
 
   function shake() {
     Animated.sequence([
@@ -933,102 +1120,345 @@ function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
     ]).start();
   }
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponderCapture: () => !rulerFeedbackRef.current,
-      onMoveShouldSetPanResponderCapture:  () => true,
-      onStartShouldSetPanResponder:        () => !rulerFeedbackRef.current,
-      onMoveShouldSetPanResponder:         () => true,
-      onPanResponderTerminationRequest:    () => false,
-      onPanResponderGrant: (e) => {
-        setScrollEnabled?.(false);
-        const x = Math.max(0, Math.min(RULER_DISPLAY_W, e.nativeEvent.locationX));
-        valueXRef.current = x;
-        startXRef.current = x;
-        setValueCm(Math.round((x / RULER_DISPLAY_W) * maxCm * 10) / 10);
-      },
-      onPanResponderMove: (_, gs) => {
-        const nx = Math.max(0, Math.min(RULER_DISPLAY_W, startXRef.current + gs.dx));
-        valueXRef.current = nx;
-        setValueCm(Math.round((nx / RULER_DISPLAY_W) * maxCm * 10) / 10);
-      },
-      onPanResponderRelease:   () => { setScrollEnabled?.(true); },
-      onPanResponderTerminate: () => { setScrollEnabled?.(true); },
-    })
-  ).current;
+  function handleSubmit() {
+    if (feedback) return;
+    const tolerance = Math.max(snapStep, correct * 0.08);
+    const ok = Math.abs(value - correct) <= tolerance;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else  { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(ok), 2000);
+  }
+
+  const isCorrect = feedback === 'correct';
+  const isWrong   = feedback === 'wrong';
+  const refGeo    = { type: 'segment', start: startVal, length: correct, unit: rulerUnit, color: barColor, rulerMax: maxVal };
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }], alignItems: 'center' }}>
+      <Text style={measStyles.rulerSectionLabel}>Reference</Text>
+      <SegmentStimulus geometry={refGeo} />
+      <Text style={measStyles.rulerSectionLabel}>Your Measurement · {unitLabel}</Text>
+      {hasDragged && !feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W }]}>
+          Selected: {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
+      )}
+      {feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W },
+          isCorrect ? { color: '#4ade80' } : { color: '#f87171' }]}>
+          {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
+      )}
+      {!hasDragged && !feedback && (
+        <Text style={[measStyles.sliderHint, { width: RULER_DISPLAY_W }]}>
+          Drag to show the LENGTH of the bar (not where it ends)
+        </Text>
+      )}
+      <InteractiveRuler maxVal={maxVal} snapStep={snapStep} isInch={isInch} unitLabel={unitLabel}
+        feedback={feedback} value={value} hasDragged={hasDragged} panResponder={panResponder} />
+      {isCorrect && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInCorrectMsg, { marginBottom: 4 }]}>Correct! 📏</Text>
+          <Text style={measStyles.rulerExplanation}>
+            The bar starts at {formatMeasurement(startVal, rulerUnit)} and ends at {formatMeasurement(startVal + correct, rulerUnit)} {unitLabel}, so its length is {formatMeasurement(correct, rulerUnit)} {unitLabel}.
+          </Text>
+        </View>
+      )}
+      {isWrong && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInRevealLabel, { marginBottom: 4 }]}>
+            Not quite. Subtract the start from the endpoint: {formatMeasurement(startVal + correct, rulerUnit)} − {formatMeasurement(startVal, rulerUnit)} = {formatMeasurement(correct, rulerUnit)} {unitLabel}.
+          </Text>
+          <Text style={[styles.fillInRevealAnswer, { marginTop: 4 }]}>
+            Answer: {formatMeasurement(correct, rulerUnit)} {unitLabel}
+          </Text>
+        </View>
+      )}
+      {!feedback && (
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 16, width: RULER_DISPLAY_W }]} onPress={handleSubmit} activeOpacity={0.8}>
+          <Text style={styles.fillInSubmitText}>Check Measurement</Text>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+// ── CompareRulerVariant — "which bar is longer?" ───────────────
+function CompareRulerVariant({ q, onResolve, styles }) {
+  const [feedback, setFeedback] = useState(null);
+  const [chosen,   setChosen]   = useState(null);
+  const correctAnswer = String(q.correctAnswer ?? '').toLowerCase();
+  const bar2color     = q.geometry?.bar2?.color ?? 'blue';
+
+  function handleChoice(pick) {
+    if (feedback) return;
+    setChosen(pick);
+    const ok = pick === correctAnswer;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    setTimeout(() => onResolve(ok), 1600);
+  }
+
+  const CHOICES = [
+    { id: q.geometry?.color ?? 'red',  label: `${q.geometry?.color ?? 'Red'} bar` },
+    { id: bar2color,                    label: `${bar2color} bar` },
+    { id: 'same',                       label: 'Same length' },
+  ];
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <Text style={measStyles.rulerSectionLabel}>Compare the bars</Text>
+      <TwoBarStimulus geometry={q.geometry ?? {}} />
+      <View style={{ width: RULER_DISPLAY_W, gap: 10, marginTop: 12 }}>
+        {CHOICES.map(({ id, label }) => {
+          const isChosen  = chosen === id;
+          const isCorrect = feedback && id === correctAnswer;
+          const isWrong   = feedback && isChosen && id !== correctAnswer;
+          return (
+            <TouchableOpacity key={id} activeOpacity={0.8}
+              style={[styles.fillInSubmit, { marginTop: 0,
+                backgroundColor: isCorrect ? '#166534' : isWrong ? '#7f1d1d' : isChosen ? '#1d4ed8' : '#1e3a5f',
+                borderWidth: 1, borderColor: isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#334155',
+              }]}
+              onPress={() => handleChoice(id)}
+              disabled={!!feedback}
+            >
+              <Text style={styles.fillInSubmitText}>{label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {feedback && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center', marginTop: 10 }]}>
+          {feedback === 'correct'
+            ? <Text style={[styles.fillInCorrectMsg]}>Correct! 📏</Text>
+            : <Text style={[styles.fillInRevealLabel]}>
+                Not quite — the {correctAnswer === 'same' ? 'bars are the same length' : `${correctAnswer} bar is longer`}.
+              </Text>
+          }
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── DifferenceRulerVariant — "how much longer is X than Y?" ────
+function DifferenceRulerVariant({ q, onResolve, styles, setScrollEnabled }) {
+  const rulerUnit = q.geometry?.unit ?? (/(inch|inches|\bin\b)/i.test(q.question ?? '') ? 'inch' : 'cm');
+  const unitLabel = rulerUnit === 'inch' ? 'in' : rulerUnit;
+  const isInch    = rulerUnit === 'inch';
+  const snapStep  = isInch ? 0.25 : 0.5;
+
+  const rawCorrect = parseFloat(q.correctAnswer ?? '0');
+  const correct    = isNaN(rawCorrect)
+    ? (isInch ? 3 : 7)
+    : (isInch ? Math.min(Math.max(rawCorrect, 0.25), 12) : Math.min(Math.max(rawCorrect, 0.5), 30));
+  const maxVal     = Math.max(Math.ceil(correct) + 1, 4);
+
+  const [feedback, setFeedback] = useState(null);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const { value, hasDragged, panResponder } = useRulerDrag({ maxVal, snapStep, setScrollEnabled });
+
+  function shake() {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  }
 
   function handleSubmit() {
     if (feedback) return;
-    const correct   = parseFloat(q.correctAnswer ?? '0');
-    const tolerance = Math.max(0.3, correct * 0.1); // ±10% or ±0.3 cm
-    const isCorrect = Math.abs(valueCm - correct) <= tolerance;
-    setFeedback(isCorrect ? 'correct' : 'wrong');
-    if (isCorrect) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
-    else           { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
-    setTimeout(() => onResolve(isCorrect), 1400);
+    const tolerance = Math.max(snapStep, correct * 0.08);
+    const ok = Math.abs(value - correct) <= tolerance;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else  { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(ok), 2000);
   }
 
-  const isCorrect  = feedback === 'correct';
-  const isWrong    = feedback === 'wrong';
-  const markerLeft = (valueCm / maxCm) * RULER_DISPLAY_W;
-
-  // Build whole-unit and half-unit tick marks
-  const ticks = [];
-  for (let i = 0; i <= maxCm * 2; i++) {
-    const isCm = i % 2 === 0;
-    const xPos = Math.round((i / 2) * cmPx);
-    const h    = isCm ? 16 : 9;
-    ticks.push({ x: xPos, h, isCm, label: isCm ? String(i / 2) : null });
-  }
+  const isCorrect = feedback === 'correct';
+  const isWrong   = feedback === 'wrong';
+  const bar1color = q.geometry?.color ?? 'red';
+  const bar2color = q.geometry?.bar2?.color ?? 'blue';
 
   return (
-    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-      {/* ── Segment drawing — shown when AI provided geometry ── */}
-      {q.geometry?.type === 'segment' && <SegmentStimulus geometry={q.geometry} />}
-
-      {/* Reading */}
-      <Text style={[measStyles.rulerReading, isCorrect && { color: '#4ade80' }, isWrong && { color: '#f87171' }]}>
-        {valueCm.toFixed(1)} {unitLabel}
-      </Text>
-
-      {/* ── Ruler visual ── */}
-      <View style={measStyles.rulerContainer}>
-        {/* Ruler body (tick marks only — no text inside, avoids clipping on Android) */}
-        <View style={measStyles.rulerBody}>
-          {ticks.map((t, idx) => (
-            <View key={idx} style={{ position: 'absolute', left: t.x - 0.75, top: 0, width: 1.5, height: t.h, backgroundColor: t.isCm ? '#64748b' : '#475569' }} />
-          ))}
-        </View>
-
-        {/* Number labels outside the ruler body so they never clip */}
-        {ticks.filter(t => t.label !== null).map((t, idx) => (
-          <Text key={`l${idx}`} style={[measStyles.rulerTickLabel, { left: t.x - 8, top: 34 }]}>{t.label}</Text>
-        ))}
-
-        {/* Unit label */}
-        <Text style={{ position: 'absolute', right: 2, top: 34, fontSize: 9, color: '#475569', fontWeight: '600' }}>{unitLabel}</Text>
-
-        {/* panHandlers on the whole ruler body so any touch/drag works */}
-        <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} {...panResponder.panHandlers} />
-        {/* Marker — visual only, no panHandlers needed */}
-        <View style={[measStyles.rulerMarker, { left: markerLeft - 1.5, backgroundColor: isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#7c3aed' }]} pointerEvents="none" />
-        <View style={[measStyles.rulerMarkerHandle, { left: markerLeft - 12 }]} pointerEvents="none" />
-      </View>
-      <Text style={measStyles.sliderHint}>Tap or drag anywhere on the ruler</Text>
-
-      {!q.image_url && !q.geometry && (
-        <Text style={measStyles.worksheetHint}>📖 Reference your worksheet for the measurement</Text>
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }], alignItems: 'center' }}>
+      <Text style={measStyles.rulerSectionLabel}>Compare the bars</Text>
+      <TwoBarStimulus geometry={q.geometry ?? {}} />
+      <Text style={measStyles.rulerSectionLabel}>Drag to show the difference · {unitLabel}</Text>
+      {hasDragged && !feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W }]}>
+          Selected: {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
       )}
-
+      {feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W },
+          isCorrect ? { color: '#4ade80' } : { color: '#f87171' }]}>
+          {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
+      )}
+      <InteractiveRuler maxVal={maxVal} snapStep={snapStep} isInch={isInch} unitLabel={unitLabel}
+        feedback={feedback} value={value} hasDragged={hasDragged} panResponder={panResponder} />
+      {isCorrect && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInCorrectMsg, { marginBottom: 4 }]}>Correct! 📏</Text>
+          <Text style={measStyles.rulerExplanation}>
+            The {bar1color} bar is {formatMeasurement(correct, rulerUnit)} {unitLabel} longer than the {bar2color} bar.
+          </Text>
+        </View>
+      )}
       {isWrong && (
-        <View style={styles.fillInReveal}>
-          <Text style={styles.fillInRevealLabel}>Correct measurement:</Text>
-          <Text style={styles.fillInRevealAnswer}>{q.correctAnswer} {unitLabel}</Text>
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInRevealLabel, { marginBottom: 4 }]}>
+            Not quite — you chose {formatMeasurement(value, rulerUnit)} {unitLabel}.
+          </Text>
+          <Text style={measStyles.rulerExplanation}>
+            Find the endpoint of each bar, then subtract to find the difference.
+          </Text>
+          <Text style={[styles.fillInRevealAnswer, { marginTop: 4 }]}>
+            Difference: {formatMeasurement(correct, rulerUnit)} {unitLabel}
+          </Text>
         </View>
       )}
-      {isCorrect && <Text style={styles.fillInCorrectMsg}>Correct! 📏</Text>}
       {!feedback && (
-        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 20 }]} onPress={handleSubmit} activeOpacity={0.8}>
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 16, width: RULER_DISPLAY_W }]} onPress={handleSubmit} activeOpacity={0.8}>
+          <Text style={styles.fillInSubmitText}>Check Measurement</Text>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+// ── inferRulerSubtype ─────────────────────────────────────────
+// When rulerSubtype is missing (e.g. old server sanitizer stripped it),
+// infer the correct variant from data that does survive storage:
+//   • correctAnswer is a color name  → compare
+//   • geometry.start > 0             → offset
+//   • question text mentions difference/longer → difference
+//   • bar2 present in geometry        → compare or difference (fall back to compare)
+const BAR_COLOR_NAMES_SET = new Set(['red','blue','green','orange','purple','yellow']);
+function inferRulerSubtype(q) {
+  if (q.rulerSubtype) return q.rulerSubtype;
+  const ans = String(q.correctAnswer ?? '').toLowerCase().trim();
+  if (BAR_COLOR_NAMES_SET.has(ans) || ans === 'same') return 'compare';
+  if ((q.geometry?.start ?? 0) > 0) return 'offset';
+  if (/how much longer|difference between|longer than/i.test(q.question ?? '')) return 'difference';
+  if (q.geometry?.bar2) return 'compare';
+  return 'endpoint';
+}
+
+// ── RulerRenderer ─────────────────────────────────────────────
+// Dispatches to the appropriate variant. Uses inferRulerSubtype so
+// the correct variant is chosen even when rulerSubtype was stripped
+// by an older server sanitizer that didn't know about the field.
+function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
+  const subtype = inferRulerSubtype(q);
+  if (subtype === 'offset')     return <OffsetRulerVariant     q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+  if (subtype === 'compare')    return <CompareRulerVariant    q={q} onResolve={onResolve} styles={styles} />;
+  if (subtype === 'difference') return <DifferenceRulerVariant q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+  return <EndpointRulerVariant q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+}
+
+function EndpointRulerVariant({ q, onResolve, styles, setScrollEnabled }) {
+  const rulerUnit  = q.geometry?.unit ?? (/(inch|inches|\bin\b)/i.test(q.question ?? '') ? 'inch' : 'cm');
+  const unitLabel  = rulerUnit === 'inch' ? 'in' : rulerUnit;
+  const isInch     = rulerUnit === 'inch';
+  const snapStep   = isInch ? 0.25 : 0.5;
+  const rawCorrect = parseFloat(q.correctAnswer ?? '0');
+  // Guard: if correctAnswer isn't a valid number this variant shouldn't be rendering at all
+  const correct    = isNaN(rawCorrect)
+    ? (isInch ? 3 : 7)  // safe fallback so nothing crashes
+    : (isInch ? Math.min(Math.max(rawCorrect, 0.25), 12) : Math.min(Math.max(rawCorrect, 0.5), 30));
+  const maxVal     = Math.max(Math.ceil(correct) + 1, 4);
+
+  const BAR_COLOR_NAMES = ['red','blue','green','orange','purple','yellow'];
+  const detectedColor   = BAR_COLOR_NAMES.find(c => new RegExp(`\\b${c}\\b`, 'i').test(q.question ?? ''));
+  const barColor        = q.geometry?.color ?? detectedColor ?? 'green';
+
+  const [feedback, setFeedback] = useState(null);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const { value, hasDragged, panResponder } = useRulerDrag({ maxVal, snapStep, setScrollEnabled });
+
+  function shake() {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  }
+
+  function handleSubmit() {
+    if (feedback) return;
+    const tolerance = Math.max(snapStep, correct * 0.08);
+    const ok = Math.abs(value - correct) <= tolerance;
+    setFeedback(ok ? 'correct' : 'wrong');
+    if (ok) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    else  { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(ok), 2000);
+  }
+
+  const isCorrect = feedback === 'correct';
+  const isWrong   = feedback === 'wrong';
+  const refGeo    = !q.image_url
+    ? { type: 'segment', length: correct, unit: rulerUnit, color: barColor, rulerMax: maxVal }
+    : null;
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }], alignItems: 'center' }}>
+      {refGeo?.type === 'segment' && (
+        <>
+          <Text style={measStyles.rulerSectionLabel}>Reference</Text>
+          <SegmentStimulus geometry={refGeo} />
+          <Text style={measStyles.rulerSectionLabel}>Your Measurement · {unitLabel}</Text>
+        </>
+      )}
+      {hasDragged && !feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W }]}>
+          Selected: {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
+      )}
+      {feedback && (
+        <Text style={[measStyles.rulerLiveReadout, { width: RULER_DISPLAY_W },
+          isCorrect ? { color: '#4ade80' } : { color: '#f87171' }]}>
+          {formatMeasurement(value, rulerUnit)} {unitLabel}
+        </Text>
+      )}
+      {!hasDragged && !feedback && (
+        <Text style={[measStyles.sliderHint, { width: RULER_DISPLAY_W }]}>
+          Drag the marker to where the bar ends
+        </Text>
+      )}
+      <InteractiveRuler maxVal={maxVal} snapStep={snapStep} isInch={isInch} unitLabel={unitLabel}
+        feedback={feedback} value={value} hasDragged={hasDragged} panResponder={panResponder} />
+      {isCorrect && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInCorrectMsg, { marginBottom: 4 }]}>Correct! 📏</Text>
+          <Text style={measStyles.rulerExplanation}>
+            The {barColor} bar ends at the {formatMeasurement(correct, rulerUnit)}{unitLabel} mark, so its length is {formatMeasurement(correct, rulerUnit)} {unitLabel}.
+          </Text>
+        </View>
+      )}
+      {isWrong && (
+        <View style={[styles.fillInReveal, { flexDirection: 'column', alignItems: 'center' }]}>
+          <Text style={[styles.fillInRevealLabel, { marginBottom: 4 }]}>
+            Not quite — you chose {formatMeasurement(value, rulerUnit)} {unitLabel}.
+          </Text>
+          <Text style={measStyles.rulerExplanation}>
+            Start at 0 and look at where the {barColor} bar ends.
+          </Text>
+          <Text style={[styles.fillInRevealAnswer, { marginTop: 4 }]}>
+            Answer: {formatMeasurement(correct, rulerUnit)} {unitLabel}
+          </Text>
+        </View>
+      )}
+      {!feedback && (
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 16, width: RULER_DISPLAY_W }]}
+          onPress={handleSubmit} activeOpacity={0.8}>
           <Text style={styles.fillInSubmitText}>Check Measurement</Text>
         </TouchableOpacity>
       )}
@@ -1061,6 +1491,14 @@ const measStyles = StyleSheet.create({
   rulerReading: {
     textAlign: 'center', fontSize: 26, fontWeight: '900',
     color: '#7c3aed', marginBottom: 12,
+  },
+  rulerLiveReadout: {
+    textAlign: 'center', fontSize: 13, fontWeight: '600',
+    color: '#64748b', marginBottom: 6, marginTop: 2,
+  },
+  rulerExplanation: {
+    fontSize: 13, color: '#94a3b8', textAlign: 'center',
+    marginTop: 4, lineHeight: 18,
   },
   rulerContainer: {
     width: RULER_DISPLAY_W, height: 72,
@@ -1105,8 +1543,9 @@ const measStyles = StyleSheet.create({
     shadowOpacity: 0.5, shadowRadius: 4, elevation: 4,
   },
   sliderEndLabel: { fontSize: 11, color: '#64748b', fontWeight: '700', width: 32, textAlign: 'center' },
-  sliderHint:     { fontSize: 11, color: '#475569', textAlign: 'center', marginBottom: 6 },
-  worksheetHint:  { fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 2, marginBottom: 4, fontStyle: 'italic' },
+  sliderHint:        { fontSize: 11, color: '#475569', textAlign: 'center', marginBottom: 6 },
+  worksheetHint:     { fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 2, marginBottom: 4, fontStyle: 'italic' },
+  rulerSectionLabel: { width: 280, fontSize: 11, color: '#64748b', textAlign: 'center', marginTop: 6, marginBottom: 2, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase' },
 
   // v2: scale-choice step
   scaleChoiceBox: {
@@ -1482,13 +1921,37 @@ function WordBankRenderer({ q, onResolve, styles }) {
   );
 }
 
+// ── shuffleNoConsecutiveDupes ─────────────────────────────────
+// Fisher-Yates shuffle then fix any adjacent pair that shares the same
+// correctAnswer or the same question text, preventing a child from seeing
+// the same answer (or identical question) back-to-back.
+function shuffleNoConsecutiveDupes(arr) {
+  if (arr.length <= 1) return [...arr];
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  const sameQ = (x, y) =>
+    String(x?.correctAnswer ?? '') === String(y?.correctAnswer ?? '') ||
+    String(x?.question ?? '')     === String(y?.question ?? '');
+  for (let i = 1; i < a.length; i++) {
+    if (sameQ(a[i], a[i - 1])) {
+      const j = a.findIndex((q, k) => k > i && !sameQ(q, a[i - 1]));
+      if (j !== -1) [a[i], a[j]] = [a[j], a[i]];
+    }
+  }
+  return a;
+}
+
 // ── Main QuizScreen ───────────────────────────────────────────
 export default function QuizScreen() {
   const navigation = useNavigation();
   const route      = useRoute();
   const { unit }   = route.params;
   const { activeKid } = useAuth();
-  const questions  = unit.questions ?? [];
+  // Shuffle once on mount; guardrail prevents same answer/question back-to-back
+  const [questions] = useState(() => shuffleNoConsecutiveDupes(unit.questions ?? []));
 
   // Resolve subject color for the accent stripe
   const subjectColor = resolveSubject(unit.subject, [])?.color ?? '#60a5fa';
@@ -2008,8 +2471,8 @@ const styles = StyleSheet.create({
   fillInBoxCorrect: { borderColor: '#22c55e', backgroundColor: '#14532d' },
   fillInBoxWrong:   { borderColor: '#ef4444', backgroundColor: '#7f1d1d' },
   fillInInput:      { fontSize: 22, fontWeight: '700', color: '#f1f5f9', paddingVertical: 14 },
-  fillInSubmit:     { backgroundColor: '#2563eb', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  fillInSubmitText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  fillInSubmit:     { backgroundColor: '#2563eb', borderRadius: 14, paddingVertical: 16, paddingHorizontal: 32, alignItems: 'center', marginTop: 4 },
+  fillInSubmitText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
   fillInReveal:     { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6, marginBottom: 4 },
   fillInRevealLabel:  { fontSize: 13, color: '#94a3b8', fontWeight: '600' },
   fillInRevealAnswer: { fontSize: 15, fontWeight: '800', color: '#f87171' },

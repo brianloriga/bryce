@@ -6,6 +6,52 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Ruler Question Subtypes, Self-Contained Guardrails & Subtype Routing Fix — 2026-04-23
+
+#### Added — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **Four ruler subtypes** — `RulerRenderer` now dispatches to one of four specialised variant components based on `rulerSubtype`:
+  - `EndpointRulerVariant` — original drag-to-endpoint style ("How long is the red bar?")
+  - `OffsetRulerVariant` — bar starts at a non-zero position; student measures *length* not endpoint ("The bar starts at 2 in. How long is it?")
+  - `CompareRulerVariant` — two bars shown via `TwoBarStimulus`; three-button multiple-choice ("Which bar is longer?")
+  - `DifferenceRulerVariant` — student drags to find the difference between two bar lengths ("How much longer is the red bar?")
+- **`TwoBarStimulus` component** — renders two color-coded bars stacked above a shared ruler with correct tick/label density; used by compare and difference variants
+- **`useRulerDrag` custom hook** — extracted shared `PanResponder` drag logic reused across endpoint, offset, and difference variants
+- **`InteractiveRuler` component** — reusable draggable ruler with snapping, live readout, and scroll-lock; used by all drag variants
+- **Post-answer explanations** — every variant shows a color-aware, subtype-specific explanation after the student checks their answer:
+  - Correct endpoint: "The bar ends at the X mark, so its length is X in."
+  - Wrong offset: "The bar starts at S and ends at E, so its length is E − S = X."
+  - Correct compare: "Correct! 📏"
+  - Wrong difference: "The red bar is R and the blue bar is B. The difference is R − B = X."
+- **`inferRulerSubtype(q)` function** — detects the correct variant when `rulerSubtype` is missing from stored question data (old server sanitizer didn't preserve the field):
+  - `correctAnswer` is a color name (red/blue/green/orange/purple/yellow) → `compare`
+  - `geometry.start > 0` → `offset`
+  - Question text contains "how much longer" / "difference between" → `difference`
+  - `geometry.bar2` present → `compare`
+  - Otherwise → `endpoint`
+- **NaN guards** — all three numeric ruler variants now handle `parseFloat(correctAnswer)` returning `NaN` (e.g. when a compare question is mistakenly routed to a drag variant) with a safe fallback value, preventing invisible bars and "NaN in" text
+- **`shuffleNoConsecutiveDupes`** — shuffled question list is checked to ensure no answer appears three times in a row; reshuffled until the constraint is satisfied
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Ruler subtype prompt** — `── LENGTH (ruler) ──` section expanded to define all four subtypes with geometry parameters, `correctAnswer` formats, and JSON examples for each
+- **`sanitizeQuestion` updated** — passes through `rulerSubtype` field so variant routing works for freshly generated questions (fix for the server-side stripping that `inferRulerSubtype` works around on the client)
+- **Universal self-contained rule** — `SELF-CONTAINED QUESTION RULE` made universal; applies to *all* question types, not just ruler
+- **`── UNIVERSAL FORBIDDEN PHRASES ──`** list added — explicit ban on patterns that reference external visuals: "in the image", "on the worksheet", "this ruler", "the second ruler", "the arrow", "shown by the arrow", "in question N", "numbered item", "on the diagram", etc.
+- **`── HOW TO FIX EACH CASE ──`** section — BAD→GOOD transformation examples for charts/graphs, maps, rulers, and pictures so GPT rewrites rather than references
+- **`RULER / MEASUREMENT WORKSHEET EXCEPTION`** — overrides "faithful reproduction" for measurement questions; mandates transformation into geometry-based or general-knowledge questions
+- **`ANSWER INDEPENDENCE CHECK`** in pre-output checklist — catches questions where the *correct answer itself* varies across worksheet versions even if the phrasing looks clean (e.g. "What unit is used on this ruler?")
+
+#### Fixed — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **Compare questions showing NaN** — `CompareRulerVariant` was never reached because `rulerSubtype` was stripped by the old sanitizer; `EndpointRulerVariant` received `correctAnswer: "green"`, `parseFloat` returned NaN, collapsing bar widths to 0px and rendering all text as "NaN in". Fixed by `inferRulerSubtype` + NaN guards.
+- **Offset wrong-answer feedback** — "Start at 0 and look where the bar ends" was shown for offset questions (bar starts at non-zero); now routed to `OffsetRulerVariant` which explains "The bar starts at S and ends at E — subtract to get the length."
+- **Unit label overlap ("in4")** — inline unit label removed from both `SegmentStimulus` and `InteractiveRuler`; unit now appears once in the section header ("YOUR MEASUREMENT · IN") only
+- **Green bar spanning full width** — `maxVal` calculation refined to `Math.max(Math.ceil(correct) + 1, 4)` so the reference bar consistently occupies ~75–80% of the ruler width
+- **Color mismatch (question mentions a color not visible)** — bar color is now extracted from `q.question` text as a regex fallback when `q.geometry.color` is absent
+
+---
+
 ### Protractor Upgrade — Flipped Mode, Typed Answer & Multi-Mode — 2026-04-23
 
 #### Changed — `ProtractorRenderer` (`src/screens/QuizScreen.js`)
