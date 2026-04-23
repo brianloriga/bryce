@@ -50,10 +50,12 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
       question: q.question ?? `Question ${i + 1}`,
     };
 
-    if (q.hint)     mapped.hint     = q.hint;
-    if (q.type)     mapped.type     = q.type;
-    if (q.geometry) mapped.geometry = q.geometry;
-    if (q.context)  mapped.context  = q.context;
+    if (q.hint)            mapped.hint            = q.hint;
+    if (q.type)            mapped.type            = q.type;
+    if (q.geometry)        mapped.geometry        = q.geometry;
+    if (q.context)         mapped.context         = q.context;
+    if (q.measurementTool) mapped.measurementTool = q.measurementTool;
+    if (q.rulerMaxCm)      mapped.rulerMaxCm      = q.rulerMaxCm;
 
     // multiple_choice / visual_mc
     if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
@@ -169,10 +171,12 @@ export async function regenerateQuestion(base64Images, existingQuestion, isVisua
 
   const q = data.question;
   const mapped = { question: q.question ?? existingQuestion };
-  if (q.hint)     mapped.hint     = q.hint;
-  if (q.type)     mapped.type     = q.type;
-  if (q.geometry) mapped.geometry = q.geometry;
-  if (q.context)  mapped.context  = q.context;
+  if (q.hint)            mapped.hint            = q.hint;
+  if (q.type)            mapped.type            = q.type;
+  if (q.geometry)        mapped.geometry        = q.geometry;
+  if (q.context)         mapped.context         = q.context;
+  if (q.measurementTool) mapped.measurementTool = q.measurementTool;
+  if (q.rulerMaxCm)      mapped.rulerMaxCm      = q.rulerMaxCm;
 
   if (!q.type || q.type === 'multiple_choice' || q.type === 'visual_mc') {
     mapped.options      = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ['Option A','Option B','Option C','Option D'];

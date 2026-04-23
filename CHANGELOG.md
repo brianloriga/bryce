@@ -6,6 +6,37 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Interactive Measurement Tools — 2026-04-22
+
+#### Added — `QuizScreen` (`src/screens/QuizScreen.js`)
+
+- **`AngleStimulus` component** — procedurally draws two labeled rays from a vertex (e.g. L, M, N) for protractor questions. The angle is rendered from `geometry.angleDeg` so no external image is needed. Eliminates "shown above" with nothing to see.
+- **`SegmentStimulus` component** — draws a colored bar over a ruler with tick marks and clearly visible number labels for ruler/length questions. Unit label (in / cm) displayed. Number labels are rendered as children of the outer canvas — not inside the ruler body — so they never clip on Android.
+- **Protractor redesign — reference arm inside the protractor** — the drawn angle (white "pencil line") now lives *inside* the virtual protractor view, exactly like placing a real protractor on paper. Students read the degree scale where the white arm crosses rather than eyeballing two separate drawings. This makes distinguishing 45° from 60° tractable.
+  - Tick marks added at every 10° (in addition to labeled marks at 0, 30, 45, 60, 90, 120, 135, 150, 180)
+  - Vertex and ray-end labels (e.g. M, N, L) drawn at correct positions from `geometry`
+  - Small dotted arc between 0° and the reference angle mirrors real protractor diagrams
+- **Slider anti-freeze** — `panHandlers` moved from the small 24px handle to the entire track/ruler surface. On `onPanResponderGrant` the handle jumps to the touch position using `e.nativeEvent.locationX`, so tapping anywhere on the bar works instantly.
+- **Gesture capture hardening** — added `onMoveShouldSetPanResponderCapture: () => true` (fires before `ScrollView` can claim the gesture) and `onPanResponderTerminationRequest: () => false` (prevents the OS from stealing the gesture mid-drag). Both protractor and ruler sliders updated.
+- **Scroll lock during drag** — `scrollEnabled` state passed from `QuizScreen` to `ProtractorRenderer` / `RulerRenderer`; set to `false` on `onPanResponderGrant` and restored on `release`/`terminate` so the parent `ScrollView` never competes with a slider drag.
+- **Unit-aware ruler** — `RulerRenderer` now reads `q.geometry?.unit` (`"inch"` or `"cm"`) and `q.geometry?.rulerMax` so the interactive ruler uses the same scale and unit as the stimulus bar above it. Readout and reveal label both show the correct unit abbreviation.
+- **Worksheet hint** — "📖 Reference your worksheet" fallback only shown when both `image_url` and `geometry` are absent (legacy questions with no geometry data).
+- **Button spacing** — `marginTop: 20` added above "Check Angle" and "Check Measurement" buttons.
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Measurement tool prompt rewritten** — AI now emits a `geometry` object alongside every `measurementTool` question:
+  - Angle: `{ "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L" }`
+  - Segment: `{ "type": "segment", "length": 3.5, "unit": "inch", "color": "blue", "rulerMax": 5 }`
+- **"Shown above" banned** — prompt now explicitly forbids "shown above", "in the image", or "in the diagram" for all `measurementTool` questions (the app draws the shape; there is no separate image to reference).
+- Example questions in the prompt updated to include geometry objects.
+
+#### Changed — `aiService.js`
+
+- `regenerateQuestion` mapper now forwards `measurementTool` and `rulerMaxCm` fields (was previously missing from the regen path).
+
+---
+
 ### Question Quality & UX Hardening — 2026-04-22
 
 #### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)

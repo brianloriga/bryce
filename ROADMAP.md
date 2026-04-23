@@ -220,6 +220,29 @@ This gets us to the App Store fastest while still feeling like a real native app
 
 ---
 
+### 7.F — Interactive Measurement Tools ⚠️ Needs Refinement
+
+> **Status: MVP shipped — significant refinement required before this is ready for real students.**
+>
+> The protractor and ruler tools work end-to-end but have several known gaps that make them unreliable as a teaching tool in their current form. Do not promote this feature in marketing until the items below are addressed.
+
+- [x] `ProtractorRenderer` — virtual protractor with draggable arm, angle readout, ±5° tolerance
+- [x] `RulerRenderer` — virtual ruler with draggable marker, unit-aware readout, ±10% tolerance
+- [x] `AngleStimulus` — procedurally drawn labeled angle (vertex + ray letters) inside the protractor view
+- [x] `SegmentStimulus` — colored bar over a ruler with visible tick marks and number labels
+- [x] Reference arm drawn inside the protractor (student reads the scale, not eyeballs two shapes)
+- [x] Slider gesture capture hardened (capture phase + scroll lock + termination guard)
+- [ ] **7.F.1 Fractional inch support** — ruler questions in inches often have answers like "3 ½" or "3.5"; the AI must be guided to emit consistent decimal answers and the accepted-answers list must cover both forms (e.g. `["3.5", "3 1/2", "3½"]`)
+- [ ] **7.F.2 Ruler scale calibration** — the stimulus bar and interactive ruler use the same `rulerMax` scale but a child comparing "the green bar ends at 3" to "I dragged to 3" is only correct if `rulerMax` is set tightly. AI sometimes sets `rulerMax` too large, making the bar very short and hard to read. Add prompt guardrail: `rulerMax` must be `ceil(length) + 1`, no larger.
+- [ ] **7.F.3 Angle tolerance tuning** — ±5° is strict for a finger slider on a phone; consider ±8° or ±10° for younger children, potentially configurable by subject grade level
+- [ ] **7.F.4 Protractor starting angle** — slider always starts at 90°; if the correct answer is 150°, the child has to drag a long way. Start at a random angle at least 30° away from the answer so the exercise is non-trivial but not exhausting.
+- [ ] **7.F.5 Multi-question worksheets** — a single scanned worksheet often has 4–8 angles or measurements. The AI currently generates one question per angle with independent geometry objects. Verify the prompt reliably produces a separate question + geometry for each labeled angle on the page.
+- [ ] **7.F.6 Geometry data validation** — add a `sanitizeQuestion` check that rejects any `measurementTool` question missing a valid `geometry` object, and falls back to a plain `fill_in` so the child always gets a usable question.
+- [ ] **7.F.7 Number line tool** — a third measurement type needed for math units that use number lines (common in grades 2–5). Similar slider mechanic; stimulus draws a number line with a point to locate.
+- [ ] **7.F.8 End-to-end QA pass** — scan a real protractor worksheet and a real ruler worksheet; verify geometry objects match the actual angles/lengths on the page; adjust prompt examples as needed.
+
+---
+
 ### 7.D ? Engagement & Retention
 
 - [x] 7.19 Save quiz results to Supabase ? `quiz_results` table tracks score, stars, kid, unit, and timestamp

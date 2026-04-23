@@ -75,7 +75,27 @@ QUESTION TYPE RULES — choose the best type for each question:
    - NEVER use fill_in for science, reading, social studies, vocabulary, definitions, or any question whose answer is a word or phrase — use multiple_choice or word_bank instead
    - correctAnswer: the expected answer as a string
    - acceptedAnswers: array of equivalent acceptable forms (required for math — cover common formats)
+   - MEASUREMENT TOOL VARIANT: when the question involves measuring an angle or length, add:
+     (a) "measurementTool": "protractor" or "ruler"
+     (b) a "geometry" object so the app can DRAW the shape — no external image is needed:
+
+     ── ANGLE (protractor) ──
+     "geometry": { "type": "angle", "angleDeg": <whole number>, "vertex": "<middle letter>", "ray1": "<letter at 0°/horizontal>", "ray2": "<letter on the angled arm>" }
+     correctAnswer = angle in whole degrees as a string
+     acceptedAnswers = ["68", "68°"]
+     EXAMPLE: ∠LMN = 68° → "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L" }
+
+     ── LENGTH (ruler) ──
+     "geometry": { "type": "segment", "length": <decimal>, "unit": "inch" | "cm", "color": "red" | "blue" | "green" | "orange", "rulerMax": <integer — smallest integer larger than length + 1> }
+     correctAnswer = the length as a string (e.g. "3.5")
+     acceptedAnswers = cover common fractional/decimal equivalents (e.g. ["3.5", "3 1/2"])
+     EXAMPLE: a red bar 0.5 inches → "geometry": { "type": "segment", "length": 0.5, "unit": "inch", "color": "red", "rulerMax": 2 }
+
+     • NEVER say "shown above", "in the image", or "in the diagram" for measurementTool questions — the app draws the shape; there is no separate image
+     • NEVER use measurementTool unless the scanned page actually shows labelled angles or measurement exercises
    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3", ".3", "0.30"] }
+   { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠LMN? ___ degrees", "hint": "...", "correctAnswer": "68", "acceptedAnswers": ["68", "68°"], "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L" } }
+   { "type": "fill_in", "measurementTool": "ruler", "question": "What is the length of the bar? ___ inches", "hint": "...", "correctAnswer": "3.5", "acceptedAnswers": ["3.5", "3 1/2"], "geometry": { "type": "segment", "length": 3.5, "unit": "inch", "color": "blue", "rulerMax": 5 } }
 
 4. ORDERING — "type": "ordering"
    - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
@@ -280,9 +300,11 @@ function sanitizeQuestion(q: Record<string, unknown>): Record<string, unknown> {
   }
 
   // Optional extras
-  if (q.geometry)  sanitized.geometry  = q.geometry;
-  if (q.image_ref) sanitized.image_ref = true;
-  if (q.context)   sanitized.context   = q.context;   // reference card data
+  if (q.geometry)       sanitized.geometry       = q.geometry;
+  if (q.image_ref)      sanitized.image_ref      = true;
+  if (q.context)        sanitized.context        = q.context;
+  if (q.measurementTool) sanitized.measurementTool = q.measurementTool;
+  if (q.rulerMaxCm)     sanitized.rulerMaxCm     = q.rulerMaxCm;
 
   return sanitized;
 }

@@ -4,7 +4,7 @@ import Markdown from '@ronradtke/react-native-markdown-display';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Animated, Image, Modal, TextInput,
-  KeyboardAvoidingView, Platform, Keyboard,
+  KeyboardAvoidingView, Platform, Keyboard, PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -365,6 +365,535 @@ const mdStyles = {
 };
 const mdStylesVisual = { ...mdStyles, body: { ...mdStyles.body, fontSize: 22, lineHeight: 36 } };
 
+// ── Measurement helpers ───────────────────────────────────────
+// Arm: a thin rect from (cx,cy) pointing at angleDeg for `length` px.
+// Rotation in RN is around the view center, so we position the view
+// such that its center is the midpoint of the arm — then rotate.
+
+// ── AngleStimulus — draws two labeled rays from a vertex ──────
+function AngleStimulus({ geometry }) {
+  const { angleDeg = 90, vertex = 'M', ray1 = 'N', ray2 = 'L' } = geometry;
+  const cx = 130, cy = 120, armLen = 90;
+  const rad = (angleDeg * Math.PI) / 180;
+  // ray1 is the baseline (horizontal right)
+  const r1ex = cx + armLen;
+  const r1ey = cy;
+  // ray2 is at angleDeg above horizontal
+  const r2ex = cx + armLen * Math.cos(rad);
+  const r2ey = cy - armLen * Math.sin(rad);
+
+  // Small angle arc radius
+  const arcR = 28;
+  // Build ~8 tick positions along the arc to simulate a curve
+  const arcTicks = [];
+  for (let i = 0; i <= 8; i++) {
+    const a = (i / 8) * angleDeg;
+    const r = (a * Math.PI) / 180;
+    arcTicks.push({ x: cx + arcR * Math.cos(r), y: cy - arcR * Math.sin(r) });
+  }
+
+  return (
+    <View style={stimStyles.angleCanvas}>
+      {/* arc dots */}
+      {arcTicks.map((p, i) => (
+        <View key={i} style={{ position: 'absolute', left: p.x - 1.5, top: p.y - 1.5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#94a3b8' }} />
+      ))}
+      {/* ray1 — horizontal */}
+      <View style={armStyle(cx, cy, armLen, 0, '#e2e8f0', 2.5)} />
+      {/* ray2 — at angleDeg */}
+      <View style={armStyle(cx, cy, armLen, angleDeg, '#e2e8f0', 2.5)} />
+      {/* arrowheads as dots at tips */}
+      <View style={{ position: 'absolute', left: r1ex - 4, top: r1ey - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#94a3b8' }} />
+      <View style={{ position: 'absolute', left: r2ex - 4, top: r2ey - 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#94a3b8' }} />
+      {/* vertex dot */}
+      <View style={{ position: 'absolute', left: cx - 5, top: cy - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#7c3aed' }} />
+      {/* labels */}
+      <Text style={[stimStyles.angleLabel, { left: cx - 8, top: cy + 8 }]}>{vertex}</Text>
+      <Text style={[stimStyles.angleLabel, { left: r1ex + 6, top: r1ey - 8 }]}>{ray1}</Text>
+      <Text style={[stimStyles.angleLabel, { left: r2ex + (r2ex > cx ? 4 : -20), top: r2ey - (angleDeg > 150 ? 6 : 20) }]}>{ray2}</Text>
+    </View>
+  );
+}
+
+// ── SegmentStimulus — draws a ruler with a colored bar ────────
+function SegmentStimulus({ geometry }) {
+  const { length = 1, unit = 'inch', color = 'red', rulerMax = Math.ceil(length) + 1 } = geometry;
+  const W        = 280;
+  const pxPerUnit = W / rulerMax;
+  const barWidth  = Math.round(length * pxPerUnit);
+  const unitLabel = unit === 'inch' ? 'in' : unit;
+
+  const COLOR_MAP = {
+    red: '#ef4444', blue: '#3b82f6', green: '#22c55e',
+    orange: '#f97316', purple: '#a855f7', yellow: '#eab308',
+  };
+  const barColor = COLOR_MAP[color] ?? color;
+
+  // Ticks: whole units + halves
+  const ticks = [];
+  for (let i = 0; i <= rulerMax * 2; i++) {
+    const isWhole = i % 2 === 0;
+    const x = Math.round((i / 2) * pxPerUnit);
+    ticks.push({ x, isWhole, label: isWhole ? String(i / 2) : null });
+  }
+
+  // Layout (all positions relative to the outer canvas):
+  //   0–22  : colored bar
+  //   26–52 : ruler body (tick marks, no overflow needed)
+  //   54–70 : number labels (below ruler, outside ruler body)
+  //   72–82 : unit label
+  return (
+    <View style={[stimStyles.segCanvas, { height: 88 }]}>
+
+      {/* ── Colored bar with end caps ── */}
+      <View style={{ position: 'absolute', left: 0, top: 4, height: 16, width: barWidth, backgroundColor: barColor, borderRadius: 3 }} />
+      {/* left cap */}
+      <View style={{ position: 'absolute', left: 0,           top: 0, width: 2, height: 24, backgroundColor: barColor }} />
+      {/* right cap */}
+      <View style={{ position: 'absolute', left: barWidth - 2, top: 0, width: 2, height: 24, backgroundColor: barColor }} />
+
+      {/* ── Ruler body (tick marks only, no text inside) ── */}
+      <View style={{ position: 'absolute', left: 0, top: 26, width: W, height: 28, backgroundColor: '#1e293b', borderRadius: 4, borderWidth: 1, borderColor: '#334155' }}>
+        {ticks.map((t, i) => (
+          <View key={i} style={{
+            position: 'absolute', left: t.x - 0.75, top: 0,
+            width: 1.5, height: t.isWhole ? 18 : 10,
+            backgroundColor: t.isWhole ? '#64748b' : '#475569',
+          }} />
+        ))}
+      </View>
+
+      {/* ── Number labels — positioned in canvas, below the ruler body ── */}
+      {ticks.filter(t => t.label !== null).map((t, i) => (
+        <Text key={i} style={{
+          position: 'absolute',
+          left: t.x - 10, top: 56,
+          width: 20, textAlign: 'center',
+          fontSize: 11, color: '#94a3b8', fontWeight: '700',
+        }}>{t.label}</Text>
+      ))}
+
+      {/* ── Unit label ── */}
+      <Text style={{ position: 'absolute', right: 2, top: 72, fontSize: 10, color: '#64748b', fontWeight: '600' }}>
+        {unitLabel}
+      </Text>
+    </View>
+  );
+}
+
+const stimStyles = StyleSheet.create({
+  angleCanvas: {
+    width: 280, height: 160, alignSelf: 'center',
+    backgroundColor: '#0f172a', borderRadius: 10,
+    borderWidth: 1, borderColor: '#1e293b',
+    marginBottom: 12, position: 'relative', overflow: 'visible',
+  },
+  angleLabel: {
+    position: 'absolute', fontSize: 14, color: '#e2e8f0',
+    fontWeight: '800', fontStyle: 'italic',
+  },
+  segCanvas: {
+    width: 280, height: 72, alignSelf: 'center',
+    marginBottom: 12, position: 'relative',
+  },
+  segUnitLabel: {
+    position: 'absolute', right: 0, top: 56,
+    fontSize: 9, color: '#64748b', fontWeight: '600',
+  },
+});
+
+function armStyle(cx, cy, length, angleDeg, color, thickness = 2) {
+  const rad = (angleDeg * Math.PI) / 180;
+  const ex  = cx + length * Math.cos(rad);
+  const ey  = cy - length * Math.sin(rad); // Y-axis is inverted on screen
+  const mx  = (cx + ex) / 2;
+  const my  = (cy + ey) / 2;
+  return {
+    position: 'absolute',
+    left:   mx - length / 2,
+    top:    my - thickness / 2,
+    width:  length,
+    height: thickness,
+    backgroundColor: color,
+    transform: [{ rotate: `${-angleDeg}deg` }],
+  };
+}
+
+// ── ProtractorRenderer ────────────────────────────────────────
+// Labels shown at major angles; ticks drawn every 10°
+const PROT_LABEL_MARKS = [0, 30, 45, 60, 90, 120, 135, 150, 180];
+const PROT_TICK_STEP   = 10; // minor tick every 10°
+const PROT_R      = 108; // arc radius
+const PROT_CX     = 140; // center x  (container width = 280)
+const PROT_CY     = 130; // center y  (baseline of semicircle)
+const SLIDER_W    = 240; // slider track width
+
+function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
+  const [angleDeg, setAngleDeg] = useState(90);
+  const [feedback,  setFeedback]  = useState(null);
+  const sliderXRef = useRef((90 / 180) * SLIDER_W);
+  const startXRef  = useRef(sliderXRef.current);
+  const shakeAnim  = useRef(new Animated.Value(0)).current;
+
+  function shake() {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  }
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // Capture phase fires before ScrollView can claim the gesture
+      onStartShouldSetPanResponderCapture: () => !feedback,
+      onMoveShouldSetPanResponderCapture:  () => true,
+      onStartShouldSetPanResponder:        () => !feedback,
+      onMoveShouldSetPanResponder:         () => true,
+      // Never let the OS hand the gesture to someone else mid-drag
+      onPanResponderTerminationRequest:    () => false,
+      // Jump handle to wherever the finger lands on the track
+      onPanResponderGrant: (e) => {
+        setScrollEnabled?.(false);
+        const x = Math.max(0, Math.min(SLIDER_W, e.nativeEvent.locationX));
+        sliderXRef.current = x;
+        startXRef.current  = x;
+        setAngleDeg(Math.round((x / SLIDER_W) * 180));
+      },
+      onPanResponderMove: (_, gs) => {
+        const nx = Math.max(0, Math.min(SLIDER_W, startXRef.current + gs.dx));
+        sliderXRef.current = nx;
+        setAngleDeg(Math.round((nx / SLIDER_W) * 180));
+      },
+      onPanResponderRelease:   () => { setScrollEnabled?.(true); },
+      onPanResponderTerminate: () => { setScrollEnabled?.(true); },
+    })
+  ).current;
+
+  function handleSubmit() {
+    if (feedback) return;
+    const correct    = parseFloat(q.correctAnswer ?? '0');
+    const isCorrect  = Math.abs(angleDeg - correct) <= 5; // ±5° tolerance
+    setFeedback(isCorrect ? 'correct' : 'wrong');
+    if (isCorrect) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+    else           { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(isCorrect), 1400);
+  }
+
+  const isCorrect  = feedback === 'correct';
+  const isWrong    = feedback === 'wrong';
+  const armColor   = isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#7c3aed';
+  const sliderLeft = (angleDeg / 180) * SLIDER_W;
+
+  // Reference angle — drawn inside the protractor so student reads the scale
+  const refAngle = parseFloat(q.correctAnswer ?? '0');
+  const geo      = q.geometry?.type === 'angle' ? q.geometry : null;
+  const refRad   = (refAngle * Math.PI) / 180;
+  const refTipX  = PROT_CX + (PROT_R - 6) * Math.cos(refRad);
+  const refTipY  = PROT_CY - (PROT_R - 6) * Math.sin(refRad);
+  const r0TipX   = PROT_CX + (PROT_R - 6); // ray1 tip (0°)
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+      {/* ── Protractor visual — reference arm drawn inside ── */}
+      <View style={measStyles.protContainer}>
+        {/* Outer arc (semicircle) */}
+        <View style={[measStyles.protArc, { left: PROT_CX - PROT_R, top: PROT_CY - PROT_R }]} />
+        {/* Baseline */}
+        <View style={{ position: 'absolute', left: PROT_CX - PROT_R - 6, top: PROT_CY - 1, width: PROT_R * 2 + 12, height: 1.5, backgroundColor: '#475569' }} />
+
+        {/* Minor tick marks every 10° along the arc */}
+        {Array.from({ length: 19 }, (_, i) => (i + 1) * PROT_TICK_STEP - PROT_TICK_STEP).map(deg => {
+          const isLabel = PROT_LABEL_MARKS.includes(deg);
+          if (isLabel) return null; // labels have their own marks
+          const r   = (deg * Math.PI) / 180;
+          const tx1 = PROT_CX + (PROT_R - 4) * Math.cos(r);
+          const ty1 = PROT_CY - (PROT_R - 4) * Math.sin(r);
+          const tx2 = PROT_CX + (PROT_R + 4) * Math.cos(r);
+          const ty2 = PROT_CY - (PROT_R + 4) * Math.sin(r);
+          // Draw as a tiny rotated line
+          const tickLen = 8;
+          return <View key={deg} style={armStyle(tx1, ty1, tickLen, deg, '#334155', 1.5)} />;
+        })}
+
+        {/* Reference arm — the angle to measure (white "pencil line" through the protractor) */}
+        <View style={armStyle(PROT_CX, PROT_CY, PROT_R + 18, refAngle, '#e2e8f0', 1.5)} />
+        {/* Angle arc between 0° and the reference angle */}
+        {Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
+          const a = (i / Math.round(refAngle / 3)) * refAngle;
+          const r = (a * Math.PI) / 180;
+          return <View key={i} style={{ position: 'absolute', left: PROT_CX + 36 * Math.cos(r) - 1.5, top: PROT_CY - 36 * Math.sin(r) - 1.5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#7c3aed', opacity: 0.5 }} />;
+        })}
+
+        {/* Fixed arm (0° → right) */}
+        <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, 0, '#475569')} />
+        {/* Movable arm (student-controlled) */}
+        <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, angleDeg, armColor, 3)} />
+
+        {/* Center dot */}
+        <View style={{ position: 'absolute', left: PROT_CX - 5, top: PROT_CY - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#94a3b8' }} />
+
+        {/* Degree labels at major marks */}
+        {PROT_LABEL_MARKS.map(mark => {
+          const rad    = (mark * Math.PI) / 180;
+          const lx     = PROT_CX + (PROT_R + 18) * Math.cos(rad);
+          const ly     = PROT_CY - (PROT_R + 18) * Math.sin(rad);
+          const isNear = Math.abs(mark - angleDeg) <= 6;
+          return (
+            <Text key={mark} style={[measStyles.protMarkLabel, { left: lx - 13, top: ly - 8 }, isNear && { color: armColor, fontWeight: '800' }]}>
+              {mark}°
+            </Text>
+          );
+        })}
+
+        {/* Ray labels from geometry (vertex, ray1 at 0°, ray2 at refAngle) */}
+        {geo && <>
+          <Text style={[measStyles.protRayLabel, { left: PROT_CX - 8, top: PROT_CY + 10 }]}>{geo.vertex}</Text>
+          <Text style={[measStyles.protRayLabel, { left: r0TipX + 5, top: PROT_CY - 8 }]}>{geo.ray1}</Text>
+          <Text style={[measStyles.protRayLabel, { left: refTipX + (refAngle > 90 ? -20 : 5), top: refTipY - 16 }]}>{geo.ray2}</Text>
+        </>}
+
+        {/* Angle readout in center of arc */}
+        <Text style={[measStyles.protReadout, isCorrect && { color: '#4ade80' }, isWrong && { color: '#f87171' }]}>
+          {angleDeg}°
+        </Text>
+      </View>
+
+      {/* ── Slider — panHandlers on the whole track so dragging anywhere works ── */}
+      <View style={measStyles.sliderRow}>
+        <Text style={measStyles.sliderEndLabel}>0°</Text>
+        <View style={measStyles.sliderTrack} {...panResponder.panHandlers}>
+          <View style={[measStyles.sliderFill, { width: sliderLeft }]} />
+          <View style={[measStyles.sliderHandle, { left: sliderLeft - 12 }]} pointerEvents="none" />
+        </View>
+        <Text style={measStyles.sliderEndLabel}>180°</Text>
+      </View>
+      <Text style={measStyles.sliderHint}>Tap or drag anywhere on the bar</Text>
+
+      {!q.image_url && !q.geometry && (
+        <Text style={measStyles.worksheetHint}>📖 Reference your worksheet to see the angle</Text>
+      )}
+
+      {isWrong && (
+        <View style={styles.fillInReveal}>
+          <Text style={styles.fillInRevealLabel}>Correct angle:</Text>
+          <Text style={styles.fillInRevealAnswer}>{q.correctAnswer}°</Text>
+        </View>
+      )}
+      {isCorrect && <Text style={styles.fillInCorrectMsg}>Correct! 📐</Text>}
+      {!feedback && (
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 20 }]} onPress={handleSubmit} activeOpacity={0.8}>
+          <Text style={styles.fillInSubmitText}>Check Angle</Text>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+// ── RulerRenderer ─────────────────────────────────────────────
+const RULER_DISPLAY_W = 280;
+
+function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
+  // Prefer geometry.rulerMax (set by AI alongside unit), fall back to rulerMaxCm
+  const rulerUnit = q.geometry?.unit ?? 'cm';
+  const unitLabel = rulerUnit === 'inch' ? 'in' : rulerUnit;
+  const maxCm     = q.geometry?.rulerMax ?? q.rulerMaxCm ?? 10;
+  const cmPx      = RULER_DISPLAY_W / maxCm; // pixels per unit
+  const [valueCm,  setValueCm]  = useState(maxCm / 2);
+  const [feedback, setFeedback] = useState(null);
+  const valueXRef  = useRef((maxCm / 2) * cmPx);
+  const startXRef  = useRef(valueXRef.current);
+  const shakeAnim  = useRef(new Animated.Value(0)).current;
+
+  function shake() {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -8, duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 6,  duration: 60, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0,  duration: 60, useNativeDriver: true }),
+    ]).start();
+  }
+
+  const panResponder = useRef(
+    PanResponder.create({
+      // Capture phase fires before ScrollView can claim the gesture
+      onStartShouldSetPanResponderCapture: () => !feedback,
+      onMoveShouldSetPanResponderCapture:  () => true,
+      onStartShouldSetPanResponder:        () => !feedback,
+      onMoveShouldSetPanResponder:         () => true,
+      // Never let the OS hand the gesture to someone else mid-drag
+      onPanResponderTerminationRequest:    () => false,
+      // Jump marker to wherever the finger lands on the ruler
+      onPanResponderGrant: (e) => {
+        setScrollEnabled?.(false);
+        const x = Math.max(0, Math.min(RULER_DISPLAY_W, e.nativeEvent.locationX));
+        valueXRef.current = x;
+        startXRef.current = x;
+        setValueCm(Math.round((x / RULER_DISPLAY_W) * maxCm * 10) / 10);
+      },
+      onPanResponderMove: (_, gs) => {
+        const nx = Math.max(0, Math.min(RULER_DISPLAY_W, startXRef.current + gs.dx));
+        valueXRef.current = nx;
+        setValueCm(Math.round((nx / RULER_DISPLAY_W) * maxCm * 10) / 10);
+      },
+      onPanResponderRelease:   () => { setScrollEnabled?.(true); },
+      onPanResponderTerminate: () => { setScrollEnabled?.(true); },
+    })
+  ).current;
+
+  function handleSubmit() {
+    if (feedback) return;
+    const correct   = parseFloat(q.correctAnswer ?? '0');
+    const tolerance = Math.max(0.3, correct * 0.1); // ±10% or ±0.3 cm
+    const isCorrect = Math.abs(valueCm - correct) <= tolerance;
+    setFeedback(isCorrect ? 'correct' : 'wrong');
+    if (isCorrect) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+    else           { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+    setTimeout(() => onResolve(isCorrect), 1400);
+  }
+
+  const isCorrect  = feedback === 'correct';
+  const isWrong    = feedback === 'wrong';
+  const markerLeft = (valueCm / maxCm) * RULER_DISPLAY_W;
+
+  // Build whole-unit and half-unit tick marks
+  const ticks = [];
+  for (let i = 0; i <= maxCm * 2; i++) {
+    const isCm = i % 2 === 0;
+    const xPos = Math.round((i / 2) * cmPx);
+    const h    = isCm ? 16 : 9;
+    ticks.push({ x: xPos, h, isCm, label: isCm ? String(i / 2) : null });
+  }
+
+  return (
+    <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+      {/* ── Segment drawing — shown when AI provided geometry ── */}
+      {q.geometry?.type === 'segment' && <SegmentStimulus geometry={q.geometry} />}
+
+      {/* Reading */}
+      <Text style={[measStyles.rulerReading, isCorrect && { color: '#4ade80' }, isWrong && { color: '#f87171' }]}>
+        {valueCm.toFixed(1)} {unitLabel}
+      </Text>
+
+      {/* ── Ruler visual ── */}
+      <View style={measStyles.rulerContainer}>
+        {/* Ruler body (tick marks only — no text inside, avoids clipping on Android) */}
+        <View style={measStyles.rulerBody}>
+          {ticks.map((t, idx) => (
+            <View key={idx} style={{ position: 'absolute', left: t.x - 0.75, top: 0, width: 1.5, height: t.h, backgroundColor: t.isCm ? '#64748b' : '#475569' }} />
+          ))}
+        </View>
+
+        {/* Number labels outside the ruler body so they never clip */}
+        {ticks.filter(t => t.label !== null).map((t, idx) => (
+          <Text key={`l${idx}`} style={[measStyles.rulerTickLabel, { left: t.x - 8, top: 34 }]}>{t.label}</Text>
+        ))}
+
+        {/* Unit label */}
+        <Text style={{ position: 'absolute', right: 2, top: 34, fontSize: 9, color: '#475569', fontWeight: '600' }}>{unitLabel}</Text>
+
+        {/* panHandlers on the whole ruler body so any touch/drag works */}
+        <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} {...panResponder.panHandlers} />
+        {/* Marker — visual only, no panHandlers needed */}
+        <View style={[measStyles.rulerMarker, { left: markerLeft - 1.5, backgroundColor: isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#7c3aed' }]} pointerEvents="none" />
+        <View style={[measStyles.rulerMarkerHandle, { left: markerLeft - 12 }]} pointerEvents="none" />
+      </View>
+      <Text style={measStyles.sliderHint}>Tap or drag anywhere on the ruler</Text>
+
+      {!q.image_url && !q.geometry && (
+        <Text style={measStyles.worksheetHint}>📖 Reference your worksheet for the measurement</Text>
+      )}
+
+      {isWrong && (
+        <View style={styles.fillInReveal}>
+          <Text style={styles.fillInRevealLabel}>Correct measurement:</Text>
+          <Text style={styles.fillInRevealAnswer}>{q.correctAnswer} {unitLabel}</Text>
+        </View>
+      )}
+      {isCorrect && <Text style={styles.fillInCorrectMsg}>Correct! 📏</Text>}
+      {!feedback && (
+        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 20 }]} onPress={handleSubmit} activeOpacity={0.8}>
+          <Text style={styles.fillInSubmitText}>Check Measurement</Text>
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
+// ── Measurement styles ────────────────────────────────────────
+const measStyles = StyleSheet.create({
+  // Protractor
+  protContainer: {
+    width: 280, height: 178,
+    alignSelf: 'center', marginBottom: 4, position: 'relative',
+  },
+  protArc: {
+    position: 'absolute',
+    width: PROT_R * 2, height: PROT_R,
+    borderTopLeftRadius: PROT_R, borderTopRightRadius: PROT_R,
+    borderWidth: 1.5, borderBottomWidth: 0, borderColor: '#334155',
+  },
+  protMarkLabel: { position: 'absolute', fontSize: 10, color: '#475569', width: 26, textAlign: 'center' },
+  protRayLabel:  { position: 'absolute', fontSize: 13, color: '#e2e8f0', fontWeight: '800', fontStyle: 'italic' },
+  protReadout: {
+    position: 'absolute',
+    left: PROT_CX - 32, top: PROT_CY - 52,
+    width: 64, textAlign: 'center',
+    fontSize: 22, fontWeight: '900', color: '#7c3aed',
+  },
+  // Ruler
+  rulerReading: {
+    textAlign: 'center', fontSize: 26, fontWeight: '900',
+    color: '#7c3aed', marginBottom: 12,
+  },
+  rulerContainer: {
+    width: RULER_DISPLAY_W, height: 72,
+    alignSelf: 'center', marginBottom: 4, position: 'relative',
+  },
+  rulerBody: {
+    position: 'absolute', top: 0, left: 0,
+    width: RULER_DISPLAY_W, height: 30,
+    backgroundColor: '#1e293b',
+    borderRadius: 4, borderWidth: 1, borderColor: '#334155',
+  },
+  rulerTickLabel: {
+    position: 'absolute',
+    width: 16, textAlign: 'center',
+    fontSize: 10, color: '#94a3b8', fontWeight: '700',
+  },
+  rulerMarker: {
+    position: 'absolute', top: 0, width: 3, height: 44,
+    borderRadius: 2,
+  },
+  rulerMarkerHandle: {
+    position: 'absolute', top: 32, width: 24, height: 20,
+    borderRadius: 10, backgroundColor: '#7c3aed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  // Shared slider
+  sliderRow: {
+    flexDirection: 'row', alignItems: 'center',
+    alignSelf: 'center', gap: 8, marginTop: 8, marginBottom: 4,
+  },
+  sliderTrack: {
+    width: SLIDER_W, height: 6, borderRadius: 3,
+    backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155',
+    position: 'relative',
+  },
+  sliderFill: { height: '100%', borderRadius: 3, backgroundColor: '#7c3aed', position: 'absolute' },
+  sliderHandle: {
+    position: 'absolute', top: -9, width: 24, height: 24,
+    borderRadius: 12, backgroundColor: '#7c3aed',
+    borderWidth: 2.5, borderColor: '#a78bfa',
+    shadowColor: '#7c3aed', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5, shadowRadius: 4, elevation: 4,
+  },
+  sliderEndLabel: { fontSize: 11, color: '#64748b', fontWeight: '700', width: 32, textAlign: 'center' },
+  sliderHint:     { fontSize: 11, color: '#475569', textAlign: 'center', marginBottom: 6 },
+  worksheetHint:  { fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 2, marginBottom: 4, fontStyle: 'italic' },
+});
+
 // ── FillInRenderer ────────────────────────────────────────────
 function FillInRenderer({ q, onResolve, styles }) {
   const [value, setValue]       = useState('');
@@ -693,6 +1222,8 @@ export default function QuizScreen() {
   const [passageVisible, setPassageVisible] = useState(false);
   const [zoomImage, setZoomImage]           = useState(null);
   const [enabledGames, setEnabledGames]     = useState({});
+  // Locked while a measurement slider is being dragged so ScrollView doesn't compete
+  const [scrollEnabled, setScrollEnabled]   = useState(true);
 
   useEffect(() => {
     getEnabledMap(GAME_REGISTRY.map(g => g.id)).then(setEnabledGames);
@@ -937,7 +1468,7 @@ export default function QuizScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <ScrollView contentContainerStyle={styles.quizContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.quizContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEnabled={scrollEnabled}>
 
           {/* Context reference card — shown above the question when GPT included one */}
           {q.context && <ContextCard context={q.context} accentColor={subjectColor} />}
@@ -1003,6 +1534,10 @@ export default function QuizScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          ) : qType === 'fill_in' && q.measurementTool === 'protractor' ? (
+            <ProtractorRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
+          ) : qType === 'fill_in' && q.measurementTool === 'ruler' ? (
+            <RulerRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'ordering' ? (
