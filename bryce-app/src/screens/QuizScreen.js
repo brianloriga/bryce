@@ -522,18 +522,59 @@ function armStyle(cx, cy, length, angleDeg, color, thickness = 2) {
 // ── ProtractorRenderer ────────────────────────────────────────
 // Labels shown at major angles; ticks drawn every 10°
 const PROT_LABEL_MARKS = [0, 30, 45, 60, 90, 120, 135, 150, 180];
-const PROT_TICK_STEP   = 10; // minor tick every 10°
-const PROT_R      = 108; // arc radius
-const PROT_CX     = 140; // center x  (container width = 280)
-const PROT_CY     = 130; // center y  (baseline of semicircle)
-const SLIDER_W    = 240; // slider track width
+const PROT_TICK_STEP   = 10;
+const PROT_R      = 108;
+const PROT_CX     = 140;
+const PROT_CY     = 130;
+const SLIDER_W    = 240;
+
+// ── Targeted wrong-answer diagnostic messages ──────────────────
+// Returns a hint string when the student's typed value reveals a specific
+// misconception; returns null for generic errors.
+function protractorDiagnostic(typed, correct, geo) {
+  if (isNaN(typed)) return null;
+  const opposite = 180 - correct;
+  // Read from the wrong scale (supplement of the correct angle)
+  if (Math.abs(typed - opposite) <= 8) {
+    const side = geo?.scaleOrigin === 'right' ? 'right' : geo?.scaleOrigin === 'left' ? 'left' : null;
+    const sideHint = side ? ` Start at the 0° on the ${side} side.` : '';
+    return `You read from the wrong scale.${sideHint}`;
+  }
+  // Correct answer is acute but student gave obtuse (or vice-versa)
+  if (correct < 90 && typed > 90) return 'This is an acute angle — it must be less than 90°.';
+  if (correct > 90 && typed < 90) return 'This is an obtuse angle — it must be greater than 90°.';
+  if (correct === 90 && typed !== 90) return 'This is a right angle — it should be exactly 90°.';
+  return null;
+}
 
 function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
-  const [angleDeg, setAngleDeg] = useState(90);
-  const [feedback,  setFeedback]  = useState(null);
+  const geo    = q.geometry?.type === 'angle' ? q.geometry : null;
+  // v3: protractorMode — 'align' (default), 'read', or 'build'
+  const mode   = geo?.protractorMode ?? 'align';
+  // v2: scaleOrigin — 'left' or 'right'; null means skip scale-choice step
+  const scaleOrigin = geo?.scaleOrigin ?? null;
+
+  const [angleDeg,    setAngleDeg]    = useState(90);
+  const [feedback,    setFeedback]    = useState(null);
+  const [typedAnswer, setTypedAnswer] = useState('');       // v1: typed input
+  const [scaleChosen, setScaleChosen] = useState(null);     // v2: 'left'|'right'|null
+  const [scaleError,  setScaleError]  = useState(null);     // v2: error message
+  const [wrongMsg,    setWrongMsg]    = useState(null);     // v1: targeted diagnostic
   const sliderXRef = useRef((90 / 180) * SLIDER_W);
   const startXRef  = useRef(sliderXRef.current);
   const shakeAnim  = useRef(new Animated.Value(0)).current;
+  const inputRef   = useRef(null);
+
+  // v2: slider is locked until the student picks the correct scale (when scaleOrigin present)
+  const sliderLocked = scaleOrigin != null && scaleChosen !== scaleOrigin;
+
+  // Mutable refs read by PanResponder at gesture time — avoids stale closure from useRef.
+  // PanResponder.create() runs once on mount; without refs the callbacks would forever
+  // close over the initial (null/false) values of feedback and sliderLocked.
+  const feedbackRef     = useRef(null);
+  const sliderLockedRef = useRef(false);
+  feedbackRef.current     = feedback;
+  sliderLockedRef.current = sliderLocked;
 
   function shake() {
     Animated.sequence([
@@ -546,15 +587,14 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
 
   const panResponder = useRef(
     PanResponder.create({
-      // Capture phase fires before ScrollView can claim the gesture
-      onStartShouldSetPanResponderCapture: () => !feedback,
-      onMoveShouldSetPanResponderCapture:  () => true,
-      onStartShouldSetPanResponder:        () => !feedback,
-      onMoveShouldSetPanResponder:         () => true,
-      // Never let the OS hand the gesture to someone else mid-drag
+      // Read refs at call-time so these always reflect current state
+      onStartShouldSetPanResponderCapture: () => !feedbackRef.current && !sliderLockedRef.current,
+      onMoveShouldSetPanResponderCapture:  () => !sliderLockedRef.current,
+      onStartShouldSetPanResponder:        () => !feedbackRef.current && !sliderLockedRef.current,
+      onMoveShouldSetPanResponder:         () => !sliderLockedRef.current,
       onPanResponderTerminationRequest:    () => false,
-      // Jump handle to wherever the finger lands on the track
       onPanResponderGrant: (e) => {
+        if (sliderLockedRef.current) return;
         setScrollEnabled?.(false);
         const x = Math.max(0, Math.min(SLIDER_W, e.nativeEvent.locationX));
         sliderXRef.current = x;
@@ -562,6 +602,7 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
         setAngleDeg(Math.round((x / SLIDER_W) * 180));
       },
       onPanResponderMove: (_, gs) => {
+        if (sliderLockedRef.current) return;
         const nx = Math.max(0, Math.min(SLIDER_W, startXRef.current + gs.dx));
         sliderXRef.current = nx;
         setAngleDeg(Math.round((nx / SLIDER_W) * 180));
@@ -571,14 +612,50 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
     })
   ).current;
 
+  // v2: student picks which scale to read from
+  function handleScaleChoice(choice) {
+    if (feedback) return;
+    if (choice === scaleOrigin) {
+      setScaleChosen(choice);
+      setScaleError(null);
+    } else {
+      const ray = geo?.ray1 ?? 'the baseline ray';
+      const correct = scaleOrigin === 'right' ? 'right' : 'left';
+      setScaleError(`Not quite — ${ray} lies along the ${correct} side, so start from the ${correct} 0°.`);
+      shake();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }
+
   function handleSubmit() {
     if (feedback) return;
-    const correct    = parseFloat(q.correctAnswer ?? '0');
-    const isCorrect  = Math.abs(angleDeg - correct) <= 5; // ±5° tolerance
+    Keyboard.dismiss();
+    const correct = parseFloat(q.correctAnswer ?? '0');
+
+    // v3 build mode: validate slider position, no typing required
+    if (mode === 'build') {
+      const isCorrect = Math.abs(angleDeg - correct) <= 5;
+      setFeedback(isCorrect ? 'correct' : 'wrong');
+      if (isCorrect) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
+      else           { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
+      setTimeout(() => onResolve(isCorrect), 1400);
+      return;
+    }
+
+    // v1 align + read modes: validate typed answer
+    const typed = parseFloat(typedAnswer.trim());
+    if (isNaN(typed) || typedAnswer.trim() === '') {
+      setScaleError('Enter the degree number before checking.');
+      return;
+    }
+    setScaleError(null);
+    const isCorrect = Math.abs(typed - correct) <= 5;
+    const diag = isCorrect ? null : protractorDiagnostic(typed, correct, geo);
+    setWrongMsg(diag);
     setFeedback(isCorrect ? 'correct' : 'wrong');
     if (isCorrect) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }
     else           { shake(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); }
-    setTimeout(() => onResolve(isCorrect), 1400);
+    setTimeout(() => onResolve(isCorrect), 1800);
   }
 
   const isCorrect  = feedback === 'correct';
@@ -586,105 +663,242 @@ function ProtractorRenderer({ q, onResolve, styles, setScrollEnabled }) {
   const armColor   = isCorrect ? '#4ade80' : isWrong ? '#f87171' : '#7c3aed';
   const sliderLeft = (angleDeg / 180) * SLIDER_W;
 
-  // Reference angle — drawn inside the protractor so student reads the scale
-  const refAngle = parseFloat(q.correctAnswer ?? '0');
-  const geo      = q.geometry?.type === 'angle' ? q.geometry : null;
-  const refRad   = (refAngle * Math.PI) / 180;
-  const refTipX  = PROT_CX + (PROT_R - 6) * Math.cos(refRad);
-  const refTipY  = PROT_CY - (PROT_R - 6) * Math.sin(refRad);
-  const r0TipX   = PROT_CX + (PROT_R - 6); // ray1 tip (0°)
+  const refAngle  = parseFloat(q.correctAnswer ?? '0');
+  // flipped: baseline points LEFT (180°); reference arm and movable arm screen angles are mirrored.
+  // The degree labels also reverse so "0°" appears on the left side of the arc.
+  const isFlipped = geo?.flipped === true;
+
+  // Screen angles used for drawing arms — independent of what the angle VALUE is
+  const baselineScreenDeg = isFlipped ? 180 : 0;
+  const refArmScreenDeg   = isFlipped ? 180 - refAngle : refAngle;
+  const movableScreenDeg  = isFlipped ? 180 - angleDeg : angleDeg;
+
+  // Ray label positions — BEYOND the arm tip (arm tip at PROT_R+18; labels at PROT_R+32)
+  const labelDist   = PROT_R + 32;
+  const refArmRad   = (refArmScreenDeg * Math.PI) / 180;
+  const baselineRad = (baselineScreenDeg * Math.PI) / 180;
+  const refTipX     = PROT_CX + labelDist * Math.cos(refArmRad);
+  const refTipY     = PROT_CY - labelDist * Math.sin(refArmRad);
+  const r0TipX      = PROT_CX + labelDist * Math.cos(baselineRad);
+  const r0TipY      = PROT_CY - labelDist * Math.sin(baselineRad);
+
+  // Degree label value shown at each arc position:
+  //   Normal:  position 30° shows "30°"
+  //   Flipped: position 30° shows "150°" (scale reads in reverse from the left)
+  const labelValue = (mark) => isFlipped ? 180 - mark : mark;
+
+  // v3 build mode hides the reference arm so student must construct it themselves
+  const showRefArm = mode !== 'build';
+  // v1: hide live readout until after submit (prevents number-matching shortcut)
+  const showReadout = !!feedback;
+  // v3 read mode and v1 align mode both need a typed input; build mode uses slider only
+  const needsTypedInput = mode !== 'build';
+  // v3 read mode has no slider interaction
+  const showSlider = mode !== 'read';
+
+  // v2: show scale-choice step when scaleOrigin is present and not yet answered correctly
+  const showScaleStep = scaleOrigin != null && scaleChosen !== scaleOrigin;
 
   return (
     <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
-      {/* ── Protractor visual — reference arm drawn inside ── */}
-      <View style={measStyles.protContainer}>
-        {/* Outer arc (semicircle) */}
+
+      {/* ── v2: Scale-choice step — must answer before interacting ── */}
+      {showScaleStep && (
+        <View style={measStyles.scaleChoiceBox}>
+          <Text style={measStyles.scaleChoicePrompt}>Which 0° do you start reading from?</Text>
+          <View style={measStyles.scaleChoiceRow}>
+            <TouchableOpacity
+              style={[measStyles.scaleChoiceBtn, scaleChosen === 'left' && measStyles.scaleChoiceBtnSelected]}
+              onPress={() => handleScaleChoice('left')}
+              activeOpacity={0.75}
+            >
+              <Text style={measStyles.scaleChoiceBtnText}>← Left side</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[measStyles.scaleChoiceBtn, scaleChosen === 'right' && measStyles.scaleChoiceBtnSelected]}
+              onPress={() => handleScaleChoice('right')}
+              activeOpacity={0.75}
+            >
+              <Text style={measStyles.scaleChoiceBtnText}>Right side →</Text>
+            </TouchableOpacity>
+          </View>
+          {scaleError && (
+            <Text style={measStyles.scaleChoiceError}>{scaleError}</Text>
+          )}
+        </View>
+      )}
+
+      {/* ── v2: Scale confirmed badge ── */}
+      {scaleOrigin != null && scaleChosen === scaleOrigin && !feedback && (
+        <View style={measStyles.scaleConfirmed}>
+          <Text style={measStyles.scaleConfirmedText}>
+            {mode === 'read'
+              ? `✓ Reading from the ${scaleChosen} 0° — now read the angle and type your answer.`
+              : mode === 'build'
+              ? `✓ Reading from the ${scaleChosen} 0° — now drag the arm to build the angle.`
+              : `✓ Reading from the ${scaleChosen} 0° — position the arm, then type the angle.`}
+          </Text>
+        </View>
+      )}
+
+      {/* ── Protractor visual ── */}
+      <View style={[measStyles.protContainer, showScaleStep && { opacity: 0.35 }]}>
         <View style={[measStyles.protArc, { left: PROT_CX - PROT_R, top: PROT_CY - PROT_R }]} />
-        {/* Baseline */}
+        {/* Full baseline (always drawn end-to-end regardless of flip) */}
         <View style={{ position: 'absolute', left: PROT_CX - PROT_R - 6, top: PROT_CY - 1, width: PROT_R * 2 + 12, height: 1.5, backgroundColor: '#475569' }} />
 
-        {/* Minor tick marks every 10° along the arc */}
-        {Array.from({ length: 19 }, (_, i) => (i + 1) * PROT_TICK_STEP - PROT_TICK_STEP).map(deg => {
+        {/* Tick marks — positions never change, only what's written changes in flipped mode */}
+        {Array.from({ length: 19 }, (_, i) => i * PROT_TICK_STEP).map(deg => {
           const isLabel = PROT_LABEL_MARKS.includes(deg);
-          if (isLabel) return null; // labels have their own marks
+          if (isLabel) return null;
           const r   = (deg * Math.PI) / 180;
           const tx1 = PROT_CX + (PROT_R - 4) * Math.cos(r);
           const ty1 = PROT_CY - (PROT_R - 4) * Math.sin(r);
-          const tx2 = PROT_CX + (PROT_R + 4) * Math.cos(r);
-          const ty2 = PROT_CY - (PROT_R + 4) * Math.sin(r);
-          // Draw as a tiny rotated line
-          const tickLen = 8;
-          return <View key={deg} style={armStyle(tx1, ty1, tickLen, deg, '#334155', 1.5)} />;
+          return <View key={deg} style={armStyle(tx1, ty1, 8, deg, '#334155', 1.5)} />;
         })}
 
-        {/* Reference arm — the angle to measure (white "pencil line" through the protractor) */}
-        <View style={armStyle(PROT_CX, PROT_CY, PROT_R + 18, refAngle, '#e2e8f0', 1.5)} />
-        {/* Angle arc between 0° and the reference angle */}
-        {Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
-          const a = (i / Math.round(refAngle / 3)) * refAngle;
-          const r = (a * Math.PI) / 180;
-          return <View key={i} style={{ position: 'absolute', left: PROT_CX + 36 * Math.cos(r) - 1.5, top: PROT_CY - 36 * Math.sin(r) - 1.5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#7c3aed', opacity: 0.5 }} />;
-        })}
+        {/* Reference arm — hidden in build mode; drawn at refArmScreenDeg */}
+        {showRefArm && (
+          <>
+            <View style={armStyle(PROT_CX, PROT_CY, PROT_R + 18, refArmScreenDeg, '#e2e8f0', 1.5)} />
+            {/* Small dotted arc between baseline arm and reference arm */}
+            {Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
+              const t = Math.round(refAngle / 3) > 0 ? i / Math.round(refAngle / 3) : 0;
+              // Arc spans from baselineScreenDeg toward refArmScreenDeg
+              const a = isFlipped
+                ? baselineScreenDeg - t * refAngle   // 180° → (180-refAngle)°
+                : t * refAngle;                       // 0° → refAngle°
+              const r = (a * Math.PI) / 180;
+              return <View key={i} style={{ position: 'absolute', left: PROT_CX + 36 * Math.cos(r) - 1.5, top: PROT_CY - 36 * Math.sin(r) - 1.5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#7c3aed', opacity: 0.5 }} />;
+            })}
+          </>
+        )}
 
-        {/* Fixed arm (0° → right) */}
-        <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, 0, '#475569')} />
-        {/* Movable arm (student-controlled) */}
-        <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, angleDeg, armColor, 3)} />
+        {/* Baseline arm — at 0° normally, at 180° when flipped */}
+        <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, baselineScreenDeg, '#475569')} />
+        {/* Movable arm — hidden in read mode; drawn at movableScreenDeg */}
+        {showSlider && (
+          <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, movableScreenDeg, armColor, 3)} />
+        )}
 
-        {/* Center dot */}
         <View style={{ position: 'absolute', left: PROT_CX - 5, top: PROT_CY - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#94a3b8' }} />
 
-        {/* Degree labels at major marks */}
+        {/* Degree labels — flipped mode reverses the numbers shown at each arc position */}
         {PROT_LABEL_MARKS.map(mark => {
           const rad    = (mark * Math.PI) / 180;
           const lx     = PROT_CX + (PROT_R + 18) * Math.cos(rad);
           const ly     = PROT_CY - (PROT_R + 18) * Math.sin(rad);
-          const isNear = Math.abs(mark - angleDeg) <= 6;
+          // Highlight the label nearest to the movable arm's current position
+          const isNear = showSlider && Math.abs(labelValue(mark) - angleDeg) <= 6;
           return (
             <Text key={mark} style={[measStyles.protMarkLabel, { left: lx - 13, top: ly - 8 }, isNear && { color: armColor, fontWeight: '800' }]}>
-              {mark}°
+              {labelValue(mark)}°
             </Text>
           );
         })}
 
-        {/* Ray labels from geometry (vertex, ray1 at 0°, ray2 at refAngle) */}
+        {/* Ray labels — vertex at center, ray1 at baseline tip, ray2 at reference arm tip */}
         {geo && <>
           <Text style={[measStyles.protRayLabel, { left: PROT_CX - 8, top: PROT_CY + 10 }]}>{geo.vertex}</Text>
-          <Text style={[measStyles.protRayLabel, { left: r0TipX + 5, top: PROT_CY - 8 }]}>{geo.ray1}</Text>
-          <Text style={[measStyles.protRayLabel, { left: refTipX + (refAngle > 90 ? -20 : 5), top: refTipY - 16 }]}>{geo.ray2}</Text>
+          <Text style={[measStyles.protRayLabel, { left: r0TipX - 6, top: r0TipY - 9 }]}>{geo.ray1}</Text>
+          {showRefArm && (
+            <Text style={[measStyles.protRayLabel, { left: refTipX - 6, top: refTipY - 9 }]}>{geo.ray2}</Text>
+          )}
         </>}
 
-        {/* Angle readout in center of arc */}
-        <Text style={[measStyles.protReadout, isCorrect && { color: '#4ade80' }, isWrong && { color: '#f87171' }]}>
-          {angleDeg}°
-        </Text>
+        {/* v1: readout hidden until after submit */}
+        {showReadout && (
+          <Text style={[measStyles.protReadout, isCorrect && { color: '#4ade80' }, isWrong && { color: '#f87171' }]}>
+            {mode === 'build' ? `${angleDeg}°` : `${typedAnswer}°`}
+          </Text>
+        )}
       </View>
 
-      {/* ── Slider — panHandlers on the whole track so dragging anywhere works ── */}
-      <View style={measStyles.sliderRow}>
-        <Text style={measStyles.sliderEndLabel}>0°</Text>
-        <View style={measStyles.sliderTrack} {...panResponder.panHandlers}>
-          <View style={[measStyles.sliderFill, { width: sliderLeft }]} />
-          <View style={[measStyles.sliderHandle, { left: sliderLeft - 12 }]} pointerEvents="none" />
+      {/* ── v3 build mode label ── */}
+      {mode === 'build' && !feedback && (
+        <Text style={measStyles.buildModeLabel}>
+          Create a {refAngle}° angle — drag the arm to the right position
+        </Text>
+      )}
+
+      {/* ── Slider (align + build modes) ── */}
+      {showSlider && (
+        <>
+          <View style={[measStyles.sliderRow, sliderLocked && { opacity: 0.35 }]}>
+            <Text style={measStyles.sliderEndLabel}>0°</Text>
+            <View style={measStyles.sliderTrack} {...(!sliderLocked ? panResponder.panHandlers : {})}>
+              <View style={[measStyles.sliderFill, { width: sliderLeft }]} />
+              <View style={[measStyles.sliderHandle, { left: sliderLeft - 12 }]} pointerEvents="none" />
+            </View>
+            <Text style={measStyles.sliderEndLabel}>180°</Text>
+          </View>
+          {sliderLocked
+            ? <Text style={measStyles.sliderHint}>Choose the scale above first</Text>
+            : <Text style={measStyles.sliderHint}>Tap or drag anywhere on the bar</Text>
+          }
+        </>
+      )}
+
+      {/* ── v1: Typed-answer input (align + read modes) ── */}
+      {needsTypedInput && !feedback && (
+        <View style={measStyles.typedAnswerRow}>
+          <Text style={measStyles.typedAnswerLabel}>
+            {mode === 'read' ? 'What angle is shown?' : 'What angle do you measure?'}
+          </Text>
+          <View style={measStyles.typedAnswerInputWrap}>
+            <TextInput
+              ref={inputRef}
+              style={measStyles.typedAnswerInput}
+              keyboardType="numeric"
+              returnKeyType="done"
+              maxLength={3}
+              value={typedAnswer}
+              onChangeText={t => {
+                setTypedAnswer(t.replace(/[^0-9]/g, ''));
+                if (scaleError && t.trim() !== '') setScaleError(null);
+              }}
+              onSubmitEditing={handleSubmit}
+              placeholder="___"
+              placeholderTextColor="#475569"
+              editable={!sliderLocked}
+            />
+            <Text style={measStyles.typedAnswerUnit}>°</Text>
+          </View>
         </View>
-        <Text style={measStyles.sliderEndLabel}>180°</Text>
-      </View>
-      <Text style={measStyles.sliderHint}>Tap or drag anywhere on the bar</Text>
+      )}
+
+      {/* ── Input error (empty field on submit attempt) ── */}
+      {scaleError && !showScaleStep && (
+        <Text style={measStyles.scaleChoiceError}>{scaleError}</Text>
+      )}
 
       {!q.image_url && !q.geometry && (
         <Text style={measStyles.worksheetHint}>📖 Reference your worksheet to see the angle</Text>
       )}
 
+      {/* ── Wrong-answer feedback ── */}
       {isWrong && (
         <View style={styles.fillInReveal}>
+          {wrongMsg
+            ? <Text style={[styles.fillInRevealLabel, { color: '#fbbf24', marginBottom: 4 }]}>{wrongMsg}</Text>
+            : null
+          }
           <Text style={styles.fillInRevealLabel}>Correct angle:</Text>
           <Text style={styles.fillInRevealAnswer}>{q.correctAnswer}°</Text>
         </View>
       )}
       {isCorrect && <Text style={styles.fillInCorrectMsg}>Correct! 📐</Text>}
+
       {!feedback && (
-        <TouchableOpacity style={[styles.fillInSubmit, { marginTop: 20 }]} onPress={handleSubmit} activeOpacity={0.8}>
-          <Text style={styles.fillInSubmitText}>Check Angle</Text>
+        <TouchableOpacity
+          style={[styles.fillInSubmit, { marginTop: 20 }, sliderLocked && { opacity: 0.4 }]}
+          onPress={handleSubmit}
+          activeOpacity={0.8}
+          disabled={sliderLocked}
+        >
+          <Text style={styles.fillInSubmitText}>
+            {mode === 'build' ? 'Check Angle' : 'Check Angle'}
+          </Text>
         </TouchableOpacity>
       )}
     </Animated.View>
@@ -706,6 +920,10 @@ function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
   const startXRef  = useRef(valueXRef.current);
   const shakeAnim  = useRef(new Animated.Value(0)).current;
 
+  // Mutable ref read at gesture time — avoids stale closure from useRef/PanResponder.create
+  const rulerFeedbackRef = useRef(null);
+  rulerFeedbackRef.current = feedback;
+
   function shake() {
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 8,  duration: 60, useNativeDriver: true }),
@@ -717,14 +935,11 @@ function RulerRenderer({ q, onResolve, styles, setScrollEnabled }) {
 
   const panResponder = useRef(
     PanResponder.create({
-      // Capture phase fires before ScrollView can claim the gesture
-      onStartShouldSetPanResponderCapture: () => !feedback,
+      onStartShouldSetPanResponderCapture: () => !rulerFeedbackRef.current,
       onMoveShouldSetPanResponderCapture:  () => true,
-      onStartShouldSetPanResponder:        () => !feedback,
+      onStartShouldSetPanResponder:        () => !rulerFeedbackRef.current,
       onMoveShouldSetPanResponder:         () => true,
-      // Never let the OS hand the gesture to someone else mid-drag
       onPanResponderTerminationRequest:    () => false,
-      // Jump marker to wherever the finger lands on the ruler
       onPanResponderGrant: (e) => {
         setScrollEnabled?.(false);
         const x = Math.max(0, Math.min(RULER_DISPLAY_W, e.nativeEvent.locationX));
@@ -892,6 +1107,71 @@ const measStyles = StyleSheet.create({
   sliderEndLabel: { fontSize: 11, color: '#64748b', fontWeight: '700', width: 32, textAlign: 'center' },
   sliderHint:     { fontSize: 11, color: '#475569', textAlign: 'center', marginBottom: 6 },
   worksheetHint:  { fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 2, marginBottom: 4, fontStyle: 'italic' },
+
+  // v2: scale-choice step
+  scaleChoiceBox: {
+    backgroundColor: '#1e293b', borderRadius: 12,
+    borderWidth: 1, borderColor: '#334155',
+    padding: 14, marginBottom: 12,
+  },
+  scaleChoicePrompt: {
+    fontSize: 13, color: '#cbd5e1', fontWeight: '700',
+    textAlign: 'center', marginBottom: 10,
+  },
+  scaleChoiceRow: {
+    flexDirection: 'row', gap: 10, justifyContent: 'center',
+  },
+  scaleChoiceBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 8,
+    borderWidth: 1.5, borderColor: '#334155',
+    backgroundColor: '#0f172a', alignItems: 'center',
+  },
+  scaleChoiceBtnSelected: {
+    borderColor: '#4ade80', backgroundColor: '#14532d',
+  },
+  scaleChoiceBtnText: {
+    fontSize: 13, color: '#e2e8f0', fontWeight: '700',
+  },
+  scaleChoiceError: {
+    fontSize: 12, color: '#fbbf24', textAlign: 'center',
+    marginTop: 8, fontStyle: 'italic',
+  },
+  scaleConfirmed: {
+    backgroundColor: '#14532d', borderRadius: 8,
+    paddingVertical: 7, paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  scaleConfirmedText: {
+    fontSize: 12, color: '#86efac', textAlign: 'center', fontWeight: '600',
+  },
+
+  // v1: typed-answer input row
+  typedAnswerRow: {
+    alignSelf: 'center', alignItems: 'center', marginTop: 10, marginBottom: 2,
+  },
+  typedAnswerLabel: {
+    fontSize: 13, color: '#94a3b8', marginBottom: 6, textAlign: 'center',
+  },
+  typedAnswerInputWrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#1e293b', borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#334155',
+    paddingHorizontal: 14, paddingVertical: 6,
+    gap: 4,
+  },
+  typedAnswerInput: {
+    fontSize: 28, fontWeight: '900', color: '#e2e8f0',
+    minWidth: 52, textAlign: 'center',
+  },
+  typedAnswerUnit: {
+    fontSize: 22, fontWeight: '800', color: '#7c3aed',
+  },
+
+  // v3: build mode label
+  buildModeLabel: {
+    fontSize: 13, color: '#94a3b8', textAlign: 'center',
+    marginTop: 4, marginBottom: 4, fontStyle: 'italic',
+  },
 });
 
 // ── FillInRenderer ────────────────────────────────────────────

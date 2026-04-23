@@ -80,10 +80,51 @@ QUESTION TYPE RULES — choose the best type for each question:
      (b) a "geometry" object so the app can DRAW the shape — no external image is needed:
 
      ── ANGLE (protractor) ──
-     "geometry": { "type": "angle", "angleDeg": <whole number>, "vertex": "<middle letter>", "ray1": "<letter at 0°/horizontal>", "ray2": "<letter on the angled arm>" }
+     "geometry": {
+       "type": "angle",
+       "angleDeg": <whole number — same value as correctAnswer>,
+       "vertex": "<middle letter>",
+       "ray1": "<letter at the baseline>",
+       "ray2": "<letter on the angled arm>",
+       "flipped": true | false,
+       "scaleOrigin": "right" | "left",
+       "protractorMode": "align" | "read" | "build"
+     }
      correctAnswer = angle in whole degrees as a string
      acceptedAnswers = ["68", "68°"]
-     EXAMPLE: ∠LMN = 68° → "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L" }
+
+     ── flipped rules (vary this to represent real worksheet variety) ──
+     • false (or omit) — baseline points RIGHT; this is the standard orientation  (use for ~half of questions)
+     • true — baseline points LEFT; the protractor is flipped so the angle opens from the left side  (use for ~half of questions — matches real worksheets where angles open in any direction)
+     • When flipped: true, also set scaleOrigin: "left"
+     • When flipped: false (or omitted), set scaleOrigin only for obtuse angles (angleDeg > 90°) — otherwise omit it
+
+     ── scaleOrigin rules ──
+     • "right" — student reads from the right 0° (normal orientation, baseline on right)
+     • "left"  — student reads from the left 0° (flipped orientation, baseline on left)
+     • ONLY include scaleOrigin when: (a) flipped is true, OR (b) the angle is obtuse in normal orientation
+     • Omit scaleOrigin for acute angles in normal orientation — it adds no educational value there
+
+     ── protractorMode rules (vary across questions for a mix of interaction types) ──
+     • "align"  — student drags the arm to match the drawn angle, THEN types the value  (use for ~half of protractor questions — measurement practice)
+     • "read"   — angle is drawn at a fixed position; no slider; student reads and types the value  (use when the question is clearly "what does this angle measure?")
+     • "build"  — no reference arm is shown; student drags the arm to CREATE the stated angle  (use when the question asks to "draw" or "make" a specific angle)
+
+     ── SELF-CONTAINED RULE for measurement questions ──
+     • NEVER reference the worksheet, page, figure number, or question number in the question text
+     • BAD: "Measure the angle in question 1.", "Find the angle shown in Figure 3.", "Use the protractor on your worksheet."
+     • GOOD: "What is the measure of ∠ABC?", "What is the measure of ∠LMN? ___ degrees"
+     • The app draws the angle itself — the student never needs the physical worksheet
+
+     EXAMPLES:
+     ∠LMN = 68° (normal, acute, read mode — no scaleOrigin, no flip) →
+       "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L", "flipped": false, "protractorMode": "read" }
+     ∠ABC = 120° (normal, obtuse, align mode — include scaleOrigin right) →
+       "geometry": { "type": "angle", "angleDeg": 120, "vertex": "B", "ray1": "C", "ray2": "A", "flipped": false, "scaleOrigin": "right", "protractorMode": "align" }
+     ∠PQR = 57° (FLIPPED — baseline on left, student reads from left 0°) →
+       "geometry": { "type": "angle", "angleDeg": 57, "vertex": "Q", "ray1": "P", "ray2": "R", "flipped": true, "scaleOrigin": "left", "protractorMode": "read" }
+     "Draw a 45° angle at point P" (build, no flip) →
+       "geometry": { "type": "angle", "angleDeg": 45, "vertex": "P", "ray1": "Q", "ray2": "R", "flipped": false, "protractorMode": "build" }
 
      ── LENGTH (ruler) ──
      "geometry": { "type": "segment", "length": <decimal>, "unit": "inch" | "cm", "color": "red" | "blue" | "green" | "orange", "rulerMax": <integer — smallest integer larger than length + 1> }
@@ -91,10 +132,12 @@ QUESTION TYPE RULES — choose the best type for each question:
      acceptedAnswers = cover common fractional/decimal equivalents (e.g. ["3.5", "3 1/2"])
      EXAMPLE: a red bar 0.5 inches → "geometry": { "type": "segment", "length": 0.5, "unit": "inch", "color": "red", "rulerMax": 2 }
 
-     • NEVER say "shown above", "in the image", or "in the diagram" for measurementTool questions — the app draws the shape; there is no separate image
+     • NEVER say "shown above", "in the image", "in the diagram", "in question N", "in problem N", "on your worksheet", or reference any figure/question number — the app draws the shape; the student never sees the original worksheet
      • NEVER use measurementTool unless the scanned page actually shows labelled angles or measurement exercises
    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3", ".3", "0.30"] }
-   { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠LMN? ___ degrees", "hint": "...", "correctAnswer": "68", "acceptedAnswers": ["68", "68°"], "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L" } }
+   { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠LMN? ___ degrees", "hint": "...", "correctAnswer": "68", "acceptedAnswers": ["68", "68°"], "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L", "flipped": false, "protractorMode": "read" } }
+  { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠PQR? ___ degrees", "hint": "...", "correctAnswer": "57", "acceptedAnswers": ["57", "57°"], "geometry": { "type": "angle", "angleDeg": 57, "vertex": "Q", "ray1": "P", "ray2": "R", "flipped": true, "scaleOrigin": "left", "protractorMode": "read" } }
+  { "type": "fill_in", "measurementTool": "protractor", "question": "Draw a 45° angle at point P.", "hint": "...", "correctAnswer": "45", "acceptedAnswers": ["45", "45°"], "geometry": { "type": "angle", "angleDeg": 45, "vertex": "P", "ray1": "Q", "ray2": "R", "flipped": false, "protractorMode": "build" } }
    { "type": "fill_in", "measurementTool": "ruler", "question": "What is the length of the bar? ___ inches", "hint": "...", "correctAnswer": "3.5", "acceptedAnswers": ["3.5", "3 1/2"], "geometry": { "type": "segment", "length": 3.5, "unit": "inch", "color": "blue", "rulerMax": 5 } }
 
 4. ORDERING — "type": "ordering"

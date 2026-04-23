@@ -6,6 +6,64 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Protractor Upgrade — Flipped Mode, Typed Answer & Multi-Mode — 2026-04-23
+
+#### Changed — `ProtractorRenderer` (`src/screens/QuizScreen.js`)
+
+**v1 — Removes the visual-matching shortcut**
+- **Live readout hidden** — the `{angleDeg}°` number in the protractor center is no longer visible while the student is positioning; it only appears after submit
+- **Typed answer required** — a `TextInput` now appears below the slider asking "What angle do you measure?" / "What angle is shown?"; correctness is judged on the typed value, not the slider position
+- **Targeted diagnostic feedback** — wrong answers now detect the specific mistake:
+  - Typed the supplement (e.g. 123 instead of 57) → *"You read from the wrong scale."*
+  - Acute angle typed as obtuse → *"This is an acute angle — it must be less than 90°."*
+  - Obtuse angle typed as acute → *"This is an obtuse angle — it must be greater than 90°."*
+  - Right angle mismatch → *"This is a right angle — it should be exactly 90°."*
+
+**v2 — Scale-choice step**
+- Required first step when `geometry.scaleOrigin` is present: two buttons ("← Left side" / "Right side →") that must be answered before the slider unlocks
+- Wrong choice shakes + explains which side the baseline ray lies on
+- Green confirmation banner adapts its text per mode (`read` / `build` / `align`)
+
+**v3 — Three protractor modes**
+- `align` (default) — slider + reference arm; student positions arm then types the value
+- `read` — no slider; angle drawn at fixed position; student reads and types only
+- `build` — no reference arm; student drags to construct the stated angle; slider validates
+
+**Flipped mode**
+- `geometry.flipped: true` renders the protractor with baseline pointing LEFT (180°) instead of right (0°)
+- All arm screen angles mirrored: reference arm at `180 - angleDeg`, movable arm at `180 - angleDeg`
+- Degree labels reverse: position 30° shows "150°", position 150° shows "30°", etc.
+- Dotted arc sweeps in correct direction between baseline and reference arm
+- Ray label positions recomputed from `PROT_R + 32` (beyond arm tip) using actual screen angles — fixes the ray-letter-overlapping-arm bug
+- `scaleOrigin: "left"` when flipped; scale-choice step now has genuine 50/50 left/right variety
+
+#### Fixed — Slider stale closure (both `ProtractorRenderer` and `RulerRenderer`)
+- `PanResponder.create()` runs once on mount; prior code closed over initial `feedback`/`sliderLocked` values, making the slider reject gestures after any state change (re-render, scale-choice, etc.)
+- Fixed by adding mutable refs (`feedbackRef`, `sliderLockedRef`, `rulerFeedbackRef`) assigned on every render; PanResponder callbacks now read `.current` at gesture time
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+- `flipped` field added to angle geometry schema (`true` = baseline left, `false` = baseline right)
+- AI instructed to use `flipped: true` on ~half of protractor questions for genuine orientation variety
+- `scaleOrigin: "left"` paired with `flipped: true`; `scaleOrigin: "right"` only for obtuse normal-orientation angles
+- Acute normal-orientation angles omit `scaleOrigin` entirely (scale-choice step not shown)
+- Explicit ban on worksheet/question-number references in measurement question text: *"Measure the angle in question 1"* style questions now explicitly forbidden
+- Three prompt examples updated: normal read, flipped read, build mode
+
+---
+
+### Curriculum Audit Framework (Phase 7.G) — 2026-04-22
+
+#### Added — Planning reference (K–8 Question Types document)
+
+- Generated a 3-page K–8 question-type reference covering all grade bands (1–3, 4–5, 6–8) across Math, ELA, Science, and Social Studies
+- **Page 1** — 5-layer renderer framework (stimulus, interaction, validation, scan-to-schema, fallback); cross-grade interaction patterns; Grades 1–3 question types and priority gaps
+- **Page 2** — Grades 4–5 question types; 8 renderer targets (`FractionModelRenderer`, `CoordinateGridRenderer`, `ChartRenderer`, `TableStimulus`, `TimelineRenderer`, `MapRenderer` v2, `StepCard`, `EvidenceHighlight`); likely scan surprises
+- **Page 3** — Grades 6–8 question types; 8 backlog renderers (`AdvancedNumberLineRenderer`, `CoordinatePlaneRenderer`, `GraphRenderer`, `RatioTableRenderer`, `TransformRenderer`, `WorkspaceRenderer`, `VennRenderer`, `SourceCard`); validation rules by type; most likely scanning failure modes
+- This document is the direct source for all roadmap tickets 7.G.0 – 7.G.22 and the 7.G Renderer Framework section
+- Reference images saved as `ChatGPT Image Apr 22, 2026, 10_11_43 PM (1).png`, `(2).png`, `(3).png` in the workspace root
+
+---
+
 ### Interactive Measurement Tools — 2026-04-22
 
 #### Added — `QuizScreen` (`src/screens/QuizScreen.js`)
