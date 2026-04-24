@@ -73,8 +73,11 @@ CREATE TABLE IF NOT EXISTS custom_units (
   subject     TEXT        DEFAULT 'math',
   unit_label  TEXT,       -- e.g. '13.2', 'Chapter 7'
   questions   JSONB       NOT NULL, -- Array of { question, options, correctIndex }
-  passage     TEXT,       -- Optional reading passage/story extracted from scanned pages
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  passage          TEXT,       -- Optional reading passage/story extracted from scanned pages
+  lesson_intro     TEXT,       -- AI-generated spoken lesson overview (stored at save time)
+  intro_audio_url  TEXT,       -- TTS MP3 URL for the lesson intro (generated after save)
+  intro_image_urls JSONB,      -- Array of up to 3 Pexels stock photo URLs for animated intro
+  created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE custom_units ENABLE ROW LEVEL SECURITY;
@@ -91,6 +94,23 @@ CREATE POLICY "Parents manage own units" ON custom_units
 -- Example value: { "game": "speed_round" }
 -- Run this once in the Supabase SQL Editor:
 -- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS reward_config JSONB;
+
+-- ── Migration: add lesson_intro to existing custom_units table ─
+-- Stores the AI-generated spoken lesson text so the intro screen shows immediately.
+-- Run this once in the Supabase SQL Editor:
+-- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS lesson_intro TEXT;
+
+-- ── Migration: add intro_audio_url to existing custom_units table ─
+-- Stores the TTS MP3 URL for the lesson intro audio clip.
+-- Generated fire-and-forget by the generate-audio Edge Function after save.
+-- Run this once in the Supabase SQL Editor:
+-- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS intro_audio_url TEXT;
+
+-- ── Migration: add intro_image_urls to existing custom_units table ─
+-- Stores up to 3 Pexels stock photo URLs for the animated intro screen.
+-- Generated fire-and-forget by the generate-audio Edge Function after save.
+-- Run this once in the Supabase SQL Editor:
+-- ALTER TABLE custom_units ADD COLUMN IF NOT EXISTS intro_image_urls JSONB;
 
 
 -- ── Quiz Results ─────────────────────────────────────────────

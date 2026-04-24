@@ -68,7 +68,7 @@ serve(async (req) => {
       );
     }
 
-    const { unit_id, questions } = await req.json();
+    const { unit_id, questions, lesson_intro, image_search_query, intro_image_urls: prefetchedImageUrls } = await req.json();
 
     if (!unit_id || !Array.isArray(questions) || questions.length === 0) {
       return new Response(
@@ -81,6 +81,62 @@ serve(async (req) => {
 
     // Ensure the storage bucket exists (no-op if already created)
     await supabase.storage.createBucket('question-audio', { public: true }).catch(() => {});
+
+    // Generate lesson intro TTS if provided
+    let introAudioUrl: string | null = null;
+    if (lesson_intro && typeof lesson_intro === 'string' && lesson_intro.trim()) {
+      const introTtsResponse = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          voice: 'nova',
+          input: stripForTTS(lesson_intro),
+        }),
+      });
+
+      if (introTtsResponse.ok) {
+        const introBuffer  = await introTtsResponse.arrayBuffer();
+        const introPath    = `${unit_id}/intro.mp3`;
+        const { error: introUploadErr } = await supabase.storage
+          .from('question-audio')
+          .upload(introPath, introBuffer, { contentType: 'audio/mpeg', upsert: true });
+        if (!introUploadErr) {
+          const { data: introUrlData } = supabase.storage
+            .from('question-audio')
+            .getPublicUrl(introPath);
+          introAudioUrl = introUrlData.publicUrl;
+        }
+      }
+    }
+
+    // Use pre-fetched image URLs from generate-questions if provided (parent already reviewed them).
+    // Fall back to fetching from Pexels only if no pre-fetched URLs were passed.
+    let introImageUrls: string[] = Array.isArray(prefetchedImageUrls) ? prefetchedImageUrls : [];
+    if (introImageUrls.length === 0 && image_search_query && typeof image_search_query === 'string' && image_search_query.trim()) {
+      const pexelsKey = Deno.env.get('PEXELS_API_KEY');
+      if (pexelsKey) {
+        try {
+          const query     = encodeURIComponent(image_search_query.trim());
+          const pexelsRes = await fetch(
+            `https://api.pexels.com/v1/search?query=${query}&per_page=3&orientation=landscape`,
+            { headers: { Authorization: pexelsKey } },
+          );
+          if (pexelsRes.ok) {
+            const pexelsData = await pexelsRes.json();
+            introImageUrls = (pexelsData.photos ?? []).map(
+              (p: Record<string, unknown>) =>
+                (p.src as Record<string, string>)?.large ?? (p.src as Record<string, string>)?.original ?? '',
+            ).filter(Boolean);
+          }
+        } catch (pexelsErr) {
+          console.warn('[generate-audio] Pexels fetch failed (non-fatal):', (pexelsErr as Error).message);
+        }
+      }
+    }
 
     // Generate all TTS audio files in parallel
     const audioUrls = await Promise.all(
@@ -131,15 +187,19 @@ serve(async (req) => {
       audio_url: audioUrls[i],
     }));
 
+    const dbUpdate: Record<string, unknown> = { questions: updatedQuestions };
+    if (introAudioUrl)              dbUpdate.intro_audio_url  = introAudioUrl;
+    if (introImageUrls.length > 0)  dbUpdate.intro_image_urls = introImageUrls;
+
     const { error: dbError } = await supabase
       .from('custom_units')
-      .update({ questions: updatedQuestions })
+      .update(dbUpdate)
       .eq('id', unit_id);
 
     if (dbError) throw new Error(`DB update error: ${dbError.message}`);
 
     return new Response(
-      JSON.stringify({ success: true, count: audioUrls.length }),
+      JSON.stringify({ success: true, count: audioUrls.length, intro_audio_url: introAudioUrl, intro_image_urls: introImageUrls }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
 

@@ -3,7 +3,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   ScrollView, Alert, ActivityIndicator, TextInput,
-  Modal, Dimensions, KeyboardAvoidingView, Platform,
+  Modal, Dimensions, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
-import { generateQuestionsFromImage, regenerateQuestion } from '../services/aiService';
+import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
 import { saveCustomUnit } from '../services/supabase';
 import { DEFAULT_SUBJECTS } from '../utils/subjects';
 import { GAME_REGISTRY } from '../minigames/registry';
@@ -69,6 +69,10 @@ export default function ScanScreen() {
   const [creatingSubject, setCreatingSubject]     = useState(false);
   const [newSubjectName, setNewSubjectName]       = useState('');
   const [rewardGame, setRewardGame]               = useState(null); // null | 'speed_round'
+  const [lessonIntro, setLessonIntro]             = useState(null); // GPT-generated intro text
+  const [imageSearchQuery, setImageSearchQuery]   = useState(null); // Pexels search keywords
+  const [introImageUrls, setIntroImageUrls]       = useState([]);   // Pexels photo URLs for preview
+  const [audioIntroEnabled, setAudioIntroEnabled] = useState(true); // parent toggle
   const cancelledRef = useRef(false);
 
   function cancelGeneration() {
@@ -240,6 +244,9 @@ export default function ScanScreen() {
       setUnitTitle(result.title ?? 'New Lesson');
       setQuestions(result.questions ?? []);
       setPassage(result.passage ?? null);
+      setLessonIntro(result.lesson_intro ?? null);
+      setImageSearchQuery(result.image_search_query ?? null);
+      setIntroImageUrls(Array.isArray(result.intro_image_urls) ? result.intro_image_urls : []);
       setShortfallNotice(
         result.generated_count != null && result.generated_count < result.requested_count
           ? { generated: result.generated_count, requested: result.requested_count }
@@ -304,7 +311,16 @@ export default function ScanScreen() {
     setSaving(true);
     try {
       const rewardConfig = rewardGame ? { game: rewardGame } : null;
-      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null, rewardConfig);
+      const saved = await saveCustomUnit(unitTitle.trim(), questions, null, passage, subjectKey, activeKid?.id ?? null, rewardConfig, audioIntroEnabled && lessonIntro ? lessonIntro : null);
+      // Fire-and-forget: generate TTS audio for the intro (if enabled) and questions
+      if (saved?.id) {
+        generateAudio(
+          saved.id,
+          questions,
+          audioIntroEnabled && lessonIntro ? lessonIntro : null,
+          audioIntroEnabled && introImageUrls.length > 0 ? introImageUrls : null,
+        ).catch(() => {});
+      }
       setStep('saved');
     } catch (err) {
       Alert.alert('Save failed', err.message);
@@ -317,7 +333,7 @@ export default function ScanScreen() {
     setImages([]); setVisualImages([]); setQuestions(null);
     setPassage(null); setUnitTitle(''); setStep('pick'); setValidationError(null);
     setSelectedSubject(null); setCreatingSubject(false); setNewSubjectName('');
-    setRewardGame(null);
+    setRewardGame(null); setLessonIntro(null); setImageSearchQuery(null); setIntroImageUrls([]); setAudioIntroEnabled(true);
   }
 
   // ── Not logged in ──────────────────────────────────────────
@@ -674,6 +690,52 @@ export default function ScanScreen() {
             </View>
             );
           })}
+
+          {/* ── Audio Intro toggle ──────────────────────────── */}
+          {lessonIntro && (
+            <View style={styles.audioIntroSection}>
+              <View style={styles.audioIntroLeft}>
+                <Ionicons name="volume-high-outline" size={20} color="#818cf8" />
+                <View style={styles.audioIntroText}>
+                  <Text style={styles.audioIntroTitle}>Lesson Intro Audio</Text>
+                  <Text style={styles.audioIntroSub}>
+                    A short spoken overview plays before the quiz starts
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={audioIntroEnabled}
+                onValueChange={setAudioIntroEnabled}
+                trackColor={{ false: '#334155', true: 'rgba(129,140,248,0.5)' }}
+                thumbColor={audioIntroEnabled ? '#818cf8' : '#64748b'}
+              />
+            </View>
+          )}
+
+          {/* ── Intro photo preview ─────────────────────────── */}
+          {audioIntroEnabled && introImageUrls.length > 0 && (
+            <View style={styles.photoPreviewSection}>
+              <View style={styles.photoPreviewHeader}>
+                <Ionicons name="images-outline" size={16} color="#94a3b8" />
+                <Text style={styles.photoPreviewTitle}>Intro Photos</Text>
+                <Text style={styles.photoPreviewSub}>Tap × to remove any you don't want</Text>
+              </View>
+              <View style={styles.photoPreviewRow}>
+                {introImageUrls.map((url, i) => (
+                  <View key={url} style={styles.photoThumbWrap}>
+                    <Image source={{ uri: url }} style={styles.photoThumb} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.photoThumbRemove}
+                      onPress={() => setIntroImageUrls(prev => prev.filter((_, idx) => idx !== i))}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#f87171" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* ── Reward Game picker ───────────────────────────── */}
           <View style={styles.rewardSection}>
@@ -1364,6 +1426,41 @@ function createStyles(t) {
 
     discardBtn:     { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
     discardBtnText: { fontSize: 14, color: t.danger, fontWeight: '600' },
+
+    // ── Audio Intro toggle
+    audioIntroSection: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      marginBottom: 16,
+      backgroundColor: t.cardBg,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(129,140,248,0.3)',
+    },
+    audioIntroLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 12 },
+    audioIntroText:  { flex: 1 },
+    audioIntroTitle: { fontSize: 14, fontWeight: '700', color: t.text, marginBottom: 2 },
+    audioIntroSub:   { fontSize: 12, color: t.textMuted, lineHeight: 16 },
+
+    // ── Intro photo preview
+    photoPreviewSection: {
+      marginBottom: 16,
+      backgroundColor: t.cardBg,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    photoPreviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+    photoPreviewTitle:  { fontSize: 13, fontWeight: '700', color: t.text, flex: 1 },
+    photoPreviewSub:    { fontSize: 11, color: t.textMuted },
+    photoPreviewRow:    { flexDirection: 'row', gap: 10 },
+    photoThumbWrap:     { flex: 1, aspectRatio: 16/9, borderRadius: 10, overflow: 'visible' },
+    photoThumb:         { width: '100%', height: '100%', borderRadius: 10, backgroundColor: t.bgInput },
+    photoThumbRemove:   {
+      position: 'absolute', top: -8, right: -8,
+      backgroundColor: t.cardBg, borderRadius: 10,
+    },
 
     // ── Reward Game picker
     rewardSection: {

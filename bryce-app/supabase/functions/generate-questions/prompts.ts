@@ -407,6 +407,19 @@ PASSAGE RULES:
 - Do NOT include a passage for pure math, diagrams, or vocabulary lists.
 - Omit the field if not needed.
 
+LESSON INTRO RULES:
+- Always include a "lesson_intro" field — a short spoken lesson that a friendly teacher would say out loud to a child BEFORE they take the quiz.
+- It should explain the key concepts from the page in simple, encouraging language appropriate for the grade level shown.
+- Length: 3–5 sentences. No bullet points. Write it as natural spoken prose (it will be read aloud by a text-to-speech voice).
+- Do NOT say "In this quiz..." or reference the quiz at all. Just teach the concept warmly and clearly.
+- Example for a fractions page: "Today we are going to explore fractions! A fraction shows us a part of a whole. The bottom number, called the denominator, tells us how many equal pieces something is cut into. The top number, called the numerator, tells us how many pieces we are talking about. Let us see what you know!"
+
+IMAGE SEARCH QUERY RULES:
+- Always include an "image_search_query" field — 2 to 4 keywords that would return beautiful, relevant stock photos for this lesson topic on a site like Pexels.
+- Think visually: what real-world objects, scenes, or settings best illustrate this topic for a child?
+- Keep it concrete and visual — avoid abstract words like "education" or "learning".
+- Examples: "fractions pizza slices", "solar system planets space", "rainforest animals nature", "ancient egypt pyramids", "addition blocks children", "human body muscles anatomy"
+
 SELF-CONTAINED RULE — REQUIRED FIELD "selfContained" ON EVERY QUESTION:
 Every question must include "selfContained": true or "selfContained": false.
 
@@ -534,6 +547,8 @@ Return ONLY this JSON and nothing else:
 {
   "valid": true,
   "title": "Short descriptive title",
+  "lesson_intro": "Always include — 3–5 sentence spoken lesson overview for the child.",
+  "image_search_query": "Always include — 2–4 keywords for relevant stock photo search.",
   "passage": "Optional reading passage — omit if not needed.",
   "questions": [
     {

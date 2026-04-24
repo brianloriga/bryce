@@ -101,7 +101,7 @@ export async function syncProgressToSupabase(kidId, scores) {
 
 // ── Custom Unit helpers ───────────────────────────────────────
 
-export async function saveCustomUnit(title, questions, unitLabel = null, passage = null, subject = null, kidId = null, rewardConfig = null) {
+export async function saveCustomUnit(title, questions, unitLabel = null, passage = null, subject = null, kidId = null, rewardConfig = null, lessonIntro = null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Must be signed in to save units');
 
@@ -115,6 +115,7 @@ export async function saveCustomUnit(title, questions, unitLabel = null, passage
   if (passage)      row.passage       = passage;
   if (kidId)        row.kid_id        = kidId;
   if (rewardConfig) row.reward_config = rewardConfig;
+  if (lessonIntro)  row.lesson_intro  = lessonIntro;
 
   const { data, error } = await supabase
     .from('custom_units')

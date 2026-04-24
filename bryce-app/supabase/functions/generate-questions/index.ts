@@ -345,6 +345,34 @@ serve(async (req) => {
 
     const safe = sanitizeResponse(parsed);
 
+    // Fetch Pexels stock photos using the AI-generated search query.
+    // Runs in parallel with the rate-limit log so it doesn't add meaningful latency.
+    let introImageUrls: string[] = [];
+    const imageSearchQuery = (safe.image_search_query as string | undefined) ?? '';
+    if (imageSearchQuery) {
+      const pexelsKey = Deno.env.get('PEXELS_API_KEY');
+      if (pexelsKey) {
+        try {
+          const query     = encodeURIComponent(imageSearchQuery.trim());
+          const pexelsRes = await fetch(
+            `https://api.pexels.com/v1/search?query=${query}&per_page=3&orientation=landscape`,
+            { headers: { Authorization: pexelsKey } },
+          );
+          if (pexelsRes.ok) {
+            const pexelsData = await pexelsRes.json();
+            introImageUrls = (pexelsData.photos ?? [])
+              .map((p: Record<string, unknown>) =>
+                (p.src as Record<string, string>)?.large ?? (p.src as Record<string, string>)?.original ?? ''
+              )
+              .filter(Boolean)
+              .slice(0, 3);
+          }
+        } catch (pexelsErr) {
+          console.warn('[generate-questions] Pexels fetch failed (non-fatal):', (pexelsErr as Error).message);
+        }
+      }
+    }
+
     // Log the scan for rate limiting (fire-and-forget)
     if (userId) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -363,6 +391,7 @@ serve(async (req) => {
     const responseBody = {
       ...(visualUrls.length > 0 ? { ...safe, visual_urls: visualUrls, visual_url: visualUrls[0] } : safe),
       ...countMeta,
+      ...(introImageUrls.length > 0 ? { intro_image_urls: introImageUrls } : {}),
     };
 
     return new Response(

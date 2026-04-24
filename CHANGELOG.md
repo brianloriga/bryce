@@ -6,6 +6,49 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Lesson Intro Audio & Glassmorphism Intro Screen — 2026-04-24
+
+#### Added — Lesson Intro Audio Pipeline
+
+- **`lesson_intro` field** — GPT-4o now generates a 3–5 sentence spoken lesson overview ("lesson_intro") for every scan: a friendly teacher voice that explains the key concepts before the quiz starts; written as natural prose (no bullet points, no quiz references) for TTS playback
+- **`image_search_query` field** — GPT-4o also generates 2–4 Pexels keywords ("image_search_query") matching the lesson topic; used to automatically fetch 3 royalty-free background photos
+- **Pexels stock photo fetch** — `generate-questions` Edge Function fetches 3 full-size photos from Pexels immediately after GPT responds (using `PEXELS_API_KEY` secret); URLs included in the response so the parent sees a photo preview in `ScanScreen` before saving
+- **`generate-audio` extended** — now accepts `lesson_intro` (TTS) and `intro_image_urls` (pre-fetched photo URLs); generates `intro.mp3` via OpenAI TTS, uploads to Supabase Storage, and patches `custom_units` with `intro_audio_url` and `intro_image_urls`
+- **`lesson_intro` and `intro_image_urls` columns** added to `custom_units` table (`TEXT` and `JSONB` respectively); `lesson_intro` saved immediately on unit creation so the intro screen can show before audio is ready
+
+#### Added — ScanScreen: Intro Audio Toggle & Photo Preview
+
+- **"Lesson Intro Audio" toggle** (`Switch`) in the ScanScreen review step — parents can enable or disable the audio intro before saving; defaults to on when a `lesson_intro` was detected
+- **Photo preview strip** — shows thumbnail chips for each fetched Pexels photo; parent can remove individual photos before saving; removed photos are excluded from `generate-audio`
+- `generateAudio` fire-and-forget call passes `lessonIntro` and the curated `introImageUrls` (or `null` if toggle is off)
+
+#### Added — QuizScreen: Glassmorphism Intro Screen
+
+- **Intro screen shown immediately** — `introPhase` is now set based on `unit.lesson_intro` (text presence, not audio URL) so the intro screen displays the moment a quiz opens; no need to close and reopen
+- **`audioLoading` state** — while the background `generate-audio` job is still running, an `ActivityIndicator` replaces the play button; lesson text is always visible
+- **Background polling** — `useEffect` polls Supabase every 3 s for `intro_audio_url` and `intro_image_urls`; clears `audioLoading` and starts Ken Burns animation as soon as audio is ready
+- **Ken Burns photo background** — up to 3 Pexels photos animate with slow pan/zoom (`Animated.Image`) as a full-bleed background behind the intro UI
+- **Glassmorphism / visionOS UI** — intro elements (header, main card, action buttons) are `BlurView` panels (`expo-blur`, dark tint) with a subtle white border and transparency, layered over the full-brightness photos
+- **Animated wave bars** — 5 vertical bars animate up and down while audio plays, simulating a live waveform
+- **Timing progress bar** — a left-to-right fill bar at the bottom of the card (driven by `onPlaybackStatusUpdate`) gives a visual indication of audio duration with no numbers
+- **Dynamic subtitle** — changes between "Preparing audio…", "Tap play to hear the lesson intro", and "Playing…" based on `audioLoading` / `introPlaying` state
+- **`expo-blur` installed** (`npm install expo-blur`)
+
+#### Changed — `aiService.js`
+
+- `generateQuestionsFromImage` return value now explicitly forwards `lesson_intro`, `image_search_query`, and `intro_image_urls` from the Edge Function response
+- `generateAudio(unitId, questions, lessonIntro, imageUrls)` — new signature; passes `lesson_intro` and `intro_image_urls` to `generate-audio`
+
+#### Changed — `supabase.js`
+
+- `saveCustomUnit` accepts `lessonIntro` (8th arg) and persists it to `custom_units.lesson_intro` immediately on save
+
+#### Changed — `sanitize.ts` (`generate-questions`)
+
+- `sanitizeResponse` passes through `lesson_intro`, `image_search_query`, and `intro_image_urls` from the AI response body
+
+---
+
 ### Coin / Money Tool — Dollar Bills & Full Dev Coverage — 2026-04-24
 
 #### Changed — `CoinRenderer.js` (`src/renderers/tools/CoinRenderer.js`)

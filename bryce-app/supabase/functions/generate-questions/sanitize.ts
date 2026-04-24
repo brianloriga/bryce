@@ -111,5 +111,11 @@ export function sanitizeResponse(obj: Record<string, unknown>): Record<string, u
   if (obj.passage && typeof obj.passage === 'string' && obj.passage.trim()) {
     result.passage = serverSanitize(obj.passage.trim());
   }
+  if (obj.lesson_intro && typeof obj.lesson_intro === 'string' && obj.lesson_intro.trim()) {
+    result.lesson_intro = serverSanitize(obj.lesson_intro.trim());
+  }
+  if (obj.image_search_query && typeof obj.image_search_query === 'string' && obj.image_search_query.trim()) {
+    result.image_search_query = serverSanitize(obj.image_search_query.trim());
+  }
   return result;
 }

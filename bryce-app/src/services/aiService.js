@@ -123,6 +123,21 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
     sanitized.passage = data.passage.trim();
   }
 
+  // Include lesson intro if GPT generated one
+  if (data.lesson_intro && typeof data.lesson_intro === 'string' && data.lesson_intro.trim()) {
+    sanitized.lesson_intro = data.lesson_intro.trim();
+  }
+
+  // Include image search query for stock photo lookup
+  if (data.image_search_query && typeof data.image_search_query === 'string' && data.image_search_query.trim()) {
+    sanitized.image_search_query = data.image_search_query.trim();
+  }
+
+  // Include pre-fetched Pexels photo URLs so ScanScreen can show a preview
+  if (Array.isArray(data.intro_image_urls) && data.intro_image_urls.length > 0) {
+    sanitized.intro_image_urls = data.intro_image_urls;
+  }
+
   // Surface shortfall so the UI can show a graceful note to the parent
   if (typeof data.generated_count === 'number' && typeof data.requested_count === 'number') {
     sanitized.generated_count = data.generated_count;
@@ -147,13 +162,15 @@ export async function detectCrop(smallBase64) {
   return { x: 0, y: 0, w: 100, h: 100 };
 }
 
-// Generates TTS audio for every question in a saved unit and caches the MP3s in
-// Supabase Storage. Runs fire-and-forget after saveCustomUnit — never blocks the UI.
-// The edge function patches the custom_units row directly with audio_url on each question.
-export async function generateAudio(unitId, questions) {
-  const { error } = await supabase.functions.invoke('generate-audio', {
-    body: { unit_id: unitId, questions },
-  });
+// Generates TTS audio for every question in a saved unit and an optional lesson intro.
+// Runs fire-and-forget after saveCustomUnit — never blocks the UI.
+// The edge function patches the custom_units row directly with audio_url on each question
+// and intro_audio_url when a lesson_intro is provided.
+export async function generateAudio(unitId, questions, lessonIntro = null, imageUrls = null) {
+  const body = { unit_id: unitId, questions };
+  if (lessonIntro)                        body.lesson_intro       = lessonIntro;
+  if (Array.isArray(imageUrls) && imageUrls.length > 0) body.intro_image_urls = imageUrls;
+  const { error } = await supabase.functions.invoke('generate-audio', { body });
   if (error) throw new Error(error.message ?? 'Audio generation failed');
 }
 
