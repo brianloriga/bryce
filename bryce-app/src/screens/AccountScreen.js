@@ -433,6 +433,18 @@ export default function AccountScreen() {
           </View>
         </View>
 
+        {/* Dev Preview shortcut — only in __DEV__ builds */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.devPreviewBtn}
+            onPress={() => navigation.navigate('DevPreview')}
+            activeOpacity={0.8}>
+            <Ionicons name="flask" size={18} color="#f59e0b" />
+            <Text style={styles.devPreviewBtnText}>🔧 Dev Preview</Text>
+            <Ionicons name="chevron-forward" size={16} color="#92400e" />
+          </TouchableOpacity>
+        )}
+
         {/* About */}
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.card}>
@@ -603,6 +615,17 @@ function createStyles(t) {
     },
     listRowBorder: { borderBottomWidth: 1, borderBottomColor: t.border },
     listLabel: { flex: 1, fontSize: 15, color: t.text },
+
+    devPreviewBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      backgroundColor: 'rgba(245,158,11,0.08)',
+      borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.3)',
+      paddingVertical: 14, paddingHorizontal: 16,
+      marginBottom: 20,
+    },
+    devPreviewBtnText: {
+      flex: 1, fontSize: 15, fontWeight: '700', color: '#fbbf24',
+    },
   });
 }
 

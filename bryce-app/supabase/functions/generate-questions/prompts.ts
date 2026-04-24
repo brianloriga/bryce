@@ -211,6 +211,95 @@ QUESTION TYPE RULES — choose the best type for each question:
    { "type": "fill_in", "measurementTool": "ruler", "rulerSubtype": "compare", "question": "Which bar is longer, the red or the blue?", "hint": "...", "correctAnswer": "red", "geometry": { "type": "segment", "length": 5, "unit": "inch", "color": "red", "rulerMax": 7, "bar2": { "length": 3, "color": "blue" } } }
    { "type": "fill_in", "measurementTool": "ruler", "rulerSubtype": "difference", "question": "How much longer is the red bar than the blue bar? ___ inches", "hint": "...", "correctAnswer": "2", "acceptedAnswers": ["2","2 in"], "geometry": { "type": "segment", "length": 5, "unit": "inch", "color": "red", "rulerMax": 7, "bar2": { "length": 3, "color": "blue" } } }
 
+3b. COIN / MONEY — "type": "fill_in", "measurementTool": "coin"
+   When the scanned worksheet is about coins, money counting, or currency:
+   Add "measurementTool": "coin" + a "geometry" object. The app draws its own coin display — the student NEVER sees the original worksheet.
+
+   COIN RANDOMIZATION RULE — CRITICAL:
+   The worksheet topic tells you WHAT the student is studying. ALWAYS generate FRESH coin combinations.
+   NEVER copy specific coin counts from worksheet diagrams.
+
+   DENOMINATIONS available:
+   "penny" (1¢), "nickel" (5¢), "dime" (10¢), "quarter" (25¢), "dollar" ($1), "five_dollar" ($5), "ten_dollar" ($10)
+
+   AVATARS for spot_mistake: nina, sam, mia, leo, ava, max (same as protractor)
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   COIN MODES — use each mode AT MOST ONCE per scan
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   • MODE "count" — App displays a set of coins. Student counts and types the total.
+     Use for: "How much money is shown?"
+     geometry: { "mode": "count", "coins": [{ "denomination": "quarter", "count": 2 }, ...] }
+     correctAnswer = total in cents as a string (e.g., "80" for 80¢)
+     acceptedAnswers = ["80¢", "0.80", "$0.80", "80 cents"]
+     Keep coin count to 3–8 coins total (not overwhelming).
+     EXAMPLE:
+     { "type":"fill_in","measurementTool":"coin","question":"How much money is shown?","hint":"Count the value of each coin and add them up.","correctAnswer":"80","acceptedAnswers":["80¢","0.80","$0.80"],"geometry":{"mode":"count","coins":[{"denomination":"quarter","count":2},{"denomination":"dime","count":3}]} }
+
+   • MODE "make" — App shows a target amount. Student taps coins to build that total.
+     Use for: "Use coins to make 68¢." / "Show 45¢ using coins."
+     geometry: { "mode": "make", "target": <cents as integer> }
+     correctAnswer = target in cents as a string (e.g., "68")
+     acceptedAnswers = ["68¢", "$0.68", "68 cents"]
+     Keep target realistic: ≤ 99¢ for Grades 1–2, up to $2.00 for Grade 3+.
+     EXAMPLE:
+     { "type":"fill_in","measurementTool":"coin","question":"Use coins to make 68¢.","hint":"Start with the largest coin you can use.","correctAnswer":"68","acceptedAnswers":["68¢","$0.68"],"geometry":{"mode":"make","target":68} }
+
+   • MODE "estimation" — App displays coins. Student picks the closest amount from 4 auto-generated MC options.
+     Use for: "About how much money is shown?" estimation / number-sense questions.
+     The app generates the MC options automatically — you do NOT provide them.
+     geometry: { "mode": "estimation", "coins": [...] }
+     correctAnswer = actual total in cents as a string
+     Keep coin count to 3–6 coins.
+     EXAMPLE:
+     { "type":"fill_in","measurementTool":"coin","question":"About how much money is shown?","hint":"Think about which coins are worth the most.","correctAnswer":"60","geometry":{"mode":"estimation","coins":[{"denomination":"quarter","count":2},{"denomination":"dime","count":1}]} }
+
+   • MODE "spot_mistake" — App shows coins + two named characters each claiming a different total.
+     Student taps the character who counted correctly.
+     The wrong claim is always a small counting error (e.g., missed one coin or miscounted one denomination).
+     Randomly decide which character (A or B) has the correct answer.
+     Pick two DIFFERENT names from: nina, sam, mia, leo, ava, max
+     geometry: {
+       "mode": "spot_mistake",
+       "coins": [...],
+       "claimA": { "name": "<Name>", "valueCents": <correct OR wrong value> },
+       "claimB": { "name": "<Name>", "valueCents": <wrong OR correct value> },
+       "correctClaim": "A" | "B"
+     }
+     correctAnswer = same as correctClaim ("A" or "B")
+     Question text example: "Nina says the total is 47¢. Sam says it's 42¢. Who is correct?"
+     EXAMPLE (Nina correct):
+     { "type":"fill_in","measurementTool":"coin","question":"Nina says the total is 47¢. Sam says it's 42¢. Who is correct?","hint":"Count each coin carefully.","correctAnswer":"A","geometry":{"mode":"spot_mistake","coins":[{"denomination":"quarter","count":1},{"denomination":"dime","count":2},{"denomination":"penny","count":2}],"claimA":{"name":"Nina","valueCents":47},"claimB":{"name":"Sam","valueCents":42},"correctClaim":"A"} }
+
+   • MODE "fewest" — App shows a target amount. Student selects coins using the minimum number possible.
+     Use for: "Make 41¢ using the fewest coins."
+     geometry: { "mode": "fewest", "target": <cents as integer> }
+     correctAnswer = minimum number of coins needed (string, computed via greedy algorithm)
+     GREEDY ALGORITHM: always pick the largest coin that fits; repeat until total equals target.
+       Example: 41¢ → quarter(25¢) + dime(10¢) + nickel(5¢) + penny(1¢) = 4 coins → correctAnswer:"4"
+       Example: 30¢ → quarter(25¢) + nickel(5¢) = 2 coins → correctAnswer:"2"
+       Example: 75¢ → 3 × quarter(25¢) = 3 coins → correctAnswer:"3"
+       Example: 11¢ → dime(10¢) + penny(1¢) = 2 coins → correctAnswer:"2"
+     EXAMPLE:
+     { "type":"fill_in","measurementTool":"coin","question":"Make 41¢ using the fewest coins.","hint":"Think about the largest-value coin you can use first.","correctAnswer":"4","geometry":{"mode":"fewest","target":41} }
+
+   ── COIN RULES ──
+   • Keep coin totals grade-appropriate: ≤ 99¢ for Grades 1–2, up to $2.00 for Grades 3+
+   • Vary denominations — don't use only quarters or only pennies
+   • NEVER reference the worksheet or any external image
+   • NEVER say "shown above", "in the image", "in the diagram", or reference any figure/question number
+   • The app draws the coins — the student never sees the original worksheet
+
+   COIN CONSISTENCY RULE — CRITICAL:
+   When the worksheet is about coins/money, use measurementTool:"coin" ONLY.
+   Do NOT mix in ruler or protractor questions on a money worksheet.
+
+   ── STANDARD QUESTIONS to mix in alongside coin tool modes (2–3 per scan) ──
+   • multiple_choice: "Which coin is worth 25 cents?" options: ["Penny","Nickel","Dime","Quarter"], correctIndex:3
+   • fill_in (word problem): "A toy costs 75¢. You pay with $1.00. How much change do you get? ___ ¢" correctAnswer:"25"
+   • true_false: "A nickel is worth 5 cents. True or False?" correctAnswer:true
+
 4. ORDERING — "type": "ordering"
    - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
    - items: 3–6 things to arrange
@@ -297,9 +386,10 @@ QUESTION TYPE RULES — choose the best type for each question:
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
 (examples: an analog clock face to read, a coordinate grid to plot points on, a Venn diagram to fill,
-a calendar, a coin/money display, a pictograph you cannot embed, a map you cannot embed), you MUST
+a calendar, a pictograph you cannot embed, a map you cannot embed), you MUST
 fall back to a regular multiple_choice question about the CONCEPT shown instead. Never produce
 broken JSON, empty geometry objects, or placeholder fields for unsupported renderers.
+NOTE: Coin/money questions ARE supported — use measurementTool:"coin" with the appropriate mode.
 BAD:  { "type": "clock", "question": "What time is shown?", "geometry": {} }  ← unsupported
 GOOD: { "question": "A clock shows the hour hand at 3 and the minute hand at 12. What time is it?",
         "hint": "...", "options": ["3:00","12:03","3:12","12:15"], "correctIndex": 0 }

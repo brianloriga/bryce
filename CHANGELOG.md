@@ -6,6 +6,31 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Coin / Money Tool — Dollar Bills & Full Dev Coverage — 2026-04-24
+
+#### Changed — `CoinRenderer.js` (`src/renderers/tools/CoinRenderer.js`)
+
+- **Dollar-aware count input** — `CountMode` now detects when the correct total is ≥ $1.00 (`isDollar = actual >= 100`) and switches the input to a `$` prefix + `decimal-pad` keyboard with a `0.00` placeholder; totals under $1.00 keep the existing `¢` suffix + number-pad; validation accepts both dollar format (`1.35` → 135¢) and bare-cents format (`135`) so neither input style fails
+
+#### Changed — `sampleQuestions.js` (`src/dev/sampleQuestions.js`)
+
+- **`coin_count`** — added 4 questions using `dollar`, `five_dollar`, and `ten_dollar` denominations ($1.35, $5.50, $11.30, plus a mixed $1+$1+coins question)
+- **`coin_make`** — added 2 questions with dollar-range targets ($1.25 and $6.50) and explicit `availableCoins` pools containing bill denominations
+- **`coin_estimation`** — added 2 questions featuring a `$1 + quarters` group ($1.75) and a `$5 + coins` group ($5.30)
+- **`coin_spotMistake`** — added 2 questions: Ava vs Max ($1.35 with dollar bill) and Sam vs Nina ($5.30 with $5 bill)
+- **`coin_fewest`** — added 2 questions: Make $1.25 in 2 pieces (dollar + quarter) and Make $5.50 in 3 pieces ($5 + 2 quarters)
+- **`coin_standard`** — added 4 standard questions involving paper bills: $5 change problem, $1-bill count, true/false ($5 vs quarters), $10 word problem
+- **`coin_dollars`** — new sample set (7 questions) exclusively focused on `$1`, `$5`, and `$10` bills across all 5 interactive modes; added to the `Coin / Money (Enhanced)` group in `SAMPLE_GROUPS`
+- **`mixed_coins`** — updated showcase: Count mode now includes a `$1 + 2 quarters` question ($1.50); Make now targets $1.25 with a bill pool; Fewest now targets $1.50 (3 pieces); standard questions use bills
+
+#### Changed — `TOOLS.md`
+
+- Updated Coin/Money description to explicitly list `$1`, `$5`, `$10` bills alongside coins
+- Updated validation model entry for `count` mode to document dual-mode parsing
+- Updated build notes to document `availableCoins` bill support in `make`/`fewest` modes and the dual-input behavior
+
+---
+
 ### Question Generation Quality & Count Reliability — 2026-04-24
 
 #### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)

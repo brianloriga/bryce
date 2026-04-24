@@ -33,6 +33,7 @@ const TAB_ICONS = {
   Learn:   { active: 'school',                  inactive: 'school-outline' },
   Scan:    { active: 'camera',                  inactive: 'camera-outline' },
   Account: { active: 'person-circle',           inactive: 'person-circle-outline' },
+  Dev:     { active: 'flask',                   inactive: 'flask-outline' },
 };
 
 // ── Main tabs ─────────────────────────────────────────────────
@@ -71,6 +72,17 @@ function MainTabs() {
       <Tab.Screen name="Learn"   component={HomeScreen}    options={{ tabBarLabel: 'Learn' }} />
       <Tab.Screen name="Scan"    component={ScanScreen}    options={{ tabBarLabel: 'Scan' }} />
       <Tab.Screen name="Account" component={AccountScreen} options={{ tabBarLabel: 'Account' }} />
+      {__DEV__ && (
+        <Tab.Screen
+          name="Dev"
+          component={DevPreviewScreen}
+          options={{
+            tabBarLabel: 'Dev',
+            tabBarActiveTintColor: '#f59e0b',
+            tabBarInactiveTintColor: '#78350f',
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 }

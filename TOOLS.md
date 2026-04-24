@@ -260,10 +260,10 @@ A procedurally drawn analog clock face. In read mode, the hands are set to a spe
 
 ### 5. Coin / Money
 
-**Status:** Pending Mockup
+**Status:** Building — Shell complete, AI schema wired
 
 **Description:**
-Displays labeled coin images (penny, nickel, dime, quarter, dollar). Student calculates the total value and types or selects it.
+Displays labeled currency images — coins (penny, nickel, dime, quarter) and bills ($1, $5, $10). Depending on the mode, the student counts a displayed set of coins and/or bills, taps currency from a pool to make an exact amount, estimates a total from MC options, spots a counting mistake, or builds an amount using the fewest pieces possible. Currency assets live in `assets/tool-icons/`. For totals ≥ $1.00 the count-mode input shows a `$` prefix with decimal-pad keyboard; for totals under $1.00 it shows a `¢` suffix with number-pad.
 
 **Grade range:** Grades 1–3
 
@@ -271,26 +271,63 @@ Displays labeled coin images (penny, nickel, dime, quarter, dollar). Student cal
 
 | Mode | What the student does |
 |---|---|
-| `count` | Student counts the total value of the displayed coins. |
-| `select` | Student taps coins from a pool to make an exact amount. |
+| `count` | A set of coins is displayed. Student types the total value. |
+| `make` | Target amount shown. Student taps coins from a pool to reach the exact total. |
+| `estimation` | Coins displayed. Student picks the closest amount from 4 auto-generated MC options. |
+| `spot_mistake` | Coins displayed. Two characters each claim a different total. Student taps the correct one. |
+| `fewest` | Target shown. Student selects coins to reach the total using the minimum number of coins. |
 
-**AI schema:**
+**AI schema** (uses `measurementTool: "coin"` on a `fill_in` question):
 ```json
 {
-  "toolType": "coin",
+  "type": "fill_in",
+  "measurementTool": "coin",
+  "question": "How much money is shown?",
+  "hint": "Count each coin carefully.",
+  "correctAnswer": "80",
+  "acceptedAnswers": ["80¢", "0.80", "$0.80", "80 cents"],
   "geometry": {
+    "mode": "count",
     "coins": [
       { "denomination": "quarter", "count": 2 },
       { "denomination": "dime", "count": 3 }
-    ],
-    "mode": "count"
+    ]
   }
 }
 ```
 
-**Fallback:** `fill_in` — "How much money is shown?" with `correctAnswer: "0.80"`
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `geometry.mode` | string | Yes | `"count"`, `"make"`, `"estimation"`, `"spot_mistake"`, `"fewest"` |
+| `geometry.coins` | array | `count`, `estimation`, `spot_mistake` | `[{ denomination, count }]` — denominations: penny/nickel/dime/quarter/dollar/five_dollar/ten_dollar |
+| `geometry.target` | number | `make`, `fewest` | Amount in cents (integer) |
+| `geometry.availableCoins` | string[] | No | Pool for make/fewest modes. Defaults to `[quarter, dime, nickel, penny]` |
+| `geometry.claimA` / `claimB` | object | `spot_mistake` | `{ name: string, valueCents: number }` |
+| `geometry.correctClaim` | string | `spot_mistake` | `"A"` or `"B"` |
+| `correctAnswer` | string | Yes | Cents as string for most modes; `"A"`/`"B"` for spot_mistake; min coin count for fewest |
 
-**Mockup:** *Waiting for designer mockup.*
+**Avatar names** available for `spot_mistake`: `nina`, `sam`, `mia`, `leo`, `ava`, `max`
+
+**Validation model:**
+- `count`: for totals < $1.00 — strip non-digits, compare as integer cents. For totals ≥ $1.00 — accept dollar format (`1.35` → `Math.round(float × 100)`) or bare cents (`135`) as fallback
+- `make`: wallet total must equal target cents
+- `estimation`: app generates 4 MC options bracketing the actual total (rounded to nearest 5¢); correct = matching option
+- `spot_mistake`: student picks A or B matching `correctClaim`
+- `fewest`: wallet total must equal target AND coin count must be ≤ `correctAnswer` (minimum)
+
+**Fallback:** `fill_in` — "How much money is shown?" with `correctAnswer` in cents
+
+**Mockup:** ✅ Reference image provided — see workspace assets folder.
+
+**Build notes:**
+- Currency PNG assets: `assets/tool-icons/penny_icon.png`, `nickel_icon.png`, `dime_icon.png`, `quarter_icon.png`, `onedollar_icon.png`, `fivedollar_icon.png`, `tendollar_icon.png`
+- Avatar assets shared with ProtractorRenderer: `assets/child-avatars/{name}_avatar.png`
+- `WalletSummary` groups coins by denomination with a count badge (avoids rendering 8 individual penny images)
+- `make` and `fewest` modes accept an `availableCoins` array on the geometry to include bills; defaults to `[quarter, dime, nickel, penny]`
+- `make` mode allows going over the target (shows red warning); Check validates total
+- `fewest` mode disables coins that would exceed the target; validates both amount AND count
+- Estimation MC options generated client-side via `buildEstimationOptions(actualCents)` — AI does not provide options
+- Count-mode input is dual-mode: `¢` suffix + number-pad for totals < 100¢; `$` prefix + decimal-pad for totals ≥ $1.00
 
 ---
 

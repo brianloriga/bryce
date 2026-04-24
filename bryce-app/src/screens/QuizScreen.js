@@ -29,6 +29,7 @@ import ProtractorRenderer     from '../renderers/tools/ProtractorRenderer';
 import RulerRenderer          from '../renderers/tools/RulerRenderer';
 import NumberLineRenderer     from '../renderers/tools/NumberLineRenderer';
 import AngleMatchingRenderer  from '../renderers/tools/AngleMatchingRenderer';
+import CoinRenderer           from '../renderers/tools/CoinRenderer';
 
 // Standard renderers
 import FillInRenderer  from '../renderers/standard/FillInRenderer';
@@ -104,7 +105,7 @@ export default function QuizScreen() {
   const isVisual       = q.type === 'visual_mc';
   const safeCorrectIdx = Math.min(Math.max(q.correctIndex ?? 0, 0), (q.options?.length ?? 1) - 1);
 
-  // Compute badge label — protractor questions show their specific mode name
+  // Compute badge label — tool questions show their specific mode name
   const typeLabel = (() => {
     if (q.measurementTool === 'protractor') {
       const mode = q.geometry?.protractorMode ?? 'align';
@@ -115,6 +116,16 @@ export default function QuizScreen() {
         estimate:     'Protractor · Estimate',
         spot_mistake: 'Spot the Mistake',
       }[mode] ?? 'Protractor';
+    }
+    if (q.measurementTool === 'coin') {
+      const mode = q.geometry?.mode ?? 'count';
+      return {
+        count:        'Coin Count',
+        make:         'Make the Amount',
+        estimation:   'Coin Estimation',
+        spot_mistake: 'Spot the Mistake',
+        fewest:       'Fewest Coins',
+      }[mode] ?? 'Money';
     }
     if (q.type === 'multiple_choice' && q.geometry?.type === 'angle') return 'Angle Type';
     if (q.measurementTool === 'ruler') return 'Ruler';
@@ -370,6 +381,8 @@ export default function QuizScreen() {
             <ProtractorRenderer  key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' && q.measurementTool === 'ruler' ? (
             <RulerRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
+          ) : qType === 'fill_in' && q.measurementTool === 'coin' ? (
+            <CoinRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (

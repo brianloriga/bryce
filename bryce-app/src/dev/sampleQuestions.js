@@ -768,6 +768,611 @@ const ruler_difference = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// COIN / MONEY — count mode
+// ─────────────────────────────────────────────────────────────
+const coin_count = {
+  id: 'coin_count',
+  label: 'Coin – Count the Money',
+  unit: {
+    title: 'Coin: Count',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '80',
+        acceptedAnswers: ['80¢', '$0.80', '0.80', '80 cents'],
+        hint: 'Count each coin by its value and add them up.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'quarter', count: 2 },
+            { denomination: 'dime', count: 3 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '36',
+        acceptedAnswers: ['36¢', '$0.36', '0.36', '36 cents'],
+        hint: 'A quarter is 25¢. Add on the smaller coins.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+            { denomination: 'penny', count: 6 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '100',
+        acceptedAnswers: ['100¢', '$1.00', '1.00', '1 dollar'],
+        hint: 'Four quarters equal one dollar.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'quarter', count: 4 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '135',
+        acceptedAnswers: ['$1.35', '1.35'],
+        hint: 'Count the dollar bill first, then add the coins.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'dime', count: 1 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '550',
+        acceptedAnswers: ['$5.50', '5.50'],
+        hint: 'A $5 bill is worth 500 cents. Then add the coins.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'quarter', count: 2 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '1130',
+        acceptedAnswers: ['$11.30', '11.30'],
+        hint: 'Count the $10 bill, then the $1 bill, then the coins.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'ten_dollar', count: 1 },
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — make the amount
+// ─────────────────────────────────────────────────────────────
+const coin_make = {
+  id: 'coin_make',
+  label: 'Coin – Make the Amount',
+  unit: {
+    title: 'Coin: Make',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use coins to make 68¢.',
+        correctAnswer: '68',
+        acceptedAnswers: ['68¢', '$0.68', '0.68'],
+        hint: 'Start with the largest coin you can use.',
+        geometry: {
+          mode: 'make',
+          target: 68,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use coins to make 45¢.',
+        correctAnswer: '45',
+        acceptedAnswers: ['45¢', '$0.45', '0.45'],
+        hint: 'A quarter and two dimes work!',
+        geometry: {
+          mode: 'make',
+          target: 45,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use coins to make 87¢.',
+        correctAnswer: '87',
+        acceptedAnswers: ['87¢', '$0.87'],
+        hint: 'Start with 3 quarters and add smaller coins.',
+        geometry: {
+          mode: 'make',
+          target: 87,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use bills and coins to make $1.25.',
+        correctAnswer: '125',
+        acceptedAnswers: ['$1.25', '1.25'],
+        hint: 'One dollar bill plus one quarter gets you there!',
+        geometry: {
+          mode: 'make',
+          target: 125,
+          availableCoins: ['dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use bills and coins to make $6.50.',
+        correctAnswer: '650',
+        acceptedAnswers: ['$6.50', '6.50'],
+        hint: 'Start with the $5 bill, then add dollar bills and coins.',
+        geometry: {
+          mode: 'make',
+          target: 650,
+          availableCoins: ['five_dollar', 'dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — estimation
+// ─────────────────────────────────────────────────────────────
+const coin_estimation = {
+  id: 'coin_estimation',
+  label: 'Coin – Estimation',
+  unit: {
+    title: 'Coin: Estimation',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '60',
+        hint: 'Think about which coins are worth the most.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'quarter', count: 2 },
+            { denomination: 'dime', count: 1 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '35',
+        hint: 'A quarter is worth 25¢ — start there.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 2 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '175',
+        hint: 'The dollar bill is the big piece — count on from there.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 3 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '530',
+        hint: 'The $5 bill is worth the most — start there.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — spot the mistake
+// ─────────────────────────────────────────────────────────────
+const coin_spotMistake = {
+  id: 'coin_spot',
+  label: 'Coin – Spot the Mistake',
+  unit: {
+    title: 'Coin: Spot the Mistake',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Nina says the total is 47¢. Sam says it\'s 42¢. Who is correct?',
+        correctAnswer: 'A',
+        hint: 'Count each coin one at a time to find the real total.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'dime', count: 2 },
+            { denomination: 'penny', count: 2 },
+          ],
+          claimA: { name: 'Nina', valueCents: 47 },
+          claimB: { name: 'Sam', valueCents: 42 },
+          correctClaim: 'A',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Leo says the total is 55¢. Mia says it\'s 65¢. Who is correct?',
+        correctAnswer: 'B',
+        hint: 'Two quarters and a dime and a nickel — add them up.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'quarter', count: 2 },
+            { denomination: 'dime', count: 1 },
+            { denomination: 'nickel', count: 1 },
+          ],
+          claimA: { name: 'Leo', valueCents: 55 },
+          claimB: { name: 'Mia', valueCents: 65 },
+          correctClaim: 'B',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: "Ava says the total is $1.35. Max says it's $1.45. Who is correct?",
+        correctAnswer: 'A',
+        hint: 'Count the dollar bill first, then add the coins.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'dime', count: 1 },
+          ],
+          claimA: { name: 'Ava', valueCents: 135 },
+          claimB: { name: 'Max', valueCents: 145 },
+          correctClaim: 'A',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: "Sam says the total is $5.30. Nina says it's $5.35. Who is correct?",
+        correctAnswer: 'A',
+        hint: 'Add the $5 bill and each coin carefully.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+          ],
+          claimA: { name: 'Sam', valueCents: 530 },
+          claimB: { name: 'Nina', valueCents: 535 },
+          correctClaim: 'A',
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — fewest coins
+// ─────────────────────────────────────────────────────────────
+const coin_fewest = {
+  id: 'coin_fewest',
+  label: 'Coin – Fewest Coins',
+  unit: {
+    title: 'Coin: Fewest',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make 41¢ using the fewest coins.',
+        correctAnswer: '4',
+        hint: 'Think about the largest-value coin you can use first.',
+        geometry: {
+          mode: 'fewest',
+          target: 41,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make 30¢ using the fewest coins.',
+        correctAnswer: '2',
+        hint: 'A quarter is 25¢ — what gets you to 30¢ in one more coin?',
+        geometry: {
+          mode: 'fewest',
+          target: 30,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make 75¢ using the fewest coins.',
+        correctAnswer: '3',
+        hint: 'Three of the largest coin works here.',
+        geometry: {
+          mode: 'fewest',
+          target: 75,
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make $1.25 using the fewest bills and coins.',
+        correctAnswer: '2',
+        hint: 'One dollar bill and one quarter — that\'s only 2 pieces!',
+        geometry: {
+          mode: 'fewest',
+          target: 125,
+          availableCoins: ['dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make $5.50 using the fewest bills and coins.',
+        correctAnswer: '3',
+        hint: 'One $5 bill and two quarters = 3 pieces total.',
+        geometry: {
+          mode: 'fewest',
+          target: 550,
+          availableCoins: ['ten_dollar', 'five_dollar', 'dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — mixed standard questions (no tool)
+// ─────────────────────────────────────────────────────────────
+const coin_standard = {
+  id: 'coin_standard',
+  label: 'Coin – Standard Questions',
+  unit: {
+    title: 'Money: Standard',
+    subject: 'math',
+    questions: [
+      {
+        type: 'multiple_choice',
+        question: 'Which coin is worth 25 cents?',
+        options: ['Penny', 'Nickel', 'Dime', 'Quarter'],
+        correctIndex: 3,
+        hint: 'This coin has an eagle on the back.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'A toy costs 75¢. You pay with $1.00. How much change do you get?',
+        options: ['15¢', '25¢', '35¢', '45¢'],
+        correctIndex: 1,
+        hint: 'Change = amount paid − price.',
+      },
+      {
+        type: 'true_false',
+        question: 'A dime is worth 10 cents.',
+        correctAnswer: true,
+        hint: 'Think about how many dimes equal a dollar.',
+      },
+      {
+        type: 'fill_in',
+        question: 'How many nickels equal one quarter (25¢)?',
+        correctAnswer: '5',
+        acceptedAnswers: ['five'],
+        hint: 'Each nickel is worth 5¢. How many 5¢ coins fit in 25¢?',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'Sam has 2 dimes and 3 pennies. How much money does Sam have?',
+        options: ['15¢', '23¢', '13¢', '32¢'],
+        correctIndex: 1,
+        hint: '2 dimes = 20¢. Add the pennies.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'You have a $5 bill and buy a book for $3.25. How much change do you get back?',
+        options: ['$1.25', '$1.50', '$1.75', '$2.25'],
+        correctIndex: 2,
+        hint: '$5.00 − $3.25 = ?',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'How many $1 bills equal one $10 bill?',
+        options: ['5', '8', '10', '12'],
+        correctIndex: 2,
+        hint: 'Think: how many ones make ten?',
+      },
+      {
+        type: 'true_false',
+        question: 'A $5 bill is worth more than twenty quarters.',
+        correctAnswer: false,
+        hint: 'Twenty quarters = 20 × 25¢. Is that more or less than $5?',
+      },
+      {
+        type: 'fill_in',
+        question: 'You have a $10 bill and spend $4.50. How much do you have left?',
+        correctAnswer: '$5.50',
+        acceptedAnswers: ['5.50', '5 dollars 50 cents'],
+        hint: '$10.00 − $4.50 = ?',
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// COIN / MONEY — dollar bills focused (enhanced tool)
+// ─────────────────────────────────────────────────────────────
+const coin_dollars = {
+  id: 'coin_dollars',
+  label: 'Coin – Dollar Bills & Mixed',
+  unit: {
+    title: 'Money: Dollar Bills',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '150',
+        acceptedAnswers: ['$1.50', '1.50'],
+        hint: 'Start with the dollar bill and count on the quarters.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 2 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '625',
+        acceptedAnswers: ['$6.25', '6.25'],
+        hint: 'Count the $5 bill first, then the $1 bill, then the quarter.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '1035',
+        acceptedAnswers: ['$10.35', '10.35'],
+        hint: 'Start with the biggest bill and work down.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'ten_dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'dime', count: 1 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use bills and coins to make $2.50.',
+        correctAnswer: '250',
+        acceptedAnswers: ['$2.50', '2.50'],
+        hint: 'Two $1 bills and two quarters works!',
+        geometry: {
+          mode: 'make',
+          target: 250,
+          availableCoins: ['five_dollar', 'dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make $1.50 using the fewest bills and coins.',
+        correctAnswer: '3',
+        hint: 'One $1 bill and two quarters — just 3 pieces.',
+        geometry: {
+          mode: 'fewest',
+          target: 150,
+          availableCoins: ['dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '675',
+        hint: 'Count the big bills first.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 3 },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: "Mia says the total is $5.30. Leo says it's $5.25. Who is correct?",
+        correctAnswer: 'A',
+        hint: 'Add the $5 bill and the coins carefully.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'five_dollar', count: 1 },
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+          ],
+          claimA: { name: 'Mia', valueCents: 530 },
+          claimB: { name: 'Leo', valueCents: 525 },
+          correctClaim: 'A',
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
 // GEOMETRY DISPLAY showcase
 // ─────────────────────────────────────────────────────────────
 const geometryDisplay = {
@@ -967,12 +1572,135 @@ const mixed_enhanced = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// MIXED — all 5 coin modes in one run
+// ─────────────────────────────────────────────────────────────
+const mixed_coins = {
+  id: 'mixed_coins',
+  label: '⭐ Mixed – All Coin / Money Modes',
+  unit: {
+    title: 'All Coin Question Types',
+    subject: 'math',
+    questions: [
+      // 1. Count — coins only
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '56',
+        acceptedAnswers: ['56¢', '$0.56', '0.56', '56 cents'],
+        hint: 'Count each coin by its value and add them up.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'quarter', count: 2 },
+            { denomination: 'nickel', count: 1 },
+            { denomination: 'penny', count: 1 },
+          ],
+        },
+      },
+      // 2. Count — with a dollar bill
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'How much money is shown?',
+        correctAnswer: '150',
+        acceptedAnswers: ['$1.50', '1.50'],
+        hint: 'Start with the dollar bill, then add the quarters.',
+        geometry: {
+          mode: 'count',
+          coins: [
+            { denomination: 'dollar', count: 1 },
+            { denomination: 'quarter', count: 2 },
+          ],
+        },
+      },
+      // 3. Make the amount
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Use bills and coins to make $1.25.',
+        correctAnswer: '125',
+        acceptedAnswers: ['$1.25', '1.25'],
+        hint: 'One dollar bill and one quarter!',
+        geometry: {
+          mode: 'make',
+          target: 125,
+          availableCoins: ['dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      // 4. Estimation
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'About how much money is shown?',
+        correctAnswer: '75',
+        hint: 'Three quarters is a classic combination.',
+        geometry: {
+          mode: 'estimation',
+          coins: [
+            { denomination: 'quarter', count: 3 },
+          ],
+        },
+      },
+      // 5. Spot the mistake
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: "Ava says the total is 31¢. Max says it's 26¢. Who is correct?",
+        correctAnswer: 'A',
+        hint: 'Count the pennies carefully.',
+        geometry: {
+          mode: 'spot_mistake',
+          coins: [
+            { denomination: 'quarter', count: 1 },
+            { denomination: 'nickel', count: 1 },
+            { denomination: 'penny', count: 1 },
+          ],
+          claimA: { name: 'Ava', valueCents: 31 },
+          claimB: { name: 'Max', valueCents: 26 },
+          correctClaim: 'A',
+        },
+      },
+      // 6. Fewest coins
+      {
+        type: 'fill_in',
+        measurementTool: 'coin',
+        question: 'Make $1.50 using the fewest bills and coins.',
+        correctAnswer: '3',
+        hint: 'One dollar bill and two quarters — just 3 pieces!',
+        geometry: {
+          mode: 'fewest',
+          target: 150,
+          availableCoins: ['dollar', 'quarter', 'dime', 'nickel', 'penny'],
+        },
+      },
+      // 7. Standard MC — bill identification
+      {
+        type: 'multiple_choice',
+        question: 'A $5 bill is worth how many $1 bills?',
+        options: ['3', '4', '5', '6'],
+        correctIndex: 2,
+        hint: 'Think: five ones equals five dollars.',
+      },
+      // 8. Standard fill_in — word problem with bill
+      {
+        type: 'fill_in',
+        question: 'You have a $5 bill and buy a snack for $2.75. How much change do you get?',
+        correctAnswer: '$2.25',
+        acceptedAnswers: ['2.25', '2 dollars 25 cents'],
+        hint: '$5.00 − $2.75 = ?',
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
 // Export all sample sets grouped by category
 // ─────────────────────────────────────────────────────────────
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
-    items: [mixed_all, mixed_enhanced],
+    items: [mixed_all, mixed_enhanced, mixed_coins],
   },
   {
     title: 'Standard Types',
@@ -1007,6 +1735,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Ruler (Enhanced)',
     items: [ruler_endpoint, ruler_offset, ruler_compare, ruler_difference],
+  },
+  {
+    title: 'Coin / Money (Enhanced)',
+    items: [coin_count, coin_make, coin_estimation, coin_spotMistake, coin_fewest, coin_dollars, coin_standard],
   },
   {
     title: 'Extras',
