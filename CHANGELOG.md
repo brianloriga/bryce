@@ -6,6 +6,60 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Angle Questions — Full 8-Type System & Protractor Polish — 2026-04-24
+
+#### Added — New question types
+
+- **`AngleMatchingRenderer.js`** (`src/renderers/tools/AngleMatchingRenderer.js`) — new tap-to-match renderer for `type: 'angle_matching'`; shows 3 mini angle drawings in rows, a shuffled bank of degree chips, and auto-checks when all 3 rows are filled; supports steal-and-reassign, reset, and correct/wrong feedback with per-row reveal
+- **Angle Type Identification** sample set — standard `multiple_choice` question using `geometry: { type: 'angle' }` to display an angle drawing; tests Acute / Obtuse / Right / Straight classification with hints
+- **Angle Matching** sample set — two sets of 3-pair matching questions (45°/90°/120° and 30°/60°/150°) exercising the new renderer
+- **Word Problem – Angles** sample set — four fill-in and MC word problems (lighthouse elevation, clock rotation, flat book angle, skateboard ramp) requiring angle reasoning without a tool
+
+#### Changed — `GeometryDisplay.js` (`src/renderers/shared/GeometryDisplay.js`)
+
+- Added `type: 'angle'` branch that renders an `AngleStimulus` component; allows standard `multiple_choice` questions to display a geometric angle drawing without needing a tool renderer
+
+#### Changed — `sampleQuestions.js` (`src/dev/sampleQuestions.js`)
+
+- Protractor (Enhanced) group expanded from 5 to 8 entries; all 8 mockup question styles are now represented in Dev Preview
+
+#### Changed — `quizHelpers.js` (`src/utils/quizHelpers.js`)
+
+- Added `angle_matching: 'Angle Matching'` to `TYPE_LABELS`
+
+#### Changed — `QuizScreen.js` (`src/screens/QuizScreen.js`)
+
+- Imported `AngleMatchingRenderer` and added dispatch case for `type: 'angle_matching'`
+- **Type badge now shows the specific protractor mode** instead of "Fill in the Blank": `Protractor · Read`, `Protractor · Build`, `Protractor · Align`, `Protractor · Estimate`, `Spot the Mistake`, `Angle Type`, `Ruler`
+
+#### Changed — `ProtractorRenderer.js` (`src/renderers/tools/ProtractorRenderer.js`)
+
+- **`ProtractorFace` redesigned** to match mockup visual quality:
+  - Filled blue sector from vertex to arc edge shows the measured angle at a glance
+  - Degree labels moved **inside** the arc (radius −13 from edge) creating a clear label belt; 49 px of separation from ray letters vs. 14 px before
+  - **Dual scale** — primary labels every 10° (bold + ° symbol at 30° multiples), secondary complementary values (150/120/90/60/30) on inner ring
+  - Tick marks at 5° (minor), 10° (medium), and 30° (major) with varying lengths and weights
+  - Inner arc ring creates a visual protractor belt
+  - **Arm pip**: bright dot placed on the arc exactly where the movable arm intersects, so in-between positions (e.g. 75°) are precisely marked
+  - **Floating degree badge**: small colored pill showing the exact angle (e.g. "75°") travels with the arm just outside the arc — eliminates the ambiguity of two neighboring labels both lighting up
+  - `near` highlight threshold tightened from ±6° to ±3° so only one label highlights at a time
+  - `overflow: 'visible'` on container; ray labels enlarged to 15 px / weight 900
+- **Align mode Step 2 gated**: Next button is blocked when the movable arm is more than 10° from the correct angle; shows `"That arm doesn't look lined up yet — try moving it closer to match the ray"` warning
+- **Estimate mode diagnostic feedback**: wrong answer triggers a contextual amber banner explaining the angle type (acute vs. obtuse) and why the correct option fits
+- **Spot the Mistake post-answer explanation**: blue banner names which student used the correct 0° line and explains that the other got the supplementary angle
+- **Build mode relational hint**: after a wrong attempt shows whether the target is acute/obtuse and where the arm should sit relative to the 90° mark
+- Step 2 instruction updated from generic "Align the protractor" to `"Move the purple arm until it lines up with ray Z. Start from the 0° baseline."`
+
+#### Changed — `measurementStyles.js` (`src/renderers/shared/measurementStyles.js`)
+
+- `protContainer`: added `overflow: 'visible'` so ray labels can extend beyond container bounds
+- `protRayLabel`: font size 13 → 15, weight 800 → 900
+- Added `spotExplanation` / `spotExplanationText` styles for the post-answer scale banner
+- Added `alignWarnText` style for the arm-alignment warning
+- Added `estimateDiagnostic` / `estimateDiagnosticText` styles for the estimate feedback banner
+
+---
+
 ### Dev Preview & Web Compatibility — 2026-04-24
 
 #### Added — Dev Preview infrastructure

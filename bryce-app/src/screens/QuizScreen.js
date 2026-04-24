@@ -25,9 +25,10 @@ import GeometryDisplay from '../renderers/shared/GeometryDisplay';
 import { mdStyles, mdStylesVisual } from '../renderers/shared/markdownStyles';
 
 // Tool renderers (Enhanced Questions)
-import ProtractorRenderer  from '../renderers/tools/ProtractorRenderer';
-import RulerRenderer       from '../renderers/tools/RulerRenderer';
-import NumberLineRenderer  from '../renderers/tools/NumberLineRenderer';
+import ProtractorRenderer     from '../renderers/tools/ProtractorRenderer';
+import RulerRenderer          from '../renderers/tools/RulerRenderer';
+import NumberLineRenderer     from '../renderers/tools/NumberLineRenderer';
+import AngleMatchingRenderer  from '../renderers/tools/AngleMatchingRenderer';
 
 // Standard renderers
 import FillInRenderer  from '../renderers/standard/FillInRenderer';
@@ -102,7 +103,23 @@ export default function QuizScreen() {
   const isMC           = !q.type || q.type === 'multiple_choice' || q.type === 'visual_mc';
   const isVisual       = q.type === 'visual_mc';
   const safeCorrectIdx = Math.min(Math.max(q.correctIndex ?? 0, 0), (q.options?.length ?? 1) - 1);
-  const typeLabel      = TYPE_LABELS[qType];
+
+  // Compute badge label — protractor questions show their specific mode name
+  const typeLabel = (() => {
+    if (q.measurementTool === 'protractor') {
+      const mode = q.geometry?.protractorMode ?? 'align';
+      return {
+        read:         'Protractor · Read',
+        build:        'Protractor · Build',
+        align:        'Protractor · Align',
+        estimate:     'Protractor · Estimate',
+        spot_mistake: 'Spot the Mistake',
+      }[mode] ?? 'Protractor';
+    }
+    if (q.type === 'multiple_choice' && q.geometry?.type === 'angle') return 'Angle Type';
+    if (q.measurementTool === 'ruler') return 'Ruler';
+    return TYPE_LABELS[qType] ?? null;
+  })();
 
   function resolveAnswer(isCorrect) {
     const newScore = isCorrect ? score + 1 : score;
@@ -362,7 +379,9 @@ export default function QuizScreen() {
           ) : qType === 'true_false' ? (
             <TrueFalseRenderer   key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'word_bank' ? (
-            <WordBankRenderer    key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
+            <WordBankRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
+          ) : qType === 'angle_matching' ? (
+            <AngleMatchingRenderer   key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : null}
 
           {unit.passage && (

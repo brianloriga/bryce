@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { AngleStimulus } from './measurementHelpers';
 
 export default function GeometryDisplay({ geometry }) {
   if (!geometry?.type) return null;
@@ -50,6 +51,14 @@ export default function GeometryDisplay({ geometry }) {
           })}
         </View>
         <View style={styles.barBaseline} />
+      </View>
+    );
+  }
+
+  if (geometry.type === 'angle') {
+    return (
+      <View style={styles.container}>
+        <AngleStimulus geometry={geometry} />
       </View>
     );
   }

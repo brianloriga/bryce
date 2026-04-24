@@ -19,6 +19,7 @@ export const measStyles = StyleSheet.create({
   protContainer: {
     width: 280, height: 178,
     alignSelf: 'center', marginBottom: 4, position: 'relative',
+    overflow: 'visible',
   },
   protArc: {
     position: 'absolute',
@@ -27,7 +28,7 @@ export const measStyles = StyleSheet.create({
     borderWidth: 1.5, borderBottomWidth: 0, borderColor: '#334155',
   },
   protMarkLabel: { position: 'absolute', fontSize: 10, color: '#475569', width: 26, textAlign: 'center' },
-  protRayLabel:  { position: 'absolute', fontSize: 13, color: '#e2e8f0', fontWeight: '800', fontStyle: 'italic' },
+  protRayLabel:  { position: 'absolute', fontSize: 15, color: '#e2e8f0', fontWeight: '900', fontStyle: 'italic' },
   protReadout: {
     position: 'absolute',
     left: PROT_CX - 32, top: PROT_CY - 52,
@@ -251,6 +252,34 @@ export const measStyles = StyleSheet.create({
   spotHint: {
     fontSize: 12, color: '#64748b', textAlign: 'center',
     marginTop: 2, fontStyle: 'italic',
+  },
+
+  // ── Spot the Mistake — post-answer scale explanation ─────────
+  spotExplanation: {
+    backgroundColor: 'rgba(96,165,250,0.08)',
+    borderRadius: 10, borderWidth: 1,
+    borderColor: 'rgba(96,165,250,0.2)',
+    padding: 12, marginTop: 10,
+  },
+  spotExplanationText: {
+    fontSize: 12, color: '#93c5fd', lineHeight: 18, textAlign: 'center',
+  },
+
+  // ── Align mode — soft alignment warning ──────────────────────
+  alignWarnText: {
+    fontSize: 12, color: '#fbbf24', textAlign: 'center',
+    marginTop: 6, fontStyle: 'italic',
+  },
+
+  // ── Estimate mode — diagnostic feedback banner ───────────────
+  estimateDiagnostic: {
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderRadius: 10, borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.2)',
+    padding: 12, marginTop: 8,
+  },
+  estimateDiagnosticText: {
+    fontSize: 13, color: '#fde68a', lineHeight: 18, textAlign: 'center',
   },
 });
 

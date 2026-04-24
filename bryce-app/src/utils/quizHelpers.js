@@ -3,12 +3,13 @@
 export const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
 export const TYPE_LABELS = {
-  fill_in:     'Fill in the blank',
-  ordering:    'Put in order',
-  true_false:  'True or False',
-  word_bank:   'Word Bank',
-  visual_mc:   'Visual Question',
-  number_line: 'Number Line',
+  fill_in:         'Fill in the blank',
+  ordering:        'Put in order',
+  true_false:      'True or False',
+  word_bank:       'Word Bank',
+  visual_mc:       'Visual Question',
+  number_line:     'Number Line',
+  angle_matching:  'Angle Matching',
 };
 
 export function getStars(correct, total) {

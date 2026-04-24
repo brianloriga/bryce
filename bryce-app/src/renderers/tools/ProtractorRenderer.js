@@ -19,10 +19,14 @@ const AVATAR_MAP = {
   max:  require('../../../assets/child-avatars/max_avatar.png'),
 };
 
-const PROT_LABEL_MARKS = [0, 30, 45, 60, 90, 120, 135, 150, 180];
-const PROT_TICK_STEP   = 10;
+// ── Label constants ──────────────────────────────────────────────────────────
+// Primary scale: label every 10°, bold at 30° multiples
+const ALL_10_MARKS   = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180];
+const MAJOR_MARK_SET = new Set([0, 30, 60, 90, 120, 150, 180]);
+// Secondary (complementary) scale shown only at 30°/60°/90°/120°/150°
+const SECONDARY_MARKS = [30, 60, 90, 120, 150];
 
-// Returns the 4 closest multiples of 30 (from [30,60,90,120,150]) to angleDeg,
+// Returns the 4 closest multiples of 30 from [30,60,90,120,150] to angleDeg,
 // sorted ascending. Used by EstimateMode.
 function buildEstimateOptions(angleDeg) {
   const ALL     = [30, 60, 90, 120, 150];
@@ -32,7 +36,6 @@ function buildEstimateOptions(angleDeg) {
 }
 
 // Returns the 3 closest multiples of 30 to angleDeg, sorted ascending.
-// Used by AlignMode step 1 (3-button row).
 function buildAlignEstimateOptions(angleDeg) {
   const ALL    = [30, 60, 90, 120, 150];
   const sorted = [...ALL].sort((a, b) => Math.abs(a - angleDeg) - Math.abs(b - angleDeg));
@@ -52,6 +55,29 @@ function protractorDiagnostic(typed, correct, geo) {
   return null;
 }
 
+// Diagnostic message for estimate wrong answers
+function estimateDiagnosticMsg(chosen, correct, angleDeg) {
+  if (chosen === correct) return null;
+  const isAcute  = angleDeg < 90;
+  const isObtuse = angleDeg > 90;
+  if (isAcute && chosen >= 90)
+    return `${chosen}° is a right angle or obtuse — but this angle is acute (less than 90°). ${correct}° is the best fit.`;
+  if (isObtuse && chosen <= 90)
+    return `${chosen}° is a right angle or acute — but this angle is obtuse (greater than 90°). ${correct}° fits better.`;
+  if (chosen < correct)
+    return `Close! But this angle is a little wider than ${chosen}°. ${correct}° is the better estimate.`;
+  return `Close! But ${chosen}° is a bit too wide for this angle. ${correct}° fits better.`;
+}
+
+// Relational build hint after wrong attempt
+function buildRelationalHint(targetDeg) {
+  if (targetDeg < 90)
+    return `${targetDeg}° is acute — your arm should be to the left of the 90° mark, not yet straight up.`;
+  if (targetDeg > 90)
+    return `${targetDeg}° is obtuse — your arm should be past the 90° mark, leaning toward the left side.`;
+  return `${targetDeg}° is a right angle — your arm should point straight up at the top of the protractor.`;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // useShake — shared shake animation hook
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,8 +95,16 @@ function useShake() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProtractorFace — pure display component, no interaction logic.
-// Renders the semicircle, tick marks, degree labels, arms, and ray labels.
+// ProtractorFace — redesigned with dual scale, filled sector, and clear labels.
+//
+// Visual design:
+//  • Filled blue sector from vertex to arc shows the measured angle at a glance.
+//  • Inner arc ring creates a "label belt" region for the degree numbers.
+//  • Primary scale (every 10°, bold at 30° multiples) sits near the outer arc.
+//  • Secondary scale (30°/60°/90°/120°/150° only) sits on the inner ring so
+//    students see both reading directions clearly.
+//  • Ray labels (A, B, C) are positioned 44 px beyond the arc — well clear of
+//    the degree numbers — with overflow: visible so nothing gets clipped.
 // ─────────────────────────────────────────────────────────────────────────────
 function ProtractorFace({
   refAngle,
@@ -83,75 +117,198 @@ function ProtractorFace({
   showReadout   = false,
   readoutText   = '',
 }) {
+  const cx = PROT_CX, cy = PROT_CY;
   const baselineScreenDeg = isFlipped ? 180 : 0;
   const refArmScreenDeg   = isFlipped ? 180 - refAngle   : refAngle;
   const movableScreenDeg  = isFlipped ? 180 - movableAngle : movableAngle;
-  const labelDist         = PROT_R + 32;
-  const refArmRad         = (refArmScreenDeg   * Math.PI) / 180;
-  const baselineRad       = (baselineScreenDeg * Math.PI) / 180;
-  const refTipX = PROT_CX + labelDist * Math.cos(refArmRad);
-  const refTipY = PROT_CY - labelDist * Math.sin(refArmRad);
-  const r0TipX  = PROT_CX + labelDist * Math.cos(baselineRad);
-  const r0TipY  = PROT_CY - labelDist * Math.sin(baselineRad);
-  const labelVal = (mark) => isFlipped ? 180 - mark : mark;
+
+  // Filled sector — shade the active angle area
+  const fillAngle = showRefArm ? refAngle : (showMovable ? movableAngle : 0);
+  const fillCount = Math.ceil(fillAngle / 2) + 1;
+
+  // Ray labels — positioned beyond the arc, clearly outside degree numbers
+  const rayLabelDist = PROT_R + 44;
+  const refArmRad   = (refArmScreenDeg   * Math.PI) / 180;
+  const baselineRad = (baselineScreenDeg * Math.PI) / 180;
+  const refTipX = cx + rayLabelDist * Math.cos(refArmRad);
+  const refTipY = cy - rayLabelDist * Math.sin(refArmRad);
+  const r0TipX  = cx + rayLabelDist * Math.cos(baselineRad);
+  const r0TipY  = cy - rayLabelDist * Math.sin(baselineRad);
+
+  // Movable arm pip + floating label — show exact position at arc edge
+  const movableRad   = (movableScreenDeg * Math.PI) / 180;
+  const pipX         = cx + PROT_R * Math.cos(movableRad);
+  const pipY         = cy - PROT_R * Math.sin(movableRad);
+  const floatLabelR  = PROT_R + 19;
+  const floatLabelX  = cx + floatLabelR * Math.cos(movableRad) - 18;
+  const floatLabelY  = cy - floatLabelR * Math.sin(movableRad) - 9;
 
   return (
     <View style={measStyles.protContainer}>
-      {/* Semicircle arc */}
-      <View style={[measStyles.protArc, { left: PROT_CX - PROT_R, top: PROT_CY - PROT_R }]} />
-      {/* Baseline bar */}
-      <View style={{ position: 'absolute', left: PROT_CX - PROT_R - 6, top: PROT_CY - 1, width: PROT_R * 2 + 12, height: 1.5, backgroundColor: '#475569' }} />
 
-      {/* Minor tick marks */}
-      {Array.from({ length: 19 }, (_, i) => i * PROT_TICK_STEP).map(deg => {
-        if (PROT_LABEL_MARKS.includes(deg)) return null;
-        const r  = (deg * Math.PI) / 180;
-        const tx = PROT_CX + (PROT_R - 4) * Math.cos(r);
-        const ty = PROT_CY - (PROT_R - 4) * Math.sin(r);
-        return <View key={deg} style={armStyle(tx, ty, 8, deg, '#334155', 1.5)} />;
+      {/* ── 1. Filled angle sector (blue tint from vertex to arc edge) ── */}
+      {fillAngle > 0 && Array.from({ length: fillCount }, (_, i) => {
+        const t   = fillCount > 1 ? i / (fillCount - 1) : 0;
+        const deg = isFlipped ? 180 - t * fillAngle : t * fillAngle;
+        return (
+          <View key={`fill${i}`} style={armStyle(cx, cy, PROT_R - 4, deg, 'rgba(96,165,250,0.11)', 4)} />
+        );
       })}
 
-      {/* Reference arm + angle arc dots */}
-      {showRefArm && <>
-        <View style={armStyle(PROT_CX, PROT_CY, PROT_R + 18, refArmScreenDeg, '#e2e8f0', 1.5)} />
-        {Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
-          const t = Math.round(refAngle / 3) > 0 ? i / Math.round(refAngle / 3) : 0;
-          const a = isFlipped ? baselineScreenDeg - t * refAngle : t * refAngle;
-          const r = (a * Math.PI) / 180;
-          return <View key={i} style={{ position: 'absolute', left: PROT_CX + 36 * Math.cos(r) - 1.5, top: PROT_CY - 36 * Math.sin(r) - 1.5, width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#7c3aed', opacity: 0.5 }} />;
-        })}
-      </>}
+      {/* ── 2. Inner arc ring — defines the label belt visually ── */}
+      <View style={{
+        position: 'absolute',
+        left: cx - (PROT_R - 28), top: cy - (PROT_R - 28),
+        width: (PROT_R - 28) * 2, height: PROT_R - 28,
+        borderTopLeftRadius: PROT_R - 28, borderTopRightRadius: PROT_R - 28,
+        borderWidth: 0.75, borderBottomWidth: 0, borderColor: '#2d3a4a',
+        backgroundColor: 'transparent',
+      }} />
 
-      {/* Baseline arm */}
-      <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, baselineScreenDeg, '#475569')} />
+      {/* ── 3. Outer arc ── */}
+      <View style={[measStyles.protArc, { left: cx - PROT_R, top: cy - PROT_R }]} />
 
-      {/* Movable arm */}
-      {showMovable && <View style={armStyle(PROT_CX, PROT_CY, PROT_R - 6, movableScreenDeg, armColor, 3)} />}
+      {/* ── 4. Baseline bar ── */}
+      <View style={{
+        position: 'absolute',
+        left: cx - PROT_R - 8, top: cy - 1,
+        width: PROT_R * 2 + 16, height: 1.5,
+        backgroundColor: '#475569',
+      }} />
 
-      {/* Center pivot dot */}
-      <View style={{ position: 'absolute', left: PROT_CX - 5, top: PROT_CY - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: '#94a3b8' }} />
-
-      {/* Degree labels at major marks */}
-      {PROT_LABEL_MARKS.map(mark => {
-        const rad  = (mark * Math.PI) / 180;
-        const lx   = PROT_CX + (PROT_R + 18) * Math.cos(rad);
-        const ly   = PROT_CY - (PROT_R + 18) * Math.sin(rad);
-        const near = showMovable && Math.abs(labelVal(mark) - movableAngle) <= 6;
+      {/* ── 5. Tick marks: minor (5°), medium (10°), major (30°) ── */}
+      {Array.from({ length: 37 }, (_, i) => i * 5).map(deg => {
+        if (deg < 0 || deg > 180) return null;
+        const rad     = (deg * Math.PI) / 180;
+        const isMajor = deg % 30 === 0;
+        const isMed   = !isMajor && deg % 10 === 0;
+        const tickLen = isMajor ? 12 : isMed ? 8 : 4;
+        const tickW   = isMajor ? 2 : 1;
+        const tcx     = cx + (PROT_R - tickLen / 2) * Math.cos(rad);
+        const tcy     = cy - (PROT_R - tickLen / 2) * Math.sin(rad);
         return (
-          <Text key={mark} style={[measStyles.protMarkLabel, { left: lx - 13, top: ly - 8 }, near && { color: armColor, fontWeight: '800' }]}>
-            {labelVal(mark)}°
+          <View
+            key={`tick${deg}`}
+            style={armStyle(tcx, tcy, tickLen, deg, isMajor ? '#64748b' : '#334155', tickW)}
+          />
+        );
+      })}
+
+      {/* ── 6. Primary scale: every 10°, inside arc at radius (PROT_R - 13) ── */}
+      {ALL_10_MARKS.map(mark => {
+        const rad     = (mark * Math.PI) / 180;
+        const lx      = cx + (PROT_R - 13) * Math.cos(rad);
+        const ly      = cy - (PROT_R - 13) * Math.sin(rad);
+        const isMajor = MAJOR_MARK_SET.has(mark);
+        const val     = isFlipped ? 180 - mark : mark;
+        const near    = showMovable && Math.abs(val - movableAngle) <= 3;
+        return (
+          <Text key={`prim${mark}`} style={[
+            measStyles.protMarkLabel,
+            {
+              left: lx - 13, top: ly - 7,
+              fontSize: isMajor ? 11 : 8,
+              fontWeight: isMajor ? '700' : '400',
+              color: '#94a3b8',
+            },
+            near && { color: armColor, fontWeight: '800', fontSize: 11 },
+          ]}>
+            {isMajor ? `${val}°` : `${val}`}
           </Text>
         );
       })}
 
-      {/* Ray / vertex labels */}
-      {geo && <>
-        <Text style={[measStyles.protRayLabel, { left: PROT_CX - 8, top: PROT_CY + 10 }]}>{geo.vertex}</Text>
-        <Text style={[measStyles.protRayLabel, { left: r0TipX - 6,  top: r0TipY - 9  }]}>{geo.ray1}</Text>
-        {showRefArm && <Text style={[measStyles.protRayLabel, { left: refTipX - 6, top: refTipY - 9 }]}>{geo.ray2}</Text>}
+      {/* ── 7. Secondary scale: 30° multiples only, inner ring ── */}
+      {SECONDARY_MARKS.map(mark => {
+        const rad = (mark * Math.PI) / 180;
+        const lx  = cx + (PROT_R - 25) * Math.cos(rad);
+        const ly  = cy - (PROT_R - 25) * Math.sin(rad);
+        const val = isFlipped ? mark : 180 - mark;
+        return (
+          <Text key={`sec${mark}`} style={[
+            measStyles.protMarkLabel,
+            { left: lx - 13, top: ly - 6, fontSize: 8, color: '#3d4f63' },
+          ]}>
+            {val}
+          </Text>
+        );
+      })}
+
+      {/* ── 8. Reference arm ── */}
+      {showRefArm && (
+        <View style={armStyle(cx, cy, PROT_R + 14, refArmScreenDeg, '#e2e8f0', 1.5)} />
+      )}
+
+      {/* ── 9. Small arc dots (angle indicator near vertex) ── */}
+      {showRefArm && Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
+        const t = Math.round(refAngle / 3) > 0 ? i / Math.round(refAngle / 3) : 0;
+        const a = isFlipped ? baselineScreenDeg - t * refAngle : t * refAngle;
+        const r = (a * Math.PI) / 180;
+        return (
+          <View key={`arc${i}`} style={{
+            position: 'absolute',
+            left: cx + 36 * Math.cos(r) - 1.5,
+            top:  cy - 36 * Math.sin(r) - 1.5,
+            width: 3, height: 3, borderRadius: 1.5,
+            backgroundColor: '#7c3aed', opacity: 0.6,
+          }} />
+        );
+      })}
+
+      {/* ── 10. Baseline arm ── */}
+      <View style={armStyle(cx, cy, PROT_R + 8, baselineScreenDeg, '#475569', 1.5)} />
+
+      {/* ── 11. Movable arm ── */}
+      {showMovable && (
+        <View style={armStyle(cx, cy, PROT_R - 6, movableScreenDeg, armColor, 3)} />
+      )}
+
+      {/* ── 11b. Pip on arc + floating degree badge for movable arm ── */}
+      {showMovable && <>
+        {/* Bright dot where the arm meets the arc */}
+        <View style={{
+          position: 'absolute',
+          left: pipX - 5, top: pipY - 5,
+          width: 10, height: 10, borderRadius: 5,
+          backgroundColor: armColor,
+          borderWidth: 2, borderColor: '#fff',
+        }} />
+        {/* Small floating badge showing the exact degree */}
+        <Text style={{
+          position: 'absolute',
+          left: floatLabelX, top: floatLabelY,
+          fontSize: 11, fontWeight: '900', color: '#fff',
+          backgroundColor: armColor,
+          paddingHorizontal: 5, paddingVertical: 2,
+          borderRadius: 5, overflow: 'hidden',
+          minWidth: 36, textAlign: 'center',
+        }}>
+          {movableAngle}°
+        </Text>
       </>}
 
-      {/* Angle readout overlay */}
+      {/* ── 12. Center pivot dot ── */}
+      <View style={{
+        position: 'absolute', left: cx - 5, top: cy - 5,
+        width: 10, height: 10, borderRadius: 5, backgroundColor: '#94a3b8',
+      }} />
+
+      {/* ── 13. Ray / vertex labels (well outside the degree number belt) ── */}
+      {geo && <>
+        <Text style={[measStyles.protRayLabel, { left: cx - 8, top: cy + 10 }]}>
+          {geo.vertex}
+        </Text>
+        <Text style={[measStyles.protRayLabel, { left: r0TipX - 6, top: r0TipY - 9 }]}>
+          {geo.ray1}
+        </Text>
+        {showRefArm && (
+          <Text style={[measStyles.protRayLabel, { left: refTipX - 6, top: refTipY - 9 }]}>
+            {geo.ray2}
+          </Text>
+        )}
+      </>}
+
+      {/* ── 14. Angle readout overlay ── */}
       {showReadout && (
         <Text style={[measStyles.protReadout, { color: armColor }]}>{readoutText}</Text>
       )}
@@ -379,7 +536,15 @@ function ReadBuildMode({ q, geo, mode, onResolve, styles, setScrollEnabled }) {
 
       {isWrong && (
         <View style={styles.fillInReveal}>
-          {wrongMsg ? <Text style={[styles.fillInRevealLabel, { color: '#fbbf24', marginBottom: 4 }]}>{wrongMsg}</Text> : null}
+          {/* Relational hint for build mode */}
+          {mode === 'build' && (
+            <Text style={[styles.fillInRevealLabel, { color: '#fbbf24', marginBottom: 6 }]}>
+              {buildRelationalHint(refAngle)}
+            </Text>
+          )}
+          {wrongMsg ? (
+            <Text style={[styles.fillInRevealLabel, { color: '#fbbf24', marginBottom: 4 }]}>{wrongMsg}</Text>
+          ) : null}
           <Text style={styles.fillInRevealLabel}>Correct angle:</Text>
           <Text style={styles.fillInRevealAnswer}>{q.correctAnswer}°</Text>
         </View>
@@ -401,9 +566,8 @@ function ReadBuildMode({ q, geo, mode, onResolve, styles, setScrollEnabled }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODE: Align  (3-step: Estimate → Align → Measure)
-// Step 1 shows the angle stimulus only — no protractor — student estimates.
-// Step 2 shows the full protractor with draggable arm.
-// Step 3 shows a typed input; submitting this step scores the question.
+// Step 2 gates the Next button — the movable arm must be within ±10° of the
+// correct angle before the student can proceed to Step 3.
 // ─────────────────────────────────────────────────────────────────────────────
 function AlignMode({ q, geo, onResolve, styles, setScrollEnabled }) {
   const correctAngle = parseFloat(q.correctAnswer ?? '0');
@@ -415,6 +579,7 @@ function AlignMode({ q, geo, onResolve, styles, setScrollEnabled }) {
   const [typedAnswer,    setTypedAnswer]    = useState('');
   const [feedback,       setFeedback]       = useState(null);
   const [wrongMsg,       setWrongMsg]       = useState(null);
+  const [alignWarn,      setAlignWarn]      = useState(false);
   const { anim: shakeAnim, shake }          = useShake();
   const inputRef                            = useRef(null);
 
@@ -422,13 +587,25 @@ function AlignMode({ q, geo, onResolve, styles, setScrollEnabled }) {
 
   const STEP_LABELS = [
     'Estimate: How large is this angle?',
-    `Align the protractor with ∠${geo?.vertex ?? 'B'}${geo?.ray1 ?? 'A'}${geo?.ray2 ?? 'C'}.`,
+    `Move the purple arm until it lines up with ray ${geo?.ray2 ?? 'Z'}. Start from the 0° baseline.`,
     'Type the measure.',
   ];
 
   function handleEstimate(val) {
     setEstimateChoice(val);
     setTimeout(() => setStep(2), 350);
+  }
+
+  // Step 2 → Step 3: arm must be within ±10° of correct angle
+  function handleAdvanceToStep3() {
+    if (Math.abs(movableAngle - correctAngle) > 10) {
+      setAlignWarn(true);
+      setTimeout(() => setAlignWarn(false), 3000);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    setAlignWarn(false);
+    setStep(3);
   }
 
   function handleFinalSubmit() {
@@ -487,9 +664,14 @@ function AlignMode({ q, geo, onResolve, styles, setScrollEnabled }) {
             setAngleDeg={setMovableAngle}
             setScrollEnabled={setScrollEnabled}
           />
+          {alignWarn && (
+            <Text style={measStyles.alignWarnText}>
+              That arm doesn't look lined up yet — try moving it closer to match the ray.
+            </Text>
+          )}
           <TouchableOpacity
-            style={[measStyles.alignNextBtn, { marginTop: 14 }]}
-            onPress={() => setStep(3)} activeOpacity={0.8}>
+            style={[measStyles.alignNextBtn, { marginTop: alignWarn ? 8 : 14 }]}
+            onPress={handleAdvanceToStep3} activeOpacity={0.8}>
             <Text style={measStyles.alignNextBtnText}>Next →</Text>
           </TouchableOpacity>
         </>
@@ -545,12 +727,15 @@ function AlignMode({ q, geo, onResolve, styles, setScrollEnabled }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODE: Estimate  (angle stimulus + 4 MC degree buttons + motivational banner)
+// After a wrong answer, a diagnostic message explains the angle type so
+// students understand WHY the correct choice fits better.
 // ─────────────────────────────────────────────────────────────────────────────
 function EstimateMode({ q, geo, onResolve, styles }) {
   const angleDeg              = geo?.angleDeg ?? parseFloat(q.correctAnswer ?? '60');
   const { options, correct }  = useMemo(() => buildEstimateOptions(angleDeg), [angleDeg]);
-  const [chosen,   setChosen] = useState(null);
-  const [feedback, setFeedback] = useState(null);
+  const [chosen,      setChosen]      = useState(null);
+  const [feedback,    setFeedback]    = useState(null);
+  const [diagMsg,     setDiagMsg]     = useState(null);
   const { anim: shakeAnim, shake } = useShake();
 
   function handleChoice(val) {
@@ -558,9 +743,10 @@ function EstimateMode({ q, geo, onResolve, styles }) {
     const ok = val === correct;
     setChosen(val);
     setFeedback(ok ? 'correct' : 'wrong');
+    if (!ok) setDiagMsg(estimateDiagnosticMsg(val, correct, angleDeg));
     ok ? Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
        : (shake(), Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
-    setTimeout(() => onResolve(ok), 1400);
+    setTimeout(() => onResolve(ok), ok ? 1400 : 2200);
   }
 
   return (
@@ -592,19 +778,29 @@ function EstimateMode({ q, geo, onResolve, styles }) {
         })}
       </View>
 
-      <View style={measStyles.estimateBanner}>
-        <Text style={measStyles.estimateBannerText}>
-          📐  Estimation helps you become a better angle thinker!
-        </Text>
-      </View>
+      {/* Diagnostic feedback after a wrong answer */}
+      {feedback === 'wrong' && diagMsg && (
+        <View style={measStyles.estimateDiagnostic}>
+          <Text style={measStyles.estimateDiagnosticText}>{diagMsg}</Text>
+        </View>
+      )}
+
+      {/* Motivational banner (shown on correct or no-answer) */}
+      {feedback !== 'wrong' && (
+        <View style={measStyles.estimateBanner}>
+          <Text style={measStyles.estimateBannerText}>
+            📐  Estimation helps you become a better angle thinker!
+          </Text>
+        </View>
+      )}
     </Animated.View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODE: Spot the Mistake  (protractor display + two avatar claim cards + neither)
-// geo must include: claimA { name, valueDeg }, claimB { name, valueDeg },
-// correctClaim: 'A' | 'B' | 'neither'
+// After the answer, a brief explanation teaches WHY reading from the wrong
+// scale gives the supplementary angle.
 // ─────────────────────────────────────────────────────────────────────────────
 function SpotMistakeMode({ q, geo, onResolve, styles }) {
   const angleDeg     = geo?.angleDeg ?? parseFloat(q.correctAnswer ?? '70');
@@ -641,6 +837,10 @@ function SpotMistakeMode({ q, geo, onResolve, styles }) {
     correctClaim === 'A'       ? `${claimA.name} (${claimA.valueDeg}°)` :
     correctClaim === 'B'       ? `${claimB.name} (${claimB.valueDeg}°)` :
                                  'They are both wrong';
+
+  // Figure out which student used which scale for the post-answer explanation
+  const wrongStudent = correctClaim === 'A' ? claimB : (correctClaim === 'B' ? claimA : null);
+  const rightStudent = correctClaim === 'A' ? claimA : (correctClaim === 'B' ? claimB : null);
 
   return (
     <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
@@ -698,6 +898,22 @@ function SpotMistakeMode({ q, geo, onResolve, styles }) {
       )}
       {feedback === 'correct' && (
         <Text style={styles.fillInCorrectMsg}>Correct! 📐</Text>
+      )}
+
+      {/* Post-answer scale explanation — teaches the inner/outer scale concept */}
+      {feedback && wrongStudent && rightStudent && (
+        <View style={measStyles.spotExplanation}>
+          <Text style={measStyles.spotExplanationText}>
+            {`${rightStudent.name} read ${rightStudent.valueDeg}° by starting from the correct 0° line on the baseline ray. ${wrongStudent.name} started from the other 0° and got the supplementary angle (${wrongStudent.valueDeg}°). Always find which 0° the baseline ray points to — that is the scale to read from.`}
+          </Text>
+        </View>
+      )}
+      {feedback && correctClaim === 'neither' && (
+        <View style={measStyles.spotExplanation}>
+          <Text style={measStyles.spotExplanationText}>
+            {`Both students read from the wrong scale. The correct angle is ${angleDeg}°. The other reading (${180 - angleDeg}°) comes from starting at the wrong 0°. Always trace the baseline ray to its 0° before reading the scale.`}
+          </Text>
+        </View>
       )}
     </Animated.View>
   );

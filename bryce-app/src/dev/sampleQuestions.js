@@ -525,6 +525,129 @@ const protractor_spotMistake = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// PROTRACTOR – angle type identification (Standard)
+// ─────────────────────────────────────────────────────────────
+const protractor_angleType = {
+  id: 'prot_angle_type',
+  label: 'Angle Type Identification',
+  unit: {
+    title: 'Protractor: Angle Type',
+    subject: 'math',
+    questions: [
+      {
+        type: 'multiple_choice',
+        question: 'What type of angle is shown?',
+        geometry: { type: 'angle', angleDeg: 45, vertex: 'B', ray1: 'A', ray2: 'C' },
+        options: ['Acute', 'Obtuse', 'Right', 'Straight'],
+        correctIndex: 0,
+        hint: 'An acute angle is less than 90°.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What type of angle is shown?',
+        geometry: { type: 'angle', angleDeg: 130, vertex: 'X', ray1: 'Y', ray2: 'Z' },
+        options: ['Acute', 'Obtuse', 'Right', 'Straight'],
+        correctIndex: 1,
+        hint: 'An obtuse angle is between 90° and 180°.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What type of angle is shown?',
+        geometry: { type: 'angle', angleDeg: 90, vertex: 'P', ray1: 'Q', ray2: 'R' },
+        options: ['Acute', 'Obtuse', 'Right', 'Straight'],
+        correctIndex: 2,
+        hint: 'A right angle is exactly 90°. Look for the small square at the corner.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'What type of angle is shown?',
+        geometry: { type: 'angle', angleDeg: 160, vertex: 'M', ray1: 'N', ray2: 'L' },
+        options: ['Acute', 'Obtuse', 'Right', 'Straight'],
+        correctIndex: 1,
+        hint: 'Compare it to a right angle — is it bigger or smaller than 90°?',
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// PROTRACTOR – angle matching (Standard drag-to-match)
+// ─────────────────────────────────────────────────────────────
+const protractor_matching = {
+  id: 'prot_match',
+  label: 'Angle Matching',
+  unit: {
+    title: 'Protractor: Angle Matching',
+    subject: 'math',
+    questions: [
+      {
+        type: 'angle_matching',
+        question: 'Match each angle to its measure.',
+        pairs: [
+          { angleDeg: 45,  vertex: 'A', ray1: 'B', ray2: 'C' },
+          { angleDeg: 90,  vertex: 'D', ray1: 'E', ray2: 'F' },
+          { angleDeg: 120, vertex: 'G', ray1: 'H', ray2: 'I' },
+        ],
+        correctAnswer: 'match',
+        hint: 'Tap an angle row, then tap the degree that matches it.',
+      },
+      {
+        type: 'angle_matching',
+        question: 'Match each angle to its measure.',
+        pairs: [
+          { angleDeg: 30,  vertex: 'P', ray1: 'Q', ray2: 'R' },
+          { angleDeg: 60,  vertex: 'X', ray1: 'Y', ray2: 'Z' },
+          { angleDeg: 150, vertex: 'M', ray1: 'N', ray2: 'L' },
+        ],
+        correctAnswer: 'match',
+        hint: 'Compare each angle to a right angle (90°) to narrow it down.',
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// PROTRACTOR – word problem (Standard)
+// ─────────────────────────────────────────────────────────────
+const protractor_wordProblem = {
+  id: 'prot_word',
+  label: 'Word Problem – Angles',
+  unit: {
+    title: 'Protractor: Word Problems',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        question: 'The angle of elevation from a lighthouse to a boat is 28°. Later, the boat moves and the angle of elevation becomes 47°. How many degrees did the angle increase?',
+        correctAnswer: '19',
+        acceptedAnswers: ['19°', '19 degrees'],
+        hint: 'Increase = new angle − old angle.',
+      },
+      {
+        type: 'fill_in',
+        question: 'A clock shows 3:00. The minute hand moves to 12:30. How many degrees did the minute hand turn? (Hint: a full circle is 360°.)',
+        correctAnswer: '180',
+        acceptedAnswers: ['180°'],
+        hint: 'Half a revolution = 180°.',
+      },
+      {
+        type: 'multiple_choice',
+        question: 'Sam opens a book to a flat page. The two covers form an angle. What type of angle is this?',
+        options: ['Acute', 'Right', 'Obtuse', 'Straight'],
+        correctIndex: 3,
+        hint: 'A flat, open book looks like a straight line — 180°.',
+      },
+      {
+        type: 'fill_in',
+        question: 'A skateboard ramp makes an angle of 35° with the ground. Is the ramp angle acute or obtuse?\nType "acute" or "obtuse".',
+        correctAnswer: 'acute',
+        hint: '35° < 90°, so it is an acute angle.',
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
 // RULER – endpoint
 // ─────────────────────────────────────────────────────────────
 const ruler_endpoint = {
@@ -876,6 +999,9 @@ export const SAMPLE_GROUPS = [
       protractor_build,
       protractor_estimate,
       protractor_spotMistake,
+      protractor_angleType,
+      protractor_matching,
+      protractor_wordProblem,
     ],
   },
   {
