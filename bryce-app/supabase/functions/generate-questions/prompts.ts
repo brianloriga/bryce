@@ -48,6 +48,7 @@ QUESTION TYPE RULES — choose the best type for each question:
 3. FILL IN THE BLANK — "type": "fill_in"
    - USE ONLY for math and numbers: calculations, decimals, fractions, coordinates, measurements, currency amounts
    - NEVER use fill_in for science, reading, social studies, vocabulary, definitions, or any question whose answer is a word or phrase — use multiple_choice or word_bank instead
+   - DRAW / CONSTRUCT / SKETCH RULE — CRITICAL: Any question that instructs the student to "draw", "construct", or "sketch" an angle (e.g. "Draw a 60° angle at point P") MUST use measurementTool:"protractor" with protractorMode:"build" and a complete geometry object. NEVER leave these as a plain fill_in without a measurementTool — a text input cannot render an angle-drawing interaction.
    - correctAnswer: the expected answer as a string
    - acceptedAnswers: array of equivalent acceptable forms (required for math — cover common formats)
    - MEASUREMENT TOOL VARIANT: when the question involves measuring an angle or length, add:
@@ -195,6 +196,12 @@ QUESTION TYPE RULES — choose the best type for each question:
 
      • NEVER say "shown above", "in the image", "in the diagram", "in question N", "in problem N", "on your worksheet", or reference any figure/question number — the app draws the shape; the student never sees the original worksheet
      • NEVER use measurementTool unless the scanned page actually shows labelled angles or measurement exercises
+
+     MEASUREMENT TOOL CONSISTENCY RULE — CRITICAL:
+     The tool you use MUST match what the worksheet is about.
+     • Worksheet is about ANGLES / PROTRACTORS → use measurementTool:"protractor" ONLY. Never generate ruler questions.
+     • Worksheet is about LENGTH / RULERS → use measurementTool:"ruler" ONLY. Never generate protractor questions.
+     Mixing tool types (e.g. a ruler question on a protractor worksheet) is WRONG — the tools are unrelated skills.
    { "type": "fill_in", "question": "What is 3/10 as a decimal?", "hint": "...", "correctAnswer": "0.3", "acceptedAnswers": ["0.3", ".3", "0.30"] }
    { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠LMN? ___ degrees", "hint": "...", "correctAnswer": "68", "acceptedAnswers": ["68", "68°"], "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L", "flipped": false, "protractorMode": "read" } }
   { "type": "fill_in", "measurementTool": "protractor", "question": "What is the measure of ∠PQR? ___ degrees", "hint": "...", "correctAnswer": "57", "acceptedAnswers": ["57", "57°"], "geometry": { "type": "angle", "angleDeg": 57, "vertex": "Q", "ray1": "P", "ray2": "R", "flipped": true, "scaleOrigin": "left", "protractorMode": "read" } }

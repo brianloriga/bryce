@@ -1,5 +1,64 @@
 // @ts-nocheck
-// Number-line auto-enrichment and Pass-2 self-containedness validation.
+// Number-line auto-enrichment, draw-angle upgrade, and Pass-2 self-containedness validation.
+
+// ── Draw-angle auto-upgrade ────────────────────────────────────────────────
+// Catches plain fill_in questions like "Draw a 160° angle at point P." that GPT
+// forgot to attach a measurementTool to, and upgrades them to protractor build
+// mode so the child gets an interactive draggable arm instead of a confusing text box.
+export function enrichDrawAngleQuestions(
+  questions: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  // Two letters for the ray ends, guaranteed different from vertex and each other
+  function pickRays(vertex: string): [string, string] {
+    const pool = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('').filter((l) => l !== vertex);
+    const i1 = Math.floor(Math.random() * pool.length);
+    let i2 = Math.floor(Math.random() * (pool.length - 1));
+    if (i2 >= i1) i2++;
+    return [pool[i1], pool[i2]];
+  }
+
+  return questions.map((q) => {
+    // Only act on plain fill_in questions that have no measurement tool yet
+    if (q.type !== 'fill_in' || q.measurementTool) return q;
+
+    const text = String(q.question ?? '');
+    // Match: "Draw/Construct/Sketch a 160° angle [at point P]"
+    const match = text.match(
+      /^(?:draw|construct|sketch)\s+a[n]?\s+(\d+)\s*°?\s+angle(?:\s+at\s+point\s+([A-Z]))?/i,
+    );
+    if (!match) return q;
+
+    const angleDeg = parseInt(match[1], 10);
+    if (isNaN(angleDeg) || angleDeg <= 0 || angleDeg >= 180) return q;
+
+    const vertex = match[2] ?? 'P';
+    const [ray1, ray2] = pickRays(vertex);
+    const flipped = Math.random() > 0.5;
+
+    console.info(
+      `[generate-questions] Auto-upgraded draw-angle to protractor build: "${text}" → ${angleDeg}° vertex=${vertex}`,
+    );
+
+    return {
+      ...q,
+      question:        `Draw a ${angleDeg}° angle at point ${vertex}.`,
+      measurementTool: 'protractor',
+      correctAnswer:   String(angleDeg),
+      acceptedAnswers: [String(angleDeg), `${angleDeg}°`],
+      selfContained:   true,
+      geometry: {
+        type:          'angle',
+        angleDeg,
+        vertex,
+        ray1,
+        ray2,
+        flipped,
+        ...(flipped ? { scaleOrigin: 'left' } : {}),
+        protractorMode: 'build',
+      },
+    };
+  });
+}
 
 function parseFractionOrDecimal(s: string): number {
   const m = String(s ?? '').trim().match(/^(\d+)\/(\d+)$/);
@@ -151,7 +210,7 @@ Return ONLY a JSON array — one object per input, same order:
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        max_tokens: 300,
+        max_tokens: 600,
         temperature: 0,
         messages: [
           { role: 'system', content: validationPrompt },

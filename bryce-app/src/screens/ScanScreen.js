@@ -63,6 +63,7 @@ export default function ScanScreen() {
   const [showHowModal, setShowHowModal]           = useState(false);
   const [questionCount, setQuestionCount]         = useState(9);
   const [regeneratingIndex, setRegeneratingIndex] = useState(null);
+  const [shortfallNotice, setShortfallNotice]     = useState(null); // { generated, requested }
   // Subject selection
   const [selectedSubject, setSelectedSubject]     = useState(null);
   const [creatingSubject, setCreatingSubject]     = useState(false);
@@ -239,6 +240,11 @@ export default function ScanScreen() {
       setUnitTitle(result.title ?? 'New Lesson');
       setQuestions(result.questions ?? []);
       setPassage(result.passage ?? null);
+      setShortfallNotice(
+        result.generated_count != null && result.generated_count < result.requested_count
+          ? { generated: result.generated_count, requested: result.requested_count }
+          : null
+      );
       setStep('preview');
     } catch (err) {
       if (err.isValidationError) {
@@ -485,6 +491,15 @@ export default function ScanScreen() {
                 Students will be able to tap "Read Passage" during the quiz to reference this text.
               </Text>
               <Text style={styles.passagePreviewText} numberOfLines={4}>{passage}</Text>
+            </View>
+          )}
+
+          {shortfallNotice && (
+            <View style={styles.shortfallBanner}>
+              <Ionicons name="information-circle-outline" size={16} color="#f59e0b" />
+              <Text style={styles.shortfallBannerText}>
+                {shortfallNotice.generated} of {shortfallNotice.requested} questions generated — a few diagram-based questions were removed because they can't be displayed without the original image. You can add more using the refresh button on any question.
+              </Text>
             </View>
           )}
 
@@ -1445,6 +1460,15 @@ function createStyles(t) {
     visualQOptionTextActive: { color: '#fff' },
 
     // Passage preview card (shown in review step when AI extracted a passage)
+    shortfallBanner: {
+      flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+      backgroundColor: 'rgba(245,158,11,0.10)',
+      borderRadius: 12, borderWidth: 1, borderColor: 'rgba(245,158,11,0.30)',
+      padding: 12, marginBottom: 16,
+    },
+    shortfallBannerText: {
+      flex: 1, fontSize: 12, color: '#f59e0b', lineHeight: 18,
+    },
     passagePreviewCard: {
       backgroundColor: 'rgba(96,165,250,0.08)',
       borderRadius: 14, borderWidth: 1, borderColor: 'rgba(96,165,250,0.25)',

@@ -6,6 +6,35 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Question Generation Quality & Count Reliability — 2026-04-24
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Over-generate buffer** — GPT is now asked for `questionCount + 40%` questions (e.g. 28 for a 20-question request) so Pass-2 filtering never leaves the final set short; `max_tokens` raised from 8000 → 10000 to accommodate the larger payload
+- **Exact-count trim** — after Pass-2 validation the question list is sliced to exactly `questionCount` before the shortfall check; surplus questions are silently discarded; a log line confirms the trim
+- **Retry asks 2× shortfall** — if still short after the trim, the retry pass requests `shortfall × 2` questions instead of `shortfall`, so one bad question can no longer leave the quiz one short
+- **Retry prompt steers toward safe types** — retry now explicitly says "do NOT generate questions that reference a diagram, image, chart, or visual not rendered by the app; prefer definitions, true/false, vocabulary, calculations, or concept questions"
+- **`generated_count` / `requested_count` fields** — added to the API response body when the final delivered count is less than requested; only present on shortfall; zero overhead on normal runs
+- **Measurement tool consistency rule** — new rule blocks cross-tool contamination: a protractor worksheet may only produce `measurementTool:"protractor"` questions; a ruler worksheet may only produce `measurementTool:"ruler"` questions; previously GPT padded protractor lessons with unrelated ruler questions when generating large sets
+- **`enrichDrawAngleQuestions`** (new function in `enrich.ts`) — server-side enricher that runs alongside `enrichNumberLineQuestions`; detects plain `fill_in` questions whose text matches `Draw/Construct/Sketch a X° angle [at point Y]` with no `measurementTool` attached, and auto-upgrades them to a full protractor `build`-mode question with correct `geometry`, `ray1`/`ray2` letters, random flip orientation, and `selfContained: true`; the child gets an interactive draggable-arm protractor instead of a confusing text box
+- **Validator `max_tokens`** raised from 300 → 600 to handle the larger question sets sent to Pass-2
+
+#### Changed — `generate-questions` Prompt (`supabase/functions/generate-questions/prompts.ts`)
+
+- **DRAW / CONSTRUCT / SKETCH RULE** added to the fill_in section — instructs GPT that any question using these verbs for an angle MUST include `measurementTool:"protractor"` + `protractorMode:"build"` + a complete geometry object; plain fill_in without a tool is explicitly forbidden
+- **MEASUREMENT TOOL CONSISTENCY RULE** added to the ruler/protractor section — cross-tool generation is forbidden; the tool used must match what the scanned worksheet is about
+
+#### Changed — `aiService.js` (`src/services/aiService.js`)
+
+- Passes `generated_count` and `requested_count` through onto the returned unit object when present in the API response, so the UI can surface a shortfall notice
+
+#### Changed — `ScanScreen.js` (`src/screens/ScanScreen.js`)
+
+- **`shortfallNotice` state** — set after generation completes when `generated_count < requested_count`; cleared on each new scan
+- **Amber shortfall banner** — rendered at the top of the question list in the review step when a shortfall occurred; explains how many questions were generated vs. requested and why (diagram-based questions removed), and points the parent to the refresh button to fill slots manually; shown only in the parent review step, never seen by the child
+
+---
+
 ### Angle Questions — Full 8-Type System & Protractor Polish — 2026-04-24
 
 #### Added — New question types

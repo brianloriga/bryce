@@ -14,7 +14,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { SYSTEM_PROMPT, REGEN_SYSTEM_PROMPT } from './prompts.ts';
 import { sanitizeQuestion, sanitizeResponse }  from './sanitize.ts';
-import { enrichNumberLineQuestions, validateSelfContained } from './enrich.ts';
+import { enrichNumberLineQuestions, enrichDrawAngleQuestions, validateSelfContained } from './enrich.ts';
 import { MAX_SCANS_PER_DAY, parseJwtUserId }   from './rateLimit.ts';
 
 const corsHeaders = {
@@ -138,6 +138,10 @@ serve(async (req) => {
 
     const questionCount: number = Math.min(Math.max(Number(body.questionCount) || 9, 5), 20);
 
+    // Over-generate by ~40% so Pass-2 filtering never leaves us short.
+    // We trim back to exactly questionCount after validation.
+    const overGenCount: number = questionCount + Math.ceil(questionCount * 0.4);
+
     if (imageList.length === 0) {
       return new Response(
         JSON.stringify({ error: 'At least one image is required' }),
@@ -197,8 +201,8 @@ serve(async (req) => {
     }
 
     const pageText = imageList.length > 1
-      ? `These are ${imageList.length} pages from the same lesson. Generate exactly ${questionCount} practice questions spread evenly across all pages.`
-      : `Generate exactly ${questionCount} practice questions from this page.`;
+      ? `These are ${imageList.length} pages from the same lesson. Generate exactly ${overGenCount} practice questions spread evenly across all pages.`
+      : `Generate exactly ${overGenCount} practice questions from this page.`;
 
     let visualAidInstruction = '';
     if (rawVisuals.length > 0) {
@@ -206,7 +210,7 @@ serve(async (req) => {
       const perImageInstructions = rawVisuals.map((v, i) =>
         `Visual Aid ${i + 1} (image at position ${imageList.length + i + 1}): generate exactly ${v.questionCount ?? 1} question(s), mark each with "image_ref": ${i + 1}`
       ).join('. ');
-      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are visual aids the parent photographed from the same lesson — they are NOT text pages. ${perImageInstructions}. CRITICAL for visual aid questions: you have already read the lesson text pages — use that topic and vocabulary as your anchor. Ask questions that use the image as evidence for a concept from the lesson (e.g. if the lesson is about traits, ask how the image illustrates an inherited or learned trait). Do NOT ask trivial identification questions like "what animal is shown" or "what colour is this" — the question must connect the image to a concept from the lesson text. Reference "the image shown" or "the diagram above" in the question text. The remaining ${questionCount - totalVisualQs} questions come from the text pages only.`;
+      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are visual aids the parent photographed from the same lesson — they are NOT text pages. ${perImageInstructions}. CRITICAL for visual aid questions: you have already read the lesson text pages — use that topic and vocabulary as your anchor. Ask questions that use the image as evidence for a concept from the lesson (e.g. if the lesson is about traits, ask how the image illustrates an inherited or learned trait). Do NOT ask trivial identification questions like "what animal is shown" or "what colour is this" — the question must connect the image to a concept from the lesson text. Reference "the image shown" or "the diagram above" in the question text. The remaining ${overGenCount - totalVisualQs} questions come from the text pages only.`;
     }
 
     userContent.push({
@@ -219,10 +223,10 @@ serve(async (req) => {
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 8000,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: userContent },
+          max_tokens: 10000,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user',   content: userContent },
         ],
       }),
     });
@@ -252,6 +256,7 @@ serve(async (req) => {
     // ── Auto-enrich number_line questions before Pass-2 ───────
     if (Array.isArray(parsed.questions)) {
       parsed.questions = enrichNumberLineQuestions(parsed.questions as Array<Record<string, unknown>>);
+      parsed.questions = enrichDrawAngleQuestions(parsed.questions as Array<Record<string, unknown>>);
     }
 
     // ── Pass 2: independent validation via gpt-4o-mini ────────
@@ -266,6 +271,12 @@ serve(async (req) => {
         dropped2.forEach((q, i) => console.warn(`  [${i + 1}] "${q.question}"`));
       }
       console.log(`[generate-questions] Pass-2 result: ${before} → ${parsed.questions.length} questions kept`);
+
+      // Trim surplus from over-generation down to the count the user requested
+      if ((parsed.questions as Array<Record<string, unknown>>).length > questionCount) {
+        parsed.questions = (parsed.questions as Array<Record<string, unknown>>).slice(0, questionCount);
+        console.log(`[generate-questions] Trimmed to exactly ${questionCount} questions`);
+      }
 
       if (parsed.questions.length === 0) {
         console.warn('[generate-questions] All questions failed Pass-2 — worksheet is too visually dependent to digitize');
@@ -291,9 +302,11 @@ serve(async (req) => {
             type: 'image_url',
             image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' },
           }));
+          // Ask for 2× the shortfall so one bad question doesn't leave us short again
+          const retryAsk = shortfall * 2;
           retryContent.push({
             type: 'text',
-            text: `Generate exactly ${shortfall} MORE practice questions from this page. Every question must include a "hint" field. IMPORTANT: do NOT repeat any of these already-covered topics: ${coveredTopics}. Focus on parts of the worksheet not yet covered. Apply all the same rules as before (self-contained, correct type/mode, etc.).`,
+            text: `Generate exactly ${retryAsk} MORE practice questions from this page. Every question must include a "hint" field. IMPORTANT: do NOT repeat any of these already-covered topics: ${coveredTopics}. Focus on parts of the worksheet not yet covered. CRITICAL: every question must be fully self-contained — do NOT generate questions that reference a diagram, image, chart, or visual that is not rendered by the app (e.g. "Which choice best represents ∠XYZ?" is not self-contained unless it has a geometry field). Prefer text-based question types: definitions, true/false, vocabulary, calculations, or concept questions. Apply all the same rules as before (self-contained, correct type/mode, etc.).`,
           });
 
           const retryResp = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -317,6 +330,7 @@ serve(async (req) => {
               const retryParsed = JSON.parse(retryMatch[0]);
               let retryQs = (retryParsed.questions as Array<Record<string, unknown>> ?? []);
               retryQs = enrichNumberLineQuestions(retryQs);
+              retryQs = enrichDrawAngleQuestions(retryQs);
               const retryAllowed = await validateSelfContained(retryQs, openaiKey);
               const retryKept   = retryQs.filter((_, i) => retryAllowed[i]);
               console.log(`[generate-questions] Retry kept ${retryKept.length} / ${retryQs.length} question(s)`);
@@ -341,9 +355,15 @@ serve(async (req) => {
       supabase.from('scan_logs').insert({ user_id: userId }).then(() => {});
     }
 
-    const responseBody = visualUrls.length > 0
-      ? { ...safe, visual_urls: visualUrls, visual_url: visualUrls[0] }
-      : safe;
+    const generatedCount = (safe.questions as unknown[])?.length ?? 0;
+    const countMeta = generatedCount < questionCount
+      ? { generated_count: generatedCount, requested_count: questionCount }
+      : {};
+
+    const responseBody = {
+      ...(visualUrls.length > 0 ? { ...safe, visual_urls: visualUrls, visual_url: visualUrls[0] } : safe),
+      ...countMeta,
+    };
 
     return new Response(
       JSON.stringify(responseBody),

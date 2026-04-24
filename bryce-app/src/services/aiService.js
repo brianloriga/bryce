@@ -123,6 +123,12 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
     sanitized.passage = data.passage.trim();
   }
 
+  // Surface shortfall so the UI can show a graceful note to the parent
+  if (typeof data.generated_count === 'number' && typeof data.requested_count === 'number') {
+    sanitized.generated_count = data.generated_count;
+    sanitized.requested_count = data.requested_count;
+  }
+
   return sanitized;
 }
 
