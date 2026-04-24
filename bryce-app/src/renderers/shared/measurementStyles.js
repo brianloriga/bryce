@@ -145,6 +145,113 @@ export const measStyles = StyleSheet.create({
     fontSize: 13, color: '#94a3b8', textAlign: 'center',
     marginTop: 4, marginBottom: 4, fontStyle: 'italic',
   },
+
+  // ── Step indicator (align mode 3-step) ───────────────────────
+  stepBar: {
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: 14, gap: 10,
+  },
+  stepBadgeWrap: {
+    backgroundColor: '#7c3aed', borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  stepBadge: {
+    fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 0.4,
+  },
+  stepTitle: {
+    flex: 1, fontSize: 13, fontWeight: '700', color: '#cbd5e1',
+  },
+
+  // ── Estimate mode — 2×2 grid buttons ─────────────────────────
+  estimateGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+    marginVertical: 12, justifyContent: 'center',
+  },
+  estimateBtn: {
+    width: '45%', paddingVertical: 18, borderRadius: 14,
+    backgroundColor: '#1e293b', borderWidth: 2, borderColor: '#334155',
+    alignItems: 'center',
+  },
+  estimateBtnChosen: {
+    borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.15)',
+  },
+  estimateBtnCorrect: { backgroundColor: '#14532d', borderColor: '#22c55e' },
+  estimateBtnWrong:   { backgroundColor: '#7f1d1d', borderColor: '#ef4444' },
+  estimateBtnDimmed:  { opacity: 0.4 },
+  estimateBtnText: { fontSize: 22, fontWeight: '800', color: '#e2e8f0' },
+
+  // ── Estimate mode — 3-button row (align step 1) ───────────────
+  estimateRow: {
+    flexDirection: 'row', gap: 10,
+    marginVertical: 12, justifyContent: 'center',
+  },
+  estimatePill: {
+    flex: 1, paddingVertical: 16, borderRadius: 14,
+    backgroundColor: '#1e293b', borderWidth: 2, borderColor: '#334155',
+    alignItems: 'center',
+  },
+  estimatePillChosen:  { borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.15)' },
+  estimatePillText: { fontSize: 18, fontWeight: '800', color: '#e2e8f0' },
+
+  // ── Estimate motivational banner ──────────────────────────────
+  estimateBanner: {
+    backgroundColor: 'rgba(124,58,237,0.12)',
+    borderRadius: 12, borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.28)',
+    paddingVertical: 12, paddingHorizontal: 16,
+    marginTop: 8, alignItems: 'center',
+  },
+  estimateBannerText: {
+    fontSize: 13, fontWeight: '600', color: '#c4b5fd', textAlign: 'center',
+  },
+
+  // ── Align mode action buttons ─────────────────────────────────
+  alignActionRow: {
+    flexDirection: 'row', gap: 12, marginTop: 16,
+  },
+  alignClearBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    borderWidth: 2, borderColor: '#334155', alignItems: 'center',
+  },
+  alignClearBtnText: { fontSize: 14, fontWeight: '700', color: '#94a3b8' },
+  alignNextBtn: {
+    flex: 2, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: '#7c3aed', alignItems: 'center',
+  },
+  alignNextBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
+
+  // ── Spot the Mistake — claim buttons ─────────────────────────
+  claimRow: {
+    flexDirection: 'row', gap: 10,
+    marginTop: 14, marginBottom: 10,
+  },
+  claimBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8,
+    backgroundColor: '#1e293b', borderRadius: 16,
+    borderWidth: 2, borderColor: '#334155', gap: 6,
+  },
+  claimBtnCorrect: { backgroundColor: '#14532d', borderColor: '#22c55e' },
+  claimBtnWrong:   { backgroundColor: '#7f1d1d', borderColor: '#ef4444' },
+  claimBtnDimmed:  { opacity: 0.4 },
+  claimAvatar: {
+    width: 52, height: 52, borderRadius: 26, backgroundColor: '#334155',
+  },
+  claimName:  { fontSize: 14, fontWeight: '800', color: '#e2e8f0' },
+  claimValue: { fontSize: 13, fontWeight: '600', color: '#a78bfa' },
+
+  // ── Spot the Mistake — "neither" button ──────────────────────
+  neitherBtn: {
+    paddingVertical: 14, borderRadius: 12,
+    borderWidth: 2, borderColor: '#334155',
+    backgroundColor: '#1e293b', alignItems: 'center', marginBottom: 10,
+  },
+  neitherBtnCorrect: { backgroundColor: '#14532d', borderColor: '#22c55e' },
+  neitherBtnWrong:   { backgroundColor: '#7f1d1d', borderColor: '#ef4444' },
+  neitherBtnText: { fontSize: 14, fontWeight: '700', color: '#94a3b8' },
+  spotHint: {
+    fontSize: 12, color: '#64748b', textAlign: 'center',
+    marginTop: 2, fontStyle: 'italic',
+  },
 });
 
 // ── Number line styles ─────────────────────────────────────────

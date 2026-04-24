@@ -63,58 +63,104 @@ QUESTION TYPE RULES — choose the best type for each question:
        "ray2": "<letter on the angled arm>",
        "flipped": true | false,
        "scaleOrigin": "right" | "left",
-       "protractorMode": "align" | "read" | "build"
+       "protractorMode": "read" | "build" | "align" | "estimate" | "spot_mistake"
      }
-     correctAnswer = angle in whole degrees as a string
+     correctAnswer = angle in whole degrees as a string (or "A"/"B"/"neither" for spot_mistake)
      acceptedAnswers = ["68", "68°"]
 
-     ── flipped rules (vary this to represent real worksheet variety) ──
-     • false (or omit) — baseline points RIGHT; this is the standard orientation  (use for ~half of questions)
-     • true — baseline points LEFT; the protractor is flipped so the angle opens from the left side  (use for ~half of questions — matches real worksheets where angles open in any direction)
-     • When flipped: true, also set scaleOrigin: "left"
-     • When flipped: false (or omitted), set scaleOrigin only for obtuse angles (angleDeg > 90°) — otherwise omit it
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PROTRACTOR RANDOMIZATION RULE — CRITICAL, READ FIRST
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     The worksheet is a TOPIC KEY, not a content source.
+     The scanned page tells you WHAT the student is studying (angles, protractors, geometry).
+     The app draws its own angles — the student NEVER sees the worksheet.
 
-     ── scaleOrigin rules ──
-     • "right" — student reads from the right 0° (normal orientation, baseline on right)
-     • "left"  — student reads from the left 0° (flipped orientation, baseline on left)
-     • ONLY include scaleOrigin when: (a) flipped is true, OR (b) the angle is obtuse in normal orientation
-     • Omit scaleOrigin for acute angles in normal orientation — it adds no educational value there
+     ALWAYS generate FRESH random angle values. NEVER copy specific degree values from
+     the worksheet diagrams. This ensures rescanning the same worksheet always produces
+     a completely different set of practice questions.
 
-     ── protractorMode rules (vary across questions for a mix of interaction types) ──
-     • "align"  — student drags the arm to match the drawn angle, THEN types the value  (use for ~half of protractor questions — measurement practice)
-     • "read"   — angle is drawn at a fixed position; no slider; student reads and types the value  (use when the question is clearly "what does this angle measure?")
-     • "build"  — no reference arm is shown; student drags the arm to CREATE the stated angle  (use when the question asks to "draw" or "make" a specific angle)
+     ── Angle value pools — pick randomly, vary across questions ──
+     • Acute pool (< 90°):   20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85
+     • Obtuse pool (> 90°):  95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155
+     • Build pool (clean to construct): 30, 45, 60, 75, 90, 105, 120, 135, 150
+     • Mix at least 2 acute and 2 obtuse across the full question set
 
-     ── SELF-CONTAINED RULE for ALL measurement questions (ruler AND protractor) ──
-     • The app draws every shape itself. The student NEVER sees the original worksheet.
-     • NEVER reference the worksheet, a diagram on the page, or a numbered item.
-     • NEVER use phrases like: "this ruler", "the second ruler", "the first ruler", "the ruler shown",
-       "the arrow", "shown by the arrow", "this angle", "the angle shown", "in question N", "in Figure N",
-       "on your worksheet", "in the image", "in the diagram", "use the ruler provided".
-     • BAD ruler questions (DO NOT generate these):
-         "What measurement is shown by the arrow on the second ruler? ___ inches"
-         "What unit of measurement is used on this ruler?"
-         "Read the ruler and write the measurement."
-         "Look at ruler B. What does it show?"
-     • GOOD ruler questions (the question is fully self-contained):
-         "What is the length of the blue bar in inches?"
-         "The orange bar starts at 2 inches. How long is it?"
-         "Which bar is longer, the red or the blue?"
-     • BAD angle questions: "Measure the angle in question 1.", "Find the angle shown in Figure 3."
-     • GOOD angle questions: "What is the measure of ∠ABC?", "What is the measure of ∠LMN? ___ degrees"
-     • When a worksheet has a ruler-reading question that points to a physical diagram, you MUST
-       transform it: invent a plausible length, pick a bar color, and generate a valid ruler geometry
-       object. Do NOT copy the "arrow on the ruler" phrasing.
+     ── Vertex / ray label pools — pick letter triples randomly ──
+     Use any combination from: ABC, DEF, GHI, JKL, MNO, PQR, STU, XYZ, WXY
+     (middle letter = vertex, other two = ray ends)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+     ── protractorMode rules — USE EACH MODE AT MOST ONCE PER SCAN ──
+     When the scanned page is about angles/protractors, generate AT MOST ONE question
+     per mode. Use as many modes as the question count allows, in any order.
+
+     • "read"        — angle drawn at a fixed position; student reads and types the value.
+                       Use for: "What is the measure of ∠ABC?"
+                       No slider. correctAnswer = angleDeg as string.
+
+     • "build"       — no reference arm shown; student DRAGS arm to CREATE the angle.
+                       Use for: "Draw a 60° angle at point P."
+                       Pick from the build pool. correctAnswer = angleDeg as string.
+
+     • "align"       — 3-step flow: estimate → drag to align → type exact value.
+                       Use for: hands-on measurement practice with the most interaction.
+                       correctAnswer = angleDeg as string.
+
+     • "estimate"    — angle stimulus only (NO protractor shown). Student picks the
+                       closest degree range from 4 multiple-choice buttons.
+                       The app generates the MC options automatically from angleDeg.
+                       Use for: number-sense / estimation practice.
+                       correctAnswer = angleDeg as string (app derives correct MC option).
+                       Question text: "About how large is this angle?"
+
+     • "spot_mistake" — protractor is shown with a fixed angle. Two named characters
+                        each claim a different measurement. Student picks who is right.
+                        The "mistake" is ALWAYS the supplementary error (180° − angleDeg):
+                          If angleDeg = 70°: one character says 70°, the other says 110°.
+                        Randomly decide which character (A or B) has the CORRECT answer.
+                        Pick two DIFFERENT names from: nina, sam, mia, leo, ava, max
+                        Add to geometry:
+                          "claimA": { "name": "<Name>", "valueDeg": <value> },
+                          "claimB": { "name": "<Name>", "valueDeg": <180-value> },
+                          "correctClaim": "A" | "B"
+                        correctAnswer (on the question) = same as correctClaim ("A" or "B").
+                        Question text example: "Nina says the angle is 70°. Sam says it's 110°. Who is correct?"
+
+     ── flipped rules ──
+     • false (or omit) — baseline points RIGHT (standard orientation, ~half of questions)
+     • true — baseline points LEFT (~half of questions)
+     • When flipped: true → also set scaleOrigin: "left"
+     • When flipped: false → set scaleOrigin: "right" only for obtuse angles; omit for acute
+
+     ── SELF-CONTAINED RULE for ALL measurement questions ──
+     • The app draws every shape itself. NEVER reference the worksheet or any diagram on it.
+     • NEVER say "this angle", "the angle shown", "in question N", "on your worksheet".
+     • GOOD: "What is the measure of ∠ABC?" / "Draw a 45° angle at point P."
+     • BAD:  "Measure the angle in question 1." / "Find the angle shown in Figure 3."
+
+     ── STANDARD questions to MIX IN alongside enhanced protractor modes ──
+     When the worksheet is about angles, ALSO generate 2–3 standard questions using
+     the SAME topic vocabulary. These do NOT use the protractor tool:
+     • multiple_choice: "What type of angle measures less than 90°?"
+       options: ["Acute","Obtuse","Right","Straight"], correctIndex: 0
+     • true_false: "An obtuse angle is greater than 90° and less than 180°. True or False?"
+     • fill_in (word problem): "A door opens 35°. It then opens another 25°. What is the total angle?"
 
      EXAMPLES:
-     ∠LMN = 68° (normal, acute, read mode — no scaleOrigin, no flip) →
-       "geometry": { "type": "angle", "angleDeg": 68, "vertex": "M", "ray1": "N", "ray2": "L", "flipped": false, "protractorMode": "read" }
-     ∠ABC = 120° (normal, obtuse, align mode — include scaleOrigin right) →
-       "geometry": { "type": "angle", "angleDeg": 120, "vertex": "B", "ray1": "C", "ray2": "A", "flipped": false, "scaleOrigin": "right", "protractorMode": "align" }
-     ∠PQR = 57° (FLIPPED — baseline on left, student reads from left 0°) →
-       "geometry": { "type": "angle", "angleDeg": 57, "vertex": "Q", "ray1": "P", "ray2": "R", "flipped": true, "scaleOrigin": "left", "protractorMode": "read" }
-     "Draw a 45° angle at point P" (build, no flip) →
-       "geometry": { "type": "angle", "angleDeg": 45, "vertex": "P", "ray1": "Q", "ray2": "R", "flipped": false, "protractorMode": "build" }
+     read, acute, normal →
+       { "type":"fill_in","measurementTool":"protractor","question":"What is the measure of ∠ABC? ___ degrees","hint":"Look at where the arm crosses the scale.","correctAnswer":"55","acceptedAnswers":["55","55°"],"geometry":{"type":"angle","angleDeg":55,"vertex":"B","ray1":"A","ray2":"C","flipped":false,"protractorMode":"read"} }
+
+     build, clean angle, normal →
+       { "type":"fill_in","measurementTool":"protractor","question":"Draw a 120° angle at point Q.","hint":"120° is an obtuse angle — it opens wider than a right angle.","correctAnswer":"120","acceptedAnswers":["120","120°"],"geometry":{"type":"angle","angleDeg":120,"vertex":"Q","ray1":"R","ray2":"S","flipped":false,"protractorMode":"build"} }
+
+     align, obtuse, flipped →
+       { "type":"fill_in","measurementTool":"protractor","question":"What is the measure of ∠PQR? ___ degrees","hint":"Start reading from the 0° on the left side.","correctAnswer":"130","acceptedAnswers":["130","130°"],"geometry":{"type":"angle","angleDeg":130,"vertex":"Q","ray1":"P","ray2":"R","flipped":true,"scaleOrigin":"left","protractorMode":"align"} }
+
+     estimate →
+       { "type":"fill_in","measurementTool":"protractor","question":"About how large is this angle?","hint":"Is it smaller or larger than a right angle?","correctAnswer":"65","acceptedAnswers":["65"],"geometry":{"type":"angle","angleDeg":65,"vertex":"M","ray1":"N","ray2":"L","flipped":false,"protractorMode":"estimate"} }
+
+     spot_mistake (Nina correct, Sam wrong) →
+       { "type":"fill_in","measurementTool":"protractor","question":"Nina says the angle is 70°. Sam says it's 110°. Who is correct?","hint":"Check which scale starts at 0° on the right side.","correctAnswer":"A","geometry":{"type":"angle","angleDeg":70,"vertex":"B","ray1":"A","ray2":"C","flipped":false,"protractorMode":"spot_mistake","claimA":{"name":"Nina","valueDeg":70},"claimB":{"name":"Sam","valueDeg":110},"correctClaim":"A"} }
 
      ── LENGTH (ruler) — four subtypes, rotate across questions for variety ──
 
