@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Animated, Image, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -40,6 +40,7 @@ export default function QuizScreen() {
   const route      = useRoute();
   const { unit }   = route.params;
   const { activeKid } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
   const [questions] = useState(() => shuffleNoConsecutiveDupes(unit.questions ?? []));
 
   const subjectColor = resolveSubject(unit.subject, [])?.color ?? '#60a5fa';
@@ -286,6 +287,7 @@ export default function QuizScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}>
         <ScrollView
+          style={Platform.OS === 'web' ? { height: windowHeight - 120 } : undefined}
           contentContainerStyle={styles.quizContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

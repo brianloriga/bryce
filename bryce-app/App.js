@@ -22,6 +22,7 @@ import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsScreen         from './src/screens/TermsScreen';
 import ProgressScreen      from './src/screens/ProgressScreen';
 import GameManagerScreen   from './src/screens/GameManagerScreen';
+import DevPreviewScreen    from './src/screens/DevPreviewScreen';
 import { GAME_REGISTRY }   from './src/minigames/registry';
 
 const Tab   = createBottomTabNavigator();
@@ -107,6 +108,8 @@ function RootNavigator() {
           component={AuthScreen}
           options={{ presentation: 'card', animationEnabled: true }}
         />
+        <Stack.Screen name="DevPreview" component={DevPreviewScreen} />
+        <Stack.Screen name="Quiz"       component={QuizScreen} options={{ gestureEnabled: false }} />
       </Stack.Navigator>
     );
   }
@@ -125,6 +128,7 @@ function RootNavigator() {
       <Stack.Screen name="KidSelect"     component={KidSelectScreen} />
       <Stack.Screen name="Onboarding"    component={OnboardingScreen} />
       <Stack.Screen name="Quiz"          component={QuizScreen}          options={{ gestureEnabled: false }} />
+      <Stack.Screen name="DevPreview"    component={DevPreviewScreen} />
         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ presentation: 'modal' }} />
         <Stack.Screen name="Terms"         component={TermsScreen}         options={{ presentation: 'modal' }} />
         <Stack.Screen name="Progress"    component={ProgressScreen} />
@@ -144,7 +148,7 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, ...(Platform.OS === 'web' && { height: '100vh' }) }}>
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>

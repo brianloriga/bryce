@@ -6,6 +6,51 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Dev Preview & Web Compatibility — 2026-04-24
+
+#### Added — Dev Preview infrastructure
+
+- **`src/dev/sampleQuestions.js`** — comprehensive sample question library covering every type and variant: multiple choice (basic, with context card, with image), visual MC, fill-in, true/false, word bank, ordering, number line (place / read / count), protractor (align / read / build / estimate / spot-mistake), ruler (endpoint / offset / compare / difference), geometry display (pie / bar / shape), read-along passage, and two "⭐ Mixed" sets that cover all standard and all enhanced tool types in one go
+- **`src/screens/DevPreviewScreen.js`** — developer-only menu screen listing all sample sets grouped by category; tapping any card launches `QuizScreen` with that pre-built question set — no scan, no login required
+- **`web/index.html`** — custom Expo web HTML template; sets `html, body { height: 100% }` and `#root { display: flex; height: 100% }` so React Native Web's `flex: 1` layout has a proper pixel height to stretch against throughout the entire app
+
+#### Changed — `App.js`
+
+- `DevPreviewScreen` imported and registered in both the authenticated and unauthenticated stack navigators so it is reachable regardless of login state
+- `GestureHandlerRootView` now receives `height: '100vh'` on web — the root fix that makes every screen's `ScrollView` scroll correctly without per-screen overrides
+
+#### Changed — `WelcomeScreen`
+
+- Wrapped content in a `ScrollView` so buttons are always reachable at any window height
+- Added `pointerEvents="none"` to all `FloatingBubble` components — the absolutely-positioned decorative bubbles were intercepting every tap and scroll event on web, making all buttons unclickable
+- Added `__DEV__`-gated **"🔧 Dev Preview"** button at the bottom of the screen; hidden in production builds
+
+#### Changed — `QuizScreen`
+
+- `useWindowDimensions` added; quiz `ScrollView` receives an explicit pixel height on web (`windowHeight - 120`) so question content is always scrollable regardless of parent container chain
+
+---
+
+### Protractor Multi-Mode Improvements — 2026-04-24
+
+#### Changed — `ProtractorRenderer` (`src/renderers/tools/ProtractorRenderer.js`)
+
+- Full renderer rewrite with cleaner mode dispatch, improved `ReadBuildMode` layout, and tighter `AlignMode` step flow
+- `spot_mistake` avatar lookup is now fully case-insensitive; handles all 6 child avatar keys (`nina`, `sam`, `mia`, `leo`, `ava`, `max`)
+- Slider stale-closure pattern hardened: all PanResponder callbacks read from mutable refs rather than closed-over state values, preventing gesture rejection after any re-render
+
+#### Changed — `measurementStyles.js` (`src/renderers/shared/measurementStyles.js`)
+
+- Extracted shared measurement layout constants and style tokens used by both `ProtractorRenderer` and `RulerRenderer`; eliminates duplicated style blocks across tool renderers
+
+#### Changed — `generate-questions` prompts (`supabase/functions/generate-questions/prompts.ts`)
+
+- Protractor schema examples updated to include all five modes with correct field sets
+- `spot_mistake` mode: `claimA`/`claimB`/`correctClaim` fields documented with the full avatar name list
+- `scaleOrigin` pairing rules clarified: `"left"` for flipped or obtuse angles, omit for acute normal-orientation
+
+---
+
 ### Number Line Pipeline — Full Fix — 2026-04-23
 
 #### Root Cause Fixed — `aiService.js` (`src/services/aiService.js`)

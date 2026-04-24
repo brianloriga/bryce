@@ -1,12 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
-  Animated, Dimensions,
+  Animated, ScrollView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-const { width } = Dimensions.get('window');
 
 // ── Floating bubbles ──────────────────────────────────────────
 const BUBBLES = [
@@ -32,6 +31,7 @@ function FloatingBubble({ size, top, left, right, color, delay }) {
   }, []);
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.bubble,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: color, top, left, right },
@@ -61,45 +61,62 @@ export default function WelcomeScreen({ navigation }) {
       {BUBBLES.map((b, i) => <FloatingBubble key={i} {...b} />)}
 
       <SafeAreaView style={styles.safe}>
-        <Animated.View style={[styles.content, { opacity: fade, transform: [{ translateY: slide }] }]}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View style={[styles.content, { opacity: fade, transform: [{ translateY: slide }] }]}>
 
-          {/* Icon */}
-          <Image
-            source={require('../../assets/appicon.png')}
-            style={styles.icon}
-            resizeMode="contain"
-          />
+            {/* Icon */}
+            <Image
+              source={require('../../assets/appicon.png')}
+              style={styles.icon}
+              resizeMode="contain"
+            />
 
-          {/* Name */}
-          <Text style={styles.appName}>
-            <Text style={styles.namePart1}>Snap</Text>
-            <Text style={styles.namePart2}>Study</Text>
-          </Text>
+            {/* Name */}
+            <Text style={styles.appName}>
+              <Text style={styles.namePart1}>Snap</Text>
+              <Text style={styles.namePart2}>Study</Text>
+            </Text>
 
-          {/* CTAs */}
-          <View style={styles.ctaArea}>
-            <TouchableOpacity
-              style={styles.btnSignIn}
-              onPress={() => navigation.navigate('Auth', { initialMode: 'signin' })}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnSignInText}>Sign In →</Text>
-            </TouchableOpacity>
+            {/* CTAs */}
+            <View style={styles.ctaArea}>
+              <TouchableOpacity
+                style={styles.btnSignIn}
+                onPress={() => navigation.navigate('Auth', { initialMode: 'signin' })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.btnSignInText}>Sign In →</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.btnCreate}
-              onPress={() => navigation.navigate('Auth', { initialMode: 'signup' })}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnCreateText}>Create Account</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.btnCreate}
+                onPress={() => navigation.navigate('Auth', { initialMode: 'signup' })}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.btnCreateText}>Create Account</Text>
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.footNote}>
-            Parents sign in — kids just tap their picture!
-          </Text>
+            <Text style={styles.footNote}>
+              Parents sign in — kids just tap their picture!
+            </Text>
 
-        </Animated.View>
+            {/* Dev-only shortcut — visible only in __DEV__ builds */}
+            {__DEV__ && (
+              <TouchableOpacity
+                style={styles.devBtn}
+                onPress={() => navigation.navigate('DevPreview')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.devBtnText}>🔧 Dev Preview</Text>
+              </TouchableOpacity>
+            )}
+
+          </Animated.View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -113,16 +130,21 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   bubble: { position: 'absolute' },
 
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   content: {
-    flex: 1,
     paddingHorizontal: 32,
+    paddingVertical: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   icon: {
-    width: width * 0.48,
-    height: width * 0.48,
+    width: Platform.OS === 'web' ? 200 : '48%',
+    height: Platform.OS === 'web' ? 200 : undefined,
+    aspectRatio: Platform.OS === 'web' ? undefined : 1,
     marginBottom: 12,
   },
 
@@ -175,5 +197,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.38)',
     textAlign: 'center',
+  },
+  devBtn: {
+    marginTop: 28,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#0f172a',
+  },
+  devBtnText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

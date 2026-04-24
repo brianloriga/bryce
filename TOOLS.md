@@ -75,7 +75,7 @@ Every tool spec must answer these questions before the build starts:
 
 ### 1. Protractor
 
-**Status:** Pending Mockup
+**Status:** Shell Built — AI schema wiring pending
 
 **Description:**
 A virtual protractor rendered on screen. The student interacts with it to measure or construct an angle. The tool draws its own angle stimulus (rays from a vertex) so no external image is needed — this is the key difference from the old approach.
@@ -88,15 +88,18 @@ A virtual protractor rendered on screen. The student interacts with it to measur
 |---|---|
 | `read` | An angle is drawn at a fixed position. Student reads the scale and types the degree value. No dragging. |
 | `build` | Student drags an arm to construct a stated angle (e.g. "Draw a 65° angle"). No reference arm shown. |
-| `align` | Student positions the protractor arm over a drawn angle and types the value they read. |
+| `align` | **3-step flow.** Step 1: student sees only the angle (no protractor) and picks a rough estimate from 3 buttons. Step 2: full protractor appears with draggable arm — student aligns it. Step 3: student types the exact value and submits. Only step 3 is scored. |
+| `estimate` | Angle stimulus only (no protractor). Student picks the closest degree value from 4 multiple-choice buttons. A motivational banner is shown below. |
+| `spot_mistake` | Protractor is shown with a fixed angle. Two named characters (each with an avatar) claim different measurements. Student taps which character is right, or "They are both wrong." Tests scale-reading awareness. |
 
 **AI schema:**
 ```json
 {
   "toolType": "protractor",
   "geometry": {
+    "type": "angle",
     "angleDeg": 68,
-    "mode": "read",
+    "protractorMode": "read",
     "vertex": "M",
     "ray1": "N",
     "ray2": "L",
@@ -108,27 +111,40 @@ A virtual protractor rendered on screen. The student interacts with it to measur
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `angleDeg` | number | Yes | The target angle in degrees (1–179) |
-| `mode` | string | Yes | `"read"`, `"build"`, or `"align"` |
+| `protractorMode` | string | Yes | `"read"`, `"build"`, `"align"`, `"estimate"`, or `"spot_mistake"` |
 | `vertex` | string | No | Label for the vertex point (e.g. `"M"`) |
 | `ray1` | string | No | Label for the first ray end (e.g. `"N"`) |
 | `ray2` | string | No | Label for the second ray end (e.g. `"L"`) |
 | `flipped` | boolean | No | `true` = baseline points left (180°); `false` = baseline points right (0°) |
+| `claimA` | object | `spot_mistake` only | `{ "name": "Nina", "valueDeg": 70 }` — first character's claim |
+| `claimB` | object | `spot_mistake` only | `{ "name": "Sam", "valueDeg": 110 }` — second character's claim |
+| `correctClaim` | string | `spot_mistake` only | `"A"`, `"B"`, or `"neither"` |
+
+**Avatar names** available for `spot_mistake` mode: `nina`, `sam`, `mia`, `leo`, `ava`, `max`
+(name in `claimA.name` / `claimB.name` must match one of these, case-insensitive)
 
 **Validation model:**
-- `read` mode: student's typed value is correct if within ±5° of `angleDeg`
-- `build` mode: student's dragged position is correct if within ±5° of `angleDeg`
-- `align` mode: student's typed value is correct if within ±5° of `angleDeg`
+- `read` / `align` step 3: student's typed value is correct if within ±5° of `angleDeg`
+- `build`: student's dragged position is correct if within ±5° of `angleDeg`
+- `align` step 1 (estimate): not scored — any pick advances; pedagogical scaffolding only
+- `estimate`: correct if student picks the multiple of 30 closest to `angleDeg`
+- `spot_mistake`: correct if student picks the claim matching `correctClaim`
 - Diagnostic feedback for common mistakes: wrong scale (supplement), acute/obtuse confusion, right angle off-by-one
 
 **Fallback:** `fill_in` — "What is the measure of angle MNL?" with `correctAnswer: "68"`
 
-**Mockup:** *Waiting for designer mockup.*
+**Mockup:** ✅ Received — see `ChatGPT Image Apr 22, 2026, 10_11_43 PM (1).png`
+
+**Status:** Shell built — all 5 modes interactive. AI schema wiring pending.
 
 **Build notes:**
-- The tool draws its own angle (vertex + two rays) inside the protractor view — no external image reference
-- `flipped: true` mirrors all screen angles and reverses the degree scale labels to match real left-handed protractor orientation
-- Scale-choice step (which 0° to read from) only shown for obtuse angles or flipped mode where ambiguity is genuine
-- Slider starts at a random position at least 30° from the answer so the exercise requires real interaction
+- `ProtractorFace` is a shared display-only sub-component used by all modes
+- `SliderRow` is extracted as a shared sub-component used by `read/build` and `align` step 2
+- `align` step 1 estimate options are generated algorithmically (3 closest multiples of 30 to `angleDeg`)
+- `estimate` mode options are generated algorithmically (4 closest multiples of 30 to `angleDeg`)
+- Avatar images live in `assets/child-avatars/`; name lookup is case-insensitive
+- `flipped: true` mirrors all screen angles and reverses the degree scale labels
+- Scale-choice step (which 0° to read from) only shown for obtuse angles or flipped mode
 
 ---
 
