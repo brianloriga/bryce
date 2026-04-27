@@ -368,6 +368,119 @@ QUESTION TYPE RULES — choose the best type for each question:
    • true_false: "The minute hand points to 6 when it is half past the hour. True or False?" correctAnswer:true
    • fill_in (word problem): "School starts at 8:00 and lunch is 3 hours later. What time is lunch?" correctAnswer:"11:00"
 
+3d. FRACTION BAR — "type": "fill_in", "measurementTool": "fraction_bar"
+   When the scanned worksheet shows fraction bars, area models, or shaded strip diagrams:
+   Add "measurementTool": "fraction_bar" + a "geometry" object. The app draws its own fraction bar —
+   the student NEVER sees the original worksheet.
+
+   FRACTION BAR RANDOMIZATION RULE — CRITICAL:
+   The worksheet topic tells you WHAT the student is studying. ALWAYS generate FRESH part/shaded values.
+   NEVER copy exact values from worksheet diagrams.
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FRACTION BAR MODES — use each mode AT MOST ONCE per scan
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   • MODE "read" — App draws a pre-shaded bar. Student picks the fraction from 4 auto-generated MC options.
+     The app generates the 4 MC options automatically — you do NOT provide them. Options include
+     cross-denominator distractors so the student must identify BOTH numerator and denominator.
+     geometry: { "mode": "read", "parts": <2–10>, "shaded": <1 to parts−1> }
+     correctAnswer = fraction string e.g. "3/4"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"What fraction of the bar is shaded?","hint":"Count the shaded parts, then count all the equal parts.","correctAnswer":"3/4","geometry":{"mode":"read","parts":4,"shaded":3} }
+
+   • MODE "shade" — App shows a target fraction as a badge. Student taps segments to shade that fraction.
+     geometry: { "mode": "shade", "parts": <2–10>, "shaded": <1 to parts−1> }
+     correctAnswer = shaded count as string (e.g. "3" for shading 3/4 of a 4-part bar)
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"Shade 3 out of 4 equal parts.","hint":"Tap exactly 3 of the 4 sections to shade them.","correctAnswer":"3","geometry":{"mode":"shade","parts":4,"shaded":3} }
+
+   • MODE "compare" — App draws TWO fraction bars (top and bottom). Student picks which is greater, or if equal.
+     Use for: "Which fraction is greater?" / "Are these fractions equal?"
+     geometry: { "mode": "compare", "parts": <top denominator>, "shaded": <top numerator>,
+                 "parts2": <bottom denominator>, "shaded2": <bottom numerator> }
+     correctAnswer = "top" | "bottom" | "equal"
+     COMPUTE CORRECTLY: top = shaded/parts, bottom = shaded2/parts2. Compare as decimals.
+     Design interesting comparisons: same numerator different denominator, close values (2/3 vs 3/4),
+     and occasional equal pairs (1/2 vs 2/4). Avoid trivially obvious pairs like 1/4 vs 3/4.
+     EXAMPLE (3/4 vs 2/3 — close call, top is greater):
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"Which fraction is greater?","hint":"These are close — try converting to a common denominator.","correctAnswer":"top","geometry":{"mode":"compare","parts":4,"shaded":3,"parts2":3,"shaded2":2} }
+     EXAMPLE (equal fractions — 1/2 vs 2/4):
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"Which fraction is greater — or are they equal?","hint":"Could these represent the same amount?","correctAnswer":"equal","geometry":{"mode":"compare","parts":2,"shaded":1,"parts2":4,"shaded2":2} }
+
+   • MODE "equivalent" — App shows a STATIC reference bar (top) and an INTERACTIVE bar (bottom) with a
+     DIFFERENT number of parts. Student taps the bottom bar to shade the equivalent fraction.
+     Use for: "Shade the bottom bar to show the same fraction." / equivalent fraction practice.
+     geometry: { "mode": "equivalent", "parts": <reference denominator>, "shaded": <reference numerator>,
+                 "parts2": <target denominator — must be a whole-number multiple or factor of parts> }
+     correctAnswer = number of parts to shade in parts2 bar (e.g. "2" for 1/2 shown as 2/4)
+     COMPUTE: correctAnswer = round((shaded / parts) × parts2) as a string.
+     Choose parts2 values that give clean equivalent fractions: 1/2→2/4, 1/3→2/6, 3/4→6/8, 2/3→4/6, etc.
+     EXAMPLE (1/2 = 2/4):
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"Shade the bottom bar to show the same fraction as the top bar.","hint":"1/2 means half of the bar — how many parts out of 4 equal half?","correctAnswer":"2","geometry":{"mode":"equivalent","parts":2,"shaded":1,"parts2":4} }
+     EXAMPLE (2/3 = 4/6):
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_bar","question":"Shade the bottom bar to show the same amount as the top bar.","hint":"Multiply both top and bottom of 2/3 by 2 to find the equivalent.","correctAnswer":"4","geometry":{"mode":"equivalent","parts":3,"shaded":2,"parts2":6} }
+
+   ── FRACTION BAR RULES ──
+   • Keep parts in grade-appropriate range: 2, 3, 4, 5, 6, 8, 10 (avoid 7, 9 — unusual denominators)
+   • shaded must be ≥ 1 and ≤ parts−1 (never shade 0 or all parts)
+   • Vary modes across questions — do not repeat the same mode
+   • NEVER reference the worksheet — the app draws its own bars
+   • selfContained: always true
+
+   FRACTION BAR CONSISTENCY RULE — CRITICAL:
+   When the worksheet is about fractions/fraction bars, use measurementTool:"fraction_bar" ONLY.
+
+   ── STANDARD QUESTIONS to mix in alongside fraction bar modes (2–3 per scan) ──
+   • multiple_choice: "Which fraction is greater, 1/2 or 1/4?" options:["1/2","1/4","They are equal","Cannot tell"], correctIndex:0
+   • true_false: "3/4 is greater than 1/2. True or False?" correctAnswer:true
+   • fill_in (word problem): "A pizza is cut into 8 equal slices. Maya eats 3 slices. What fraction did she eat?" correctAnswer:"3/8" acceptedAnswers:["3/8"]
+
+3e. BUILD-A-FRACTION — "type": "fill_in", "measurementTool": "fraction_build"
+   When the worksheet asks students to CONSTRUCT or BUILD a fraction from scratch.
+   The app draws a blank bar with a denominator stepper (+/−) and tappable segments.
+   Student must set the correct number of parts (denominator) AND shade the correct count (numerator).
+
+   geometry: { "target": "<N>/<D>" }  — the fraction to build
+   correctAnswer = same fraction string as target e.g. "3/4"
+   Use grade-appropriate denominators: 2, 3, 4, 5, 6, 8, 10. Target numerator must be ≥ 1 and < denominator.
+   EXAMPLE:
+   { "selfContained":true,"type":"fill_in","measurementTool":"fraction_build","question":"Build the fraction 3/4 using the bar.","hint":"Set the bar to 4 equal parts, then shade 3.","correctAnswer":"3/4","geometry":{"target":"3/4"} }
+
+3f. FRACTION NUMBER LINE — "type": "fill_in", "measurementTool": "fraction_number_line"
+   When the worksheet shows a number line with fractions, or asks students to place fractions on a line.
+   The app draws its own number line from 0 to 1 with tick marks at 1/denominator intervals.
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FRACTION NUMBER LINE MODES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   • MODE "read" — A point is pre-placed at tick index [target]. Student picks the fraction from 4 MC options.
+     Only 0 and 1 are labelled — student must count tick intervals. Cross-denom distractors included.
+     geometry: { "mode": "read", "denominator": <2–10>, "target": <tick index 1 to denominator−1> }
+     correctAnswer = fraction string e.g. "3/4"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_number_line","question":"What fraction does the point show?","hint":"Count the equal spaces between 0 and 1.","correctAnswer":"3/4","geometry":{"mode":"read","denominator":4,"target":3} }
+
+   • MODE "place" — Target fraction shown as a badge. All tick positions are labelled. Student taps the correct tick.
+     geometry: { "mode": "place", "denominator": <2–10>, "target": <tick index 1 to denominator−1> }
+     correctAnswer = fraction string e.g. "3/4"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_number_line","question":"Place 3/4 on the number line.","hint":"Count 3 spaces from 0 out of 4 equal spaces.","correctAnswer":"3/4","geometry":{"mode":"place","denominator":4,"target":3} }
+
+   • MODE "order" — Three fraction chips shown scrambled. Student taps them smallest → largest.
+     geometry: { "mode": "order", "denominator": <2–10>, "fractions": [<tick1>, <tick2>, <tick3>] }
+     fractions: array of 3 tick indices (integers), all different, all in range 0–denominator.
+     correctAnswer = sorted fraction strings joined with comma e.g. "1/4,2/4,3/4"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"fraction_number_line","question":"Tap the fractions in order from smallest to largest.","hint":"Find where each fraction sits on the number line.","correctAnswer":"1/4,2/4,3/4","geometry":{"mode":"order","denominator":4,"fractions":[3,1,2]} }
+
+   ── FRACTION NUMBER LINE RULES ──
+   • denominator 2–8; avoid 7 (unusual)
+   • target must be ≥ 1 and ≤ denominator (0 and denominator/denominator=1 are allowed in order mode)
+   • Vary modes — do not repeat the same mode
+   • selfContained: always true
+
 4. ORDERING — "type": "ordering"
    - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
    - items: 3–6 things to arrange
@@ -462,6 +575,9 @@ NOTE: The following tool types ARE fully supported — do NOT fall back to MC fo
   • Coin / money diagrams → measurementTool:"coin"
   • Protractor / angle diagrams → measurementTool:"protractor"
   • Ruler / length diagrams → measurementTool:"ruler"
+  • Fraction bar / shaded strip diagrams → measurementTool:"fraction_bar"
+  • Build-a-fraction / construct-a-fraction → measurementTool:"fraction_build"
+  • Fraction number line diagrams → measurementTool:"fraction_number_line"
 BAD:  { "question": "A clock shows the hour hand at 3 and minute hand at 12. What time is it?", "options": [...] }  ← use clock tool instead
 GOOD: { "type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","correctAnswer":"3:00","geometry":{"hours":3,"minutes":0,"clockMode":"read"} }
 The fallback question must be fully self-contained and answerable from the question text alone.
@@ -751,6 +867,75 @@ Denominations: "penny"(1¢), "nickel"(5¢), "dime"(10¢), "quarter"(25¢), "doll
   spot_mistake: geometry: { "mode":"spot_mistake","coins":[...],"claimA":{"name":"<Name>","valueCents":<n>},"claimB":{"name":"<Name>","valueCents":<n>},"correctClaim":"A"|"B" }
                correctAnswer = "A" or "B".
   fewest:      geometry: { "mode":"fewest","target":<cents integer> }; correctAnswer = min coin count (greedy algorithm).
+
+── CLOCK (measurementTool: "clock") ────────────────────────────
+The replacement MUST include "type": "fill_in", "measurementTool": "clock", and a valid "geometry" object.
+Match the SAME clockMode (read / set / estimate / spot_mistake) as the original.
+ALWAYS generate FRESH hours and minutes — NEVER reuse the original time.
+  read:    geometry: { "hours":<1–12>,"minutes":<0–59>,"clockMode":"read" }
+           correctAnswer = time string e.g. "3:15". acceptedAnswers = [same].
+           Question: "What time does the clock show?"
+  set:     geometry: { "hours":<1–12>,"minutes":<0 or mult of 5>,"clockMode":"set" }
+           correctAnswer = time string. Question: "Use the sliders to show X on the clock."
+  estimate: geometry: { "hours":<1–12>,"minutes":<1–59, NOT mult of 5>,"clockMode":"estimate" }
+            correctAnswer = nearest 5-min mark. App auto-generates MC — do NOT provide options.
+  spot_mistake: geometry: { "hours":<1–12>,"minutes":<0–59>,"clockMode":"spot_mistake",
+                "claimA":{"name":"<Name>","time":"<H:MM>"},"claimB":{"name":"<Name>","time":"<H:MM>"},"correctClaim":"A"|"B"|"neither" }
+                correctAnswer = same as correctClaim. Pick two different names from: nina, sam, mia, leo, ava, max.
+
+── FRACTION BAR (measurementTool: "fraction_bar") ──────────────
+The replacement MUST include "type":"fill_in", "measurementTool":"fraction_bar", and a valid "geometry" object.
+Match the SAME mode as the original. Use grade-appropriate denominators: 2, 3, 4, 5, 6, 8, 10.
+shaded must be ≥ 1 and ≤ parts−1.
+
+  read:  Static bar; student picks fraction from 4 auto-generated MC options.
+         geometry: { "mode":"read","parts":<2–10>,"shaded":<1 to parts−1> }
+         correctAnswer = fraction string e.g. "2/3".
+         EXAMPLE: { "type":"fill_in","measurementTool":"fraction_bar","question":"What fraction of the bar is shaded?","hint":"Count the shaded parts and all the equal parts.","correctAnswer":"2/3","geometry":{"mode":"read","parts":3,"shaded":2} }
+
+  shade: Student taps to shade target fraction.
+         geometry: { "mode":"shade","parts":<2–10>,"shaded":<1 to parts−1> }
+         correctAnswer = shaded count as string e.g. "2".
+         EXAMPLE: { "type":"fill_in","measurementTool":"fraction_bar","question":"Shade 2 out of 3 equal parts.","hint":"Tap 2 of the 3 sections.","correctAnswer":"2","geometry":{"mode":"shade","parts":3,"shaded":2} }
+
+  compare: Two bars stacked; student picks which fraction is greater (or equal).
+           geometry: { "mode":"compare","parts":<top denom>,"shaded":<top num>,"parts2":<bottom denom>,"shaded2":<bottom num> }
+           correctAnswer = "top" | "bottom" | "equal"
+           COMPUTE: top=shaded/parts, bottom=shaded2/parts2. Compare as decimals (epsilon 0.0001).
+           EXAMPLE: { "type":"fill_in","measurementTool":"fraction_bar","question":"Which fraction is greater?","hint":"Convert to decimals or a common denominator to compare.","correctAnswer":"top","geometry":{"mode":"compare","parts":4,"shaded":3,"parts2":3,"shaded2":2} }
+
+  equivalent: Static reference bar (top) + interactive bar (bottom, different parts count).
+              Student shades bottom bar to show the same fraction value.
+              geometry: { "mode":"equivalent","parts":<ref denom>,"shaded":<ref num>,"parts2":<target denom> }
+              Choose parts2 so (shaded/parts)×parts2 is a whole number.
+              correctAnswer = round((shaded/parts)×parts2) as string.
+              EXAMPLE: { "type":"fill_in","measurementTool":"fraction_bar","question":"Shade the bottom bar to show the same fraction as the top bar.","hint":"1/2 of 4 parts — how many segments equal half?","correctAnswer":"2","geometry":{"mode":"equivalent","parts":2,"shaded":1,"parts2":4} }
+── BUILD-A-FRACTION (measurementTool: "fraction_build") ─────────
+The replacement MUST include "type":"fill_in", "measurementTool":"fraction_build", and geometry.target.
+Generate a FRESH target fraction using grade-appropriate denominators (2,3,4,5,6,8,10).
+Target numerator must be ≥ 1 and < denominator.
+geometry: { "target":"<N>/<D>" }
+correctAnswer = same fraction string as target.
+EXAMPLE: { "type":"fill_in","measurementTool":"fraction_build","question":"Build the fraction 2/3 using the bar.","hint":"Set 3 equal parts, then shade 2.","correctAnswer":"2/3","geometry":{"target":"2/3"} }
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── FRACTION NUMBER LINE (measurementTool: "fraction_number_line") ─
+The replacement MUST include "type":"fill_in", "measurementTool":"fraction_number_line", and a valid geometry object.
+Match the SAME mode as the original. Use grade-appropriate denominators (2–8; avoid 7).
+target must be ≥ 1 and < denominator (for read/place); for order mode, fractions array of 3 distinct tick indices.
+
+  read:  geometry: { "mode":"read","denominator":<2–8>,"target":<1 to den−1> }
+         correctAnswer = fraction string e.g. "3/4"
+         EXAMPLE: { "type":"fill_in","measurementTool":"fraction_number_line","question":"What fraction does the point show?","hint":"Count the equal spaces.","correctAnswer":"3/4","geometry":{"mode":"read","denominator":4,"target":3} }
+
+  place: geometry: { "mode":"place","denominator":<2–8>,"target":<1 to den−1> }
+         correctAnswer = fraction string e.g. "3/4"
+         EXAMPLE: { "type":"fill_in","measurementTool":"fraction_number_line","question":"Place 2/5 on the number line.","hint":"Count 2 spaces from 0 out of 5.","correctAnswer":"2/5","geometry":{"mode":"place","denominator":5,"target":2} }
+
+  order: geometry: { "mode":"order","denominator":<2–8>,"fractions":[<tick1>,<tick2>,<tick3>] }
+         fractions: 3 DISTINCT tick indices (integers 0–denominator, in any order as they appear scrambled).
+         correctAnswer = sorted fraction strings joined with comma e.g. "1/4,2/4,3/4"
+         EXAMPLE: { "type":"fill_in","measurementTool":"fraction_number_line","question":"Tap the fractions in order smallest to largest.","hint":"Find each on the number line.","correctAnswer":"1/5,3/5,4/5","geometry":{"mode":"order","denominator":5,"fractions":[4,1,3]} }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SELF-CONTAINED RULE: the replacement must be answerable without any external materials. If the original had a "context" reference card, keep an equivalent context in the replacement.

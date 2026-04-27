@@ -292,6 +292,8 @@ export default function ScanScreen() {
           coinMode:         existing.geometry?.mode,
           rulerSubtype:     existing.rulerSubtype,
           clockMode:        existing.geometry?.clockMode,
+          fractionBarMode:          existing.measurementTool === 'fraction_bar'          ? existing.geometry?.mode : undefined,
+          fractionNumberLineMode:   existing.measurementTool === 'fraction_number_line'  ? existing.geometry?.mode : undefined,
         },
       );
       setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));

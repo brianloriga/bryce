@@ -6,6 +6,155 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Fraction Build + Fraction Number Line — 2026-04-27
+
+#### `FractionBuildRenderer.js` (new — T3-B)
+- New `measurementTool: "fraction_build"` renderer — **Build-a-Fraction**
+- Student sets the denominator via +/− stepper (range 2–12) and taps bar segments to set the numerator
+- `parseTarget()` helper supports any `"N/D"` string from AI geometry schema
+- Live status hint updates progressively: wrong denominator → right denominator / wrong count → perfect
+- Targeted wrong-answer explanation distinguishes "wrong denominator" vs "wrong shaded count" vs "both wrong"
+- "Try Again" button appears after a wrong check (resets stepper and bar)
+- Starts at a different denominator from the target so student must deliberately set it
+- Connected to: `QuizScreen.js` dispatch, `sampleQuestions.js` (6 questions), `prompts.ts` `3e` section, `index.ts` regen, `TOOLS.md` T3-B
+
+#### `FractionNumberLineRenderer.js` (new — T3-A)
+- New `measurementTool: "fraction_number_line"` renderer — **Fraction Number Line** with 3 modes
+
+**`read` mode** — Point pre-placed at `target/denominator`; only "0" and "1" labelled; student must count tick intervals to determine the fraction; 4 MC options with cross-denom distractors via `buildNLOptions()`
+
+**`place` mode** — Target fraction badge shown (purple); all tick positions labelled; student taps a tick to place the answer dot; Check/Clear buttons
+
+**`order` mode** — Three fraction chips shown scrambled; student taps them in ascending order (smallest first); chips show numbered badge when tapped (1, 2, 3); can de-select the last tap; auto-validates when all 3 are tapped
+
+- Reuses existing `nlStyles`, `NL_W`, `NL_PAD`, `NL_USABLE` from `measurementStyles.js` for visual consistency with the existing NumberLineRenderer
+- Touch targets are 40×40 absolute-positioned areas on each tick (larger than the visible tick for easier tapping)
+- Color palette: purple (`#a78bfa`) for number line features, distinct from fraction bar green/blue/pink
+- Connected to: `QuizScreen.js` dispatch (3 new type labels), `sampleQuestions.js` (24 questions across 4 sets), `prompts.ts` `3f` section (all 3 modes), `index.ts` regen (`fractionNumberLineMode`), `ScanScreen.js` (`fractionNumberLineMode` context), `TOOLS.md` T3-A
+
+#### `sampleQuestions.js` — New Sample Sets
+- `fractionBuild`: 6 questions, targets: 1/2, 3/4, 2/3, 4/5, 3/8, 5/6
+- `fractionNumberLine_read`: 6 questions, denominators 2–8, various positions
+- `fractionNumberLine_place`: 6 questions, all denominators 2–8
+- `fractionNumberLine_order`: 4 sets of 3 fractions to order, including edge cases (0 and 1 endpoints)
+- All added to new "Fraction – Build & Number Line" group in `SAMPLE_GROUPS`
+
+#### AI Wiring
+- `prompts.ts`: Added `3e. BUILD-A-FRACTION` and `3f. FRACTION NUMBER LINE` sections with full mode schemas and examples; both added to the VISUAL INTERACTION FALLBACK RULE supported-tools list
+- `index.ts`: Added regen branches for `fraction_build` and `fraction_number_line` with mode-specific instructions
+- `ScanScreen.js`: Added `fractionNumberLineMode` to `questionContext` object for correct regen routing
+
+#### `TOOLS.md`
+- T3-A (Fraction Number Line): status updated to "Built — 3 modes live"
+- T3-B (Build-a-Fraction): status updated to "Built — build mode live"
+
+---
+
+### Fraction Bar — Tier 1 + Tier 2 Modes — 2026-04-27
+
+#### `FractionBarRenderer.js` — Tier 1: Improved Distractors
+- Rewrote `buildReadOptions()` to generate **cross-denominator distractors** alongside same-denominator ones
+  - Strategy 1: same numerator, adjacent denominator (e.g. `3/5` when correct is `3/4`) — forces students to check the total-parts count, not just count shaded segments
+  - Strategy 2: same denominator, different numerator (existing behavior)
+  - Strategy 3: common-fraction pool fallback to always guarantee 3 unique distractors
+- MC option buttons now render as **stacked fraction notation** (numerator / line / denominator) instead of plain slash strings, matching how fractions appear in textbooks
+- `wrongExplanation()` function added — detects whether the wrong choice was a cross-denom error vs wrong-count error and returns a targeted explanation message
+
+#### `FractionBarRenderer.js` — Tier 2: New Modes
+
+**`compare` mode** (new)
+- Two fraction bars stacked (blue top / pink bottom), each labeled with its fraction in stacked notation
+- "vs" divider between bars with a subtle line
+- Three answer buttons: "◀ Top is greater" | "Equal" | "Bottom is greater ▶"
+- Correct answer computed **client-side** from decimal values (epsilon 0.0001) — AI's `correctAnswer` field is secondary; prevents AI arithmetic errors from showing a wrong "correct" answer
+- Post-answer: shows decimal equivalents and explains which is larger
+
+**`equivalent` mode** (new)
+- Static reference bar at top (blue) with "REFERENCE" label and stacked fraction notation
+- Interactive bottom bar (green) with "YOUR ANSWER" label; live `count/parts2` label updates as segments are tapped
+- "=" connector between bars visually signals the goal
+- Correct if `tapped.size === Math.round((shaded/parts) × parts2)`
+- Post-answer explanation: spells out the multiplication relationship (`N/D = (N×k)/(D×k)`)
+
+**`FractionLabel` helper component** (new)
+- Reusable stacked fraction display (numerator / horizontal line / denominator) with configurable color and size
+- Used in compare mode bar labels, shade mode target badge, and equivalent mode live counter
+
+#### `sampleQuestions.js` — New Sample Sets
+- `fractionBar_compare`: 6 questions covering same-denominator easy case, same-numerator/different-denominator, close calls (2/3 vs 3/4), and two equal-fraction pairs (2/4 = 1/2, 3/6 = 1/2)
+- `fractionBar_equivalent`: 6 questions — 1/2→2/4, 1/3→2/6, 3/4→6/8, 2/3→4/6, 1/2→5/10, 4/5→8/10
+- Both added to "Fraction Bar (Enhanced)" group in `SAMPLE_GROUPS`
+
+#### `prompts.ts` — Expanded SYSTEM_PROMPT + REGEN_SYSTEM_PROMPT
+- Fraction bar section rewritten with detailed specs for all 4 modes
+- `compare`: rules for computing `correctAnswer` precisely; examples of close-call pairs and equal pairs
+- `equivalent`: rules for choosing `parts2` so it gives a whole-number target; `correctAnswer` formula documented
+- REGEN rules updated for all 4 modes with mode-specific guidance on computing `correctAnswer`
+
+#### `index.ts` — Regen context for new modes
+- `fraction_bar` regen branch now emits mode-specific instructions:
+  - `compare`: tells AI to compute `correctAnswer` precisely and generate fresh fraction pairs
+  - `equivalent`: tells AI to choose `parts2` that gives a whole-number result and compute `correctAnswer`
+
+#### `TOOLS.md` — Tool 7 Updated + Tier 3 Spec Added
+- Fraction Bar entry updated: status → "Built — 4 modes live", all 4 modes documented with schema examples and field table
+- New section **"Tier 3 — Fraction Learning System Expansion"** added with full specs for:
+  - **T3-A. Fraction Number Line** — place/read/order modes; drag-to-position interaction
+  - **T3-B. Build-a-Fraction** — student sets denominator and shades numerator from scratch
+  - **T3-C. Mixed Representation Match** — match bar / number-line / label cards; odd-one-out mode
+  - **T3-D. Improper Fractions & Mixed Numbers** — multi-bar rendering for values > 1
+  - **T3-E. Decimal ↔ Fraction Bridge** — slider-based decimal input tied to fraction bar shading
+
+---
+
+### Fraction Bar Tool — Initial Shell — 2026-04-27
+
+#### Added — `FractionBarRenderer.js` (`src/renderers/tools/FractionBarRenderer.js`)
+
+New interactive renderer for the Fraction Bar tool (Tool 7) with two modes:
+
+- **`read` mode** — Draws a pre-shaded horizontal bar from `geometry.parts` and `geometry.shaded`. Four MC options are auto-generated client-side via `buildReadOptions()` — all fractions share the same denominator so the student must count carefully. Wrong answer shows a diagnostic message naming the correct fraction. Correct answer shows a confirmation banner.
+- **`shade` mode** — Shows a target fraction badge (e.g. "Shade 3/4 of the bar"). Student taps individual segments to shade them; tapping a shaded segment unshades it. A live counter shows the tapped count with an amber warning if too many are tapped. Check button validates that `tapped.size === geometry.shaded`. Wrong answer explains how many more or fewer are needed.
+
+Bar is drawn entirely in code:
+- `flexDirection: 'row'` container with `flex: 1` segments at `BAR_H = 64px`
+- First and last segments carry `borderRadius: 12` for clean pill ends
+- `SEG_GAP = 3px` gaps between segments reveal dark container background as natural dividers
+- Unshaded: `#1e293b`; shaded: `#4ade80`; correct feedback: `#22c55e`; wrong feedback: `#ef4444`
+
+#### Changed — `QuizScreen.js`
+
+- **Import** — added `FractionBarRenderer` import
+- **Type badge** — fraction bar questions display `Fraction Bar · Read` or `Fraction Bar · Shade`
+- **Render dispatch** — added `qType === 'fill_in' && q.measurementTool === 'fraction_bar'` branch before the generic `FillInRenderer` fallback
+
+#### Changed — `sampleQuestions.js`
+
+Added 2 new sample sets for dev preview:
+- `fraction_bar_read` — 6 questions: halves, quarters, thirds, fifths, eighths, sixths
+- `fraction_bar_shade` — 6 questions: shade 1/2, 3/4, 1/3, 4/5, 3/8, 5/6
+
+Added **"Fraction Bar (Enhanced)"** group to `SAMPLE_GROUPS`.
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/prompts.ts`)
+
+- **`SYSTEM_PROMPT` extended** — added `3d. FRACTION BAR` section documenting both modes (`read` and `shade`) with geometry schema, correctAnswer formats, randomisation rules, consistency rule, standard mix-in questions, and two worked JSON examples; fraction_bar added to the `VISUAL INTERACTION FALLBACK RULE` supported-tools list so GPT knows not to fall back to plain MC on fraction worksheets
+- **`REGEN_SYSTEM_PROMPT` extended** — added `CLOCK` regen rules (missed when Clock tool was built) and `FRACTION BAR` regen rules; both sections document mode-specific geometry shapes and correctAnswer formats and instruct GPT to generate fresh values rather than copying the original
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Regen handler enriched with clock + fraction_bar tool context** — added `else if` branches for `measurementTool === 'clock'` (clockMode directive, was missing) and `measurementTool === 'fraction_bar'` (fractionBarMode directive); both append a one-line `ORIGINAL TOOL:` prefix to the user message so GPT always regenerates the same interactive tool type instead of falling back to plain fill_in
+
+#### Changed — `ScanScreen.js` (`src/screens/ScanScreen.js`)
+
+- **`handleRegenerate` passes fraction_bar mode context** — `fractionBarMode` field added to the `questionContext` object; set to `existing.geometry?.mode` when `measurementTool === 'fraction_bar'` (avoids overwriting `coinMode` which also reads `geometry.mode`)
+
+#### Changed — `TOOLS.md`
+
+Updated Fraction Bar entry: status → `Shell Built — AI schema wiring pending`; added full 2-mode spec, field table, validation model, and build notes. Clarified that `measurementTool: "fraction_bar"` is used (matching existing tool convention) rather than the `toolType` field originally noted in the spec.
+
+---
+
 ### Analog Clock Tool — Initial Shell — 2026-04-27
 
 #### Added — `ClockRenderer.js` (`src/renderers/tools/ClockRenderer.js`)

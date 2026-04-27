@@ -1894,6 +1894,426 @@ export const clock_spotMistake = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// FRACTION BAR (Tool 7)
+// ─────────────────────────────────────────────────────────────
+
+const fractionBar_read = {
+  id: 'fraction_bar_read',
+  label: 'Fraction Bar – Read',
+  unit: {
+    title: 'Fraction Bar – Read the Fraction',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'Count the green parts, then count all the parts.',
+        correctAnswer: '1/2',
+        geometry: { mode: 'read', parts: 2, shaded: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'The bar is divided into 4 equal parts.',
+        correctAnswer: '3/4',
+        geometry: { mode: 'read', parts: 4, shaded: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'Count the shaded sections out of the total.',
+        correctAnswer: '2/3',
+        geometry: { mode: 'read', parts: 3, shaded: 2 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'There are 5 equal parts. How many are green?',
+        correctAnswer: '3/5',
+        geometry: { mode: 'read', parts: 5, shaded: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'Count carefully — the bar has 8 sections.',
+        correctAnswer: '5/8',
+        geometry: { mode: 'read', parts: 8, shaded: 5 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'What fraction of the bar is shaded?',
+        hint: 'The whole bar is 6 parts. How many are shaded?',
+        correctAnswer: '1/6',
+        geometry: { mode: 'read', parts: 6, shaded: 1 },
+      },
+    ],
+  },
+};
+
+const fractionBar_shade = {
+  id: 'fraction_bar_shade',
+  label: 'Fraction Bar – Shade',
+  unit: {
+    title: 'Fraction Bar – Shade the Fraction',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 1/2 of the bar.',
+        hint: 'The bar has 2 equal parts. Tap 1 of them.',
+        correctAnswer: '1',
+        geometry: { mode: 'shade', parts: 2, shaded: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 3/4 of the bar.',
+        hint: 'The bar has 4 equal parts. Tap 3 of them.',
+        correctAnswer: '3',
+        geometry: { mode: 'shade', parts: 4, shaded: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 1/3 of the bar.',
+        hint: 'The bar has 3 equal parts. Tap 1 of them.',
+        correctAnswer: '1',
+        geometry: { mode: 'shade', parts: 3, shaded: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 4/5 of the bar.',
+        hint: 'The bar has 5 equal parts. Tap 4 of them.',
+        correctAnswer: '4',
+        geometry: { mode: 'shade', parts: 5, shaded: 4 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 3/8 of the bar.',
+        hint: 'The bar is divided into 8 sections. Tap exactly 3.',
+        correctAnswer: '3',
+        geometry: { mode: 'shade', parts: 8, shaded: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade 5/6 of the bar.',
+        hint: 'The bar has 6 equal parts. Tap 5 of them.',
+        correctAnswer: '5',
+        geometry: { mode: 'shade', parts: 6, shaded: 5 },
+      },
+    ],
+  },
+};
+
+const fractionBar_compare = {
+  id: 'fraction_bar_compare',
+  label: 'Fraction Bar – Compare',
+  unit: {
+    title: 'Fraction Bar – Compare Fractions',
+    subject: 'math',
+    questions: [
+      {
+        // Easy: same denominator
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater?',
+        hint: 'Both bars have the same number of parts — count the shaded ones.',
+        correctAnswer: 'top',
+        geometry: { mode: 'compare', parts: 4, shaded: 3, parts2: 4, shaded2: 1 },
+      },
+      {
+        // Same numerator, different denominator (3/4 vs 3/5)
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater?',
+        hint: 'Same number of shaded parts — but how many total parts does each bar have?',
+        correctAnswer: 'top',
+        geometry: { mode: 'compare', parts: 4, shaded: 3, parts2: 5, shaded2: 3 },
+      },
+      {
+        // Close call (2/3 vs 3/4)
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater?',
+        hint: 'These are close — try converting to the same denominator in your head.',
+        correctAnswer: 'bottom',
+        geometry: { mode: 'compare', parts: 3, shaded: 2, parts2: 4, shaded2: 3 },
+      },
+      {
+        // Equal fractions (2/4 = 1/2)
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater — or are they equal?',
+        hint: 'Think carefully — could these actually be the same amount?',
+        correctAnswer: 'equal',
+        geometry: { mode: 'compare', parts: 2, shaded: 1, parts2: 4, shaded2: 2 },
+      },
+      {
+        // 1/3 vs 2/5
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater?',
+        hint: '1/3 ≈ 0.33 and 2/5 = 0.40 — which is larger?',
+        correctAnswer: 'bottom',
+        geometry: { mode: 'compare', parts: 3, shaded: 1, parts2: 5, shaded2: 2 },
+      },
+      {
+        // Equal (3/6 = 1/2)
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Which fraction is greater — or are they equal?',
+        hint: 'Simplify the bottom fraction — what does 3/6 reduce to?',
+        correctAnswer: 'equal',
+        geometry: { mode: 'compare', parts: 2, shaded: 1, parts2: 6, shaded2: 3 },
+      },
+    ],
+  },
+};
+
+const fractionBar_equivalent = {
+  id: 'fraction_bar_equivalent',
+  label: 'Fraction Bar – Equivalent',
+  unit: {
+    title: 'Fraction Bar – Equivalent Fractions',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '1/2 means half. How many parts out of 4 equal half?',
+        correctAnswer: '2',
+        geometry: { mode: 'equivalent', parts: 2, shaded: 1, parts2: 4 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '1/3 — if the bottom bar has 6 parts, how many make 1/3?',
+        correctAnswer: '2',
+        geometry: { mode: 'equivalent', parts: 3, shaded: 1, parts2: 6 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '3/4 — if the bottom bar has 8 parts, how many equal 3/4?',
+        correctAnswer: '6',
+        geometry: { mode: 'equivalent', parts: 4, shaded: 3, parts2: 8 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '2/3 — with 6 parts in the bottom bar, multiply top and bottom by 2.',
+        correctAnswer: '4',
+        geometry: { mode: 'equivalent', parts: 3, shaded: 2, parts2: 6 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '1/2 with 10 parts — how many is half of 10?',
+        correctAnswer: '5',
+        geometry: { mode: 'equivalent', parts: 2, shaded: 1, parts2: 10 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_bar',
+        question: 'Shade the bottom bar to show the same fraction as the top.',
+        hint: '4/5 — with 10 parts, multiply by 2 to keep the same value.',
+        correctAnswer: '8',
+        geometry: { mode: 'equivalent', parts: 5, shaded: 4, parts2: 10 },
+      },
+    ],
+  },
+};
+
+const fractionBuild = {
+  id: 'fraction_build',
+  label: 'Fraction – Build-a-Fraction',
+  unit: {
+    title: 'Fraction – Build-a-Fraction',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 1/2 using the bar below.',
+        hint: 'Set the stepper to 2 equal parts, then shade 1.',
+        correctAnswer: '1/2',
+        geometry: { target: '1/2' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 3/4.',
+        hint: 'You need 4 equal parts total, with 3 shaded.',
+        correctAnswer: '3/4',
+        geometry: { target: '3/4' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 2/3.',
+        hint: '3 equal parts — shade 2 of them.',
+        correctAnswer: '2/3',
+        geometry: { target: '2/3' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 4/5.',
+        hint: '5 parts total, shade 4.',
+        correctAnswer: '4/5',
+        geometry: { target: '4/5' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 3/8.',
+        hint: 'Remember: the bottom number tells you how many parts to make.',
+        correctAnswer: '3/8',
+        geometry: { target: '3/8' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_build',
+        question: 'Build the fraction 5/6.',
+        hint: 'Set 6 equal parts, then shade 5 — almost the whole bar!',
+        correctAnswer: '5/6',
+        geometry: { target: '5/6' },
+      },
+    ],
+  },
+};
+
+const fractionNumberLine_read = {
+  id: 'fraction_number_line_read',
+  label: 'Fraction Number Line – Read',
+  unit: {
+    title: 'Fraction Number Line – Read the Point',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction does the point show?',
+        hint: 'Count the equal spaces between 0 and 1.',
+        correctAnswer: '3/4',
+        geometry: { mode: 'read', denominator: 4, target: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction does the point show?',
+        hint: 'How many spaces is the point from 0? How many spaces total?',
+        correctAnswer: '1/3',
+        geometry: { mode: 'read', denominator: 3, target: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction does the point show?',
+        hint: 'Count carefully — there are 5 equal spaces.',
+        correctAnswer: '2/5',
+        geometry: { mode: 'read', denominator: 5, target: 2 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction does the point show?',
+        hint: 'The line is divided into 8 equal parts.',
+        correctAnswer: '5/8',
+        geometry: { mode: 'read', denominator: 8, target: 5 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction is at the marked point?',
+        hint: '1/2 is right in the middle.',
+        correctAnswer: '1/2',
+        geometry: { mode: 'read', denominator: 2, target: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'What fraction does the point show?',
+        hint: '6 equal spaces — count from 0.',
+        correctAnswer: '5/6',
+        geometry: { mode: 'read', denominator: 6, target: 5 },
+      },
+    ],
+  },
+};
+
+const fractionNumberLine_place = {
+  id: 'fraction_number_line_place',
+  label: 'Fraction Number Line – Place',
+  unit: {
+    title: 'Fraction Number Line – Place the Point',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 1/2 on the number line.',
+        hint: '1/2 is exactly halfway between 0 and 1.',
+        correctAnswer: '1/2',
+        geometry: { mode: 'place', denominator: 2, target: 1 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 3/4 on the number line.',
+        hint: 'Count 3 spaces to the right of 0 out of 4 total.',
+        correctAnswer: '3/4',
+        geometry: { mode: 'place', denominator: 4, target: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 2/3 on the number line.',
+        hint: '2 out of 3 equal spaces from 0.',
+        correctAnswer: '2/3',
+        geometry: { mode: 'place', denominator: 3, target: 2 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 3/8 on the number line.',
+        hint: 'Count 3 spaces out of 8 from the left.',
+        correctAnswer: '3/8',
+        geometry: { mode: 'place', denominator: 8, target: 3 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 4/5 on the number line.',
+        hint: '4 spaces out of 5 — close to 1.',
+        correctAnswer: '4/5',
+        geometry: { mode: 'place', denominator: 5, target: 4 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Place 1/6 on the number line.',
+        hint: 'Very close to 0 — just 1 out of 6 spaces.',
+        correctAnswer: '1/6',
+        geometry: { mode: 'place', denominator: 6, target: 1 },
+      },
+    ],
+  },
+};
+
+const fractionNumberLine_order = {
+  id: 'fraction_number_line_order',
+  label: 'Fraction Number Line – Order',
+  unit: {
+    title: 'Fraction Number Line – Order Fractions',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Tap the fractions in order from smallest to largest.',
+        hint: 'Look at where each fraction falls on the number line.',
+        correctAnswer: '1/4,2/4,3/4',
+        geometry: { mode: 'order', denominator: 4, fractions: [3, 1, 2] },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Tap the fractions in order from smallest to largest.',
+        hint: '1/3 is close to 0; 2/3 is close to 1.',
+        correctAnswer: '1/3,2/3,3/3',
+        geometry: { mode: 'order', denominator: 3, fractions: [2, 3, 1] },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Tap the fractions in order from smallest to largest.',
+        hint: 'There are 5 equal spaces. Which number is furthest right?',
+        correctAnswer: '1/5,3/5,4/5',
+        geometry: { mode: 'order', denominator: 5, fractions: [4, 1, 3] },
+      },
+      {
+        type: 'fill_in', measurementTool: 'fraction_number_line',
+        question: 'Tap the fractions in order from smallest to largest.',
+        hint: '0 is the very start of the number line.',
+        correctAnswer: '0,3/6,1',
+        geometry: { mode: 'order', denominator: 6, fractions: [6, 0, 3] },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
 // Export all sample sets grouped by category
 // ─────────────────────────────────────────────────────────────
 export const SAMPLE_GROUPS = [
@@ -1942,6 +2362,14 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Analog Clock (Enhanced)',
     items: [clock_read, clock_set, clock_estimate, clock_spotMistake],
+  },
+  {
+    title: 'Fraction Bar (Enhanced)',
+    items: [fractionBar_read, fractionBar_shade, fractionBar_compare, fractionBar_equivalent],
+  },
+  {
+    title: 'Fraction – Build & Number Line',
+    items: [fractionBuild, fractionNumberLine_read, fractionNumberLine_place, fractionNumberLine_order],
   },
   {
     title: 'Extras',

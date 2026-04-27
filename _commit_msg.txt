@@ -1,0 +1,41 @@
+feat: Fraction Learning System — full tool suite + UX improvements
+
+New tool renderers:
+- FractionBarRenderer: 4 modes (read, shade, compare, equivalent) with
+  cross-denominator distractors and targeted wrong-answer explanations
+- FractionBuildRenderer: dynamic partitioning, stepper sets denominator,
+  tap segments to shade numerator
+- FractionNumberLineRenderer: 3 modes (read, place, order) with
+  interval counting and ascending-order chip interaction
+
+Scratch pad:
+- ScratchPadModal: floating draw/type notepad accessible from all questions
+  using PanResponder + pure RN Views (no react-native-svg dependency)
+- ScratchPadButton FAB with content-indicator dot wired into QuizScreen
+
+Fraction rendering:
+- FractionText component: inline stacked fraction notation (num/bar/den)
+  replacing slash notation in question text, MC options, hints, and
+  correct-answer reveals; web uses inline-flex, native uses flex-row wrap
+- FillInRenderer: split numerator/denominator input for fraction answers
+  (number-pad keyboard per field, no slash typing required); falls back
+  to text input for mixed numbers and non-fraction answers
+- FillInRenderer: fraction equivalence validation (3/45 accepted for 1/15)
+
+AI / backend fixes:
+- enrich.ts validateSelfContained: added fraction tool RULE 0 overrides
+  and new RULE 0B for complete math expressions with LaTeX notation,
+  preventing Grade 9 computational questions from being dropped by Pass-2
+- index.ts: repairLatexJson() helper fixes unescaped LaTeX backslashes
+  (\frac, \sqrt, \times) before JSON.parse in all three parse sites
+- prompts.ts: added fraction_bar (all 4 modes), fraction_build, and
+  fraction_number_line (3 modes) to SYSTEM_PROMPT and REGEN_SYSTEM_PROMPT
+- index.ts regenerate handler: toolContextLine directives for all new tools
+- ScanScreen: fractionNumberLineMode preserved in regeneration context
+- prompts.ts: fixed unescaped backtick in SYSTEM_PROMPT template literal
+  (caused TypeScript parse error on every deploy)
+
+Docs:
+- TOOLS.md: Tool 7 Fraction Bar documented (4 modes); Tier 3 expansion
+  section added with specs for T3-A through T3-E; T3-A and T3-B marked live
+- CHANGELOG.md: full entry for this session

@@ -404,35 +404,82 @@ A labeled coordinate grid. Student plots a point by tapping, reads the coordinat
 
 ### 7. Fraction Bar
 
-**Status:** Pending Mockup
+**Status:** Built — 4 modes live (`read`, `shade`, `compare`, `equivalent`)
 
 **Description:**
-A horizontal segmented bar split into equal parts. Some parts are shaded. Student identifies the fraction shown, or shades parts to build a stated fraction.
+A horizontal segmented bar split into equal parts. Supports four interaction modes covering fraction reading, shading, comparison, and equivalent-fraction building. In `read` mode a pre-shaded bar is shown and the student picks the correct fraction from auto-generated MC options that deliberately mix same-denominator and cross-denominator distractors to prevent guessing. In `shade` mode the student taps segments to build a target fraction. In `compare` mode two bars are shown side-by-side and the student judges which fraction is larger (or if equal). In `equivalent` mode a static reference bar anchors a target fraction and the student shades a second bar with a different number of parts to show the same value.
 
 **Grade range:** Grades 3–5
 
 **Interaction modes:**
 
-| Mode | What the student does |
-|---|---|
-| `read` | Bar is pre-shaded. Student identifies the fraction. |
-| `shade` | Student taps segments to shade the correct fraction. |
+| Mode | What the student does | Grades |
+|---|---|---|
+| `read` | Pre-shaded bar; pick the correct fraction from 4 MC options (cross-denom distractors included) | 3–4 |
+| `shade` | Target fraction shown as badge; tap segments to shade, then Check | 3–4 |
+| `compare` | Two bars displayed; decide which fraction is greater, or if they're equal | 4–5 |
+| `equivalent` | Static reference bar; shade a second bar (different denominator) to show the same value | 4–5 |
 
-**AI schema:**
+**AI schema** (`measurementTool: "fraction_bar"` on a `fill_in` question):
+
+*read / shade:*
 ```json
 {
-  "toolType": "fraction_bar",
-  "geometry": {
-    "mode": "read",
-    "parts": 4,
-    "shaded": 3
-  }
+  "type": "fill_in", "measurementTool": "fraction_bar",
+  "question": "What fraction of the bar is shaded?",
+  "hint": "Count the shaded parts, then count all the equal parts.",
+  "correctAnswer": "3/4",
+  "geometry": { "mode": "read", "parts": 4, "shaded": 3 }
 }
 ```
+
+*compare:*
+```json
+{
+  "type": "fill_in", "measurementTool": "fraction_bar",
+  "question": "Which fraction is greater?",
+  "hint": "Convert to decimals to compare.",
+  "correctAnswer": "top",
+  "geometry": { "mode": "compare", "parts": 4, "shaded": 3, "parts2": 3, "shaded2": 2 }
+}
+```
+
+*equivalent:*
+```json
+{
+  "type": "fill_in", "measurementTool": "fraction_bar",
+  "question": "Shade the bottom bar to show the same fraction as the top bar.",
+  "hint": "1/2 means half — how many of 4 parts equal half?",
+  "correctAnswer": "2",
+  "geometry": { "mode": "equivalent", "parts": 2, "shaded": 1, "parts2": 4 }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `geometry.mode` | string | Yes | `"read"` \| `"shade"` \| `"compare"` \| `"equivalent"` |
+| `geometry.parts` | number | Yes | Denominator of primary bar (2–10) |
+| `geometry.shaded` | number | Yes | Numerator of primary bar; must be ≥ 1 and < parts |
+| `geometry.parts2` | number | compare/equivalent | Denominator of second bar |
+| `geometry.shaded2` | number | compare only | Numerator of second bar |
+| `correctAnswer` | string | Yes | Fraction `"N/D"` (read) · shaded count (shade/equivalent) · `"top"\|"bottom"\|"equal"` (compare) |
+
+**Validation model:**
+- `read`: client builds 4 MC options with `buildReadOptions(parts, shaded)` — 1 cross-denom distractor + 1 same-denom distractor + 1 common-fraction fallback; correct = `shaded/parts`
+- `shade`: correct if `tapped.size === geometry.shaded` (any segment combination accepted)
+- `compare`: correct answer computed client-side (`shaded/parts` vs `shaded2/parts2`); AI `correctAnswer` is used as a secondary check
+- `equivalent`: target = `Math.round((shaded/parts) × parts2)`; correct if `tapped.size === target`
 
 **Fallback:** `multiple_choice` — "What fraction of the bar is shaded?"
 
 **Mockup:** *Waiting for designer mockup.*
+
+**Build notes:**
+- Bar rendered as `flexDirection:'row'` with `flex:1` segments; first/last get corner radius; gap via `marginLeft/marginRight: SEG_GAP/2`
+- `compare` mode uses per-bar color theming (blue top / pink bottom) so students can tell them apart
+- `equivalent` uses a vertical "=" connector between the two bars; live fraction label on the interactive bar updates as segments are tapped
+- MC options in `read` mode rendered as stacked fraction notation (numerator / line / denominator) not plain text
+- Segment colors: unshaded `#1e293b`, shaded `#4ade80` (green), compare-top `#60a5fa` (blue), compare-bottom `#f472b6` (pink); correct feedback `#22c55e`, wrong `#ef4444`
 
 ---
 
@@ -507,6 +554,211 @@ A horizontal timeline with labeled events. Student orders events by dragging, or
 **Fallback:** `ordering` — event labels as chips to order.
 
 **Mockup:** *Waiting for designer mockup.*
+
+---
+
+---
+
+## Tier 3 — Fraction Learning System Expansion (Specced, Not Yet Built)
+
+The tools below extend the Fraction Bar into a complete fraction strand. They share the same `measurementTool` field convention and the same renderer dispatch in `QuizScreen.js`.
+
+---
+
+### T3-A. Fraction Number Line
+
+**Status:** Built — 3 modes live (`read`, `place`, `order`)
+
+**Description:**
+A number-line ruler from 0 to 1 (or 0 to 2 for mixed-number practice). A draggable point or a set of tick-mark labels asks the student to place a fraction at the correct position, or identify a fraction shown at a marked position.
+
+**Grade range:** Grades 3–5
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `place` | Student drags a point to the correct position on the line |
+| `read` | A point is placed; student picks the correct fraction from 4 MC options |
+| `order` | 3–4 fraction chips are placed; student drags them into ascending order |
+
+**AI schema:**
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "fraction_number_line",
+  "question": "Place 3/4 on the number line.",
+  "correctAnswer": "0.75",
+  "geometry": {
+    "mode": "place",
+    "min": 0, "max": 1,
+    "denominator": 4,
+    "target": 3
+  }
+}
+```
+
+**Validation model:**
+- `place`: student's drag position within ±(0.5/denominator) of target decimal is correct
+- `read`: auto-generated MC options at same-denominator neighbors + cross-denominator distractors (mirrors Fraction Bar read mode)
+- `order`: correct if all chips sorted ascending by decimal value
+
+**Build notes:**
+- Render as a horizontal `View` with tick marks at each `1/denominator` interval
+- Draggable point uses `PanResponder` or `react-native-gesture-handler`; snaps to nearest tick
+- Tick labels shown below line; fraction label above draggable point updates live as it moves
+
+---
+
+### T3-B. Build-a-Fraction (Dynamic Partitioning)
+
+**Status:** Built — `build` mode live
+
+**Description:**
+A blank bar (or circle) with no partitions. The student first sets the total number of parts by tapping +/− buttons (denominator), then taps segments to shade (numerator). This inverts the fraction bar workflow — the student must construct both the denominator and the numerator.
+
+**Grade range:** Grades 4–5
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `build` | Given a target fraction, set total parts and shade the correct count |
+| `free_build` | No target — student builds any fraction; question asks them to name it afterwards |
+
+**AI schema:**
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "fraction_build",
+  "question": "Build the fraction 2/5 using the bar below.",
+  "hint": "Set the bar to 5 equal parts, then shade 2.",
+  "correctAnswer": "2/5",
+  "geometry": {
+    "mode": "build",
+    "target": "2/5"
+  }
+}
+```
+
+**Validation model:**
+- `build`: correct if `tapped.size === numerator` AND `parts === denominator`
+- `free_build`: student types their answer; accepted if matches any reduced form or equivalent fraction
+
+**Build notes:**
+- Parts picker: stepper component (−/+ buttons) capped at 2–12
+- Bar re-renders when parts change; tapped set resets when denominator changes
+- Color: same palette as Fraction Bar; stacked fraction label badge updates live
+
+---
+
+### T3-C. Mixed Representation Match
+
+**Status:** Specced — Not Built
+
+**Description:**
+Three representations of the same fraction — a fraction bar, a number-line point, and a fraction notation label — are shown out of sync. The student matches them or identifies the odd one out.
+
+**Grade range:** Grades 4–6
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `match` | Three cards shown; student taps them in matched groups |
+| `odd_one_out` | One card shows a different fraction; student finds the impostor |
+
+**AI schema:**
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "fraction_match",
+  "question": "Which of these does NOT show 3/4?",
+  "correctAnswer": "C",
+  "geometry": {
+    "mode": "odd_one_out",
+    "target": "3/4",
+    "cards": [
+      { "id": "A", "type": "bar",    "parts": 4, "shaded": 3 },
+      { "id": "B", "type": "label",  "value": "3/4" },
+      { "id": "C", "type": "bar",    "parts": 4, "shaded": 1 }
+    ]
+  }
+}
+```
+
+**Validation model:** `correctAnswer` is the card `id` of the odd-one-out.
+
+---
+
+### T3-D. Improper Fractions & Mixed Numbers
+
+**Status:** Specced — Not Built
+
+**Description:**
+Extends the Fraction Bar to values > 1 by rendering multiple bars side-by-side (e.g., two bars of 3 parts each = 7/3 = 2⅓). Supports converting between improper fractions and mixed numbers.
+
+**Grade range:** Grades 5–6
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `read_improper` | Multi-bar shown; student identifies the improper fraction |
+| `convert` | An improper fraction given; student shades bars to match, or types the mixed number |
+
+**AI schema:**
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "fraction_improper",
+  "question": "What improper fraction is shown?",
+  "correctAnswer": "7/3",
+  "geometry": {
+    "mode": "read_improper",
+    "parts": 3,
+    "bars": 2,
+    "shadedInLast": 1
+  }
+}
+```
+
+**Validation model:** correct if student's input equals `correctAnswer` or any equivalent form.
+
+---
+
+### T3-E. Decimal ↔ Fraction Bridge
+
+**Status:** Specced — Not Built
+
+**Description:**
+Shows a fraction bar with a shaded region. Below it, a decimal display reads "0.___". Student drags a slider or taps to set the decimal value that matches the fraction, or vice versa.
+
+**Grade range:** Grades 5–6
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `fraction_to_decimal` | Fraction bar shown; student enters or selects the decimal |
+| `decimal_to_fraction` | Decimal shown on a number strip; student sets bar shading to match |
+
+**AI schema:**
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "fraction_decimal_bridge",
+  "question": "What decimal does the bar show?",
+  "correctAnswer": "0.75",
+  "geometry": {
+    "mode": "fraction_to_decimal",
+    "parts": 4,
+    "shaded": 3
+  }
+}
+```
+
+**Validation model:** accepted if `Math.abs(parseFloat(studentAnswer) - correctValue) < 0.005`.
 
 ---
 

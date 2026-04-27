@@ -25,6 +25,7 @@ import { OPTION_LETTERS, TYPE_LABELS, getStars, shuffleNoConsecutiveDupes } from
 import ContextCard    from '../renderers/shared/ContextCard';
 import GeometryDisplay from '../renderers/shared/GeometryDisplay';
 import { mdStyles, mdStylesVisual } from '../renderers/shared/markdownStyles';
+import FractionText   from '../components/FractionText';
 
 // Tool renderers (Enhanced Questions)
 import ProtractorRenderer     from '../renderers/tools/ProtractorRenderer';
@@ -33,6 +34,10 @@ import ClockRenderer          from '../renderers/tools/ClockRenderer';
 import NumberLineRenderer     from '../renderers/tools/NumberLineRenderer';
 import AngleMatchingRenderer  from '../renderers/tools/AngleMatchingRenderer';
 import CoinRenderer           from '../renderers/tools/CoinRenderer';
+import FractionBarRenderer          from '../renderers/tools/FractionBarRenderer';
+import FractionBuildRenderer        from '../renderers/tools/FractionBuildRenderer';
+import FractionNumberLineRenderer   from '../renderers/tools/FractionNumberLineRenderer';
+import ScratchPadModal, { ScratchPadButton } from '../components/ScratchPadModal';
 
 // Standard renderers
 import FillInRenderer  from '../renderers/standard/FillInRenderer';
@@ -60,6 +65,8 @@ export default function QuizScreen() {
   const [zoomImage, setZoomImage]           = useState(null);
   const [enabledGames, setEnabledGames]     = useState({});
   const [scrollEnabled, setScrollEnabled]   = useState(true);
+  const [scratchVisible, setScratchVisible] = useState(false);
+  const [scratchHasContent, setScratchHasContent] = useState(false);
 
   // Intro phase — shown before Q1 when intro_audio_url is available.
   // liveIntroUrl starts from the nav-param value, then gets updated by a
@@ -332,6 +339,26 @@ export default function QuizScreen() {
         estimate:     'Clock · Estimate',
         spot_mistake: 'Clock · Spot the Mistake',
       }[mode] ?? 'Clock';
+    }
+    if (q.measurementTool === 'fraction_bar') {
+      const mode = q.geometry?.mode ?? 'read';
+      return {
+        read:       'Fraction Bar · Read',
+        shade:      'Fraction Bar · Shade',
+        compare:    'Fraction Bar · Compare',
+        equivalent: 'Fraction Bar · Equivalent',
+      }[mode] ?? 'Fraction Bar';
+    }
+    if (q.measurementTool === 'fraction_build') {
+      return 'Fraction Bar · Build';
+    }
+    if (q.measurementTool === 'fraction_number_line') {
+      const mode = q.geometry?.mode ?? 'read';
+      return {
+        read:  'Fraction Line · Read',
+        place: 'Fraction Line · Place',
+        order: 'Fraction Line · Order',
+      }[mode] ?? 'Fraction Number Line';
     }
     return TYPE_LABELS[qType] ?? null;
   })();
@@ -688,9 +715,18 @@ export default function QuizScreen() {
             )}
             {q.geometry && <GeometryDisplay geometry={q.geometry} />}
 
-            <Markdown style={isVisual ? mdStylesVisual : mdStyles}>
-              {q?.question ?? ''}
-            </Markdown>
+            {/[*_`#>]/.test(q?.question ?? '') ? (
+              <Markdown style={isVisual ? mdStylesVisual : mdStyles}>
+                {q?.question ?? ''}
+              </Markdown>
+            ) : (
+              <FractionText
+                style={isVisual ? mdStylesVisual.body : mdStyles.body}
+                fontSize={isVisual ? 22 : 20}
+              >
+                {q?.question ?? ''}
+              </FractionText>
+            )}
           </Animated.View>
 
           {q.hint && (
@@ -700,7 +736,9 @@ export default function QuizScreen() {
               </TouchableOpacity>
               {hintVisible && (
                 <Animated.View style={[styles.hintCard, { opacity: hintAnim }]}>
-                  <Text style={styles.hintText}>{q.hint}</Text>
+                  <FractionText fontSize={14} color='#fbbf24' style={styles.hintText}>
+                    {q.hint}
+                  </FractionText>
                 </Animated.View>
               )}
             </View>
@@ -714,7 +752,9 @@ export default function QuizScreen() {
                   <View style={mcLetterStyle(i)}>
                     <Text style={styles.letterText}>{OPTION_LETTERS[i]}</Text>
                   </View>
-                  <Text style={mcOptionTextStyle(i)}>{opt}</Text>
+                  <FractionText style={mcOptionTextStyle(i)} fontSize={16}>
+                    {opt}
+                  </FractionText>
                 </TouchableOpacity>
               ))}
             </View>
@@ -726,6 +766,12 @@ export default function QuizScreen() {
             <CoinRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'fill_in' && q.measurementTool === 'clock' ? (
             <ClockRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} setScrollEnabled={setScrollEnabled} />
+          ) : qType === 'fill_in' && q.measurementTool === 'fraction_bar' ? (
+            <FractionBarRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'fraction_build' ? (
+            <FractionBuildRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'fraction_number_line' ? (
+            <FractionNumberLineRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (
@@ -788,6 +834,18 @@ export default function QuizScreen() {
           </TouchableOpacity>
         </Modal>
       )}
+
+      {/* ── Scratch Pad ──────────────────────────────────────── */}
+      <ScratchPadButton
+        onPress={() => setScratchVisible(true)}
+        hasContent={scratchHasContent}
+      />
+      <ScratchPadModal
+        visible={scratchVisible}
+        onClose={() => setScratchVisible(false)}
+        questionKey={currentIndex}
+        onContentChange={setScratchHasContent}
+      />
     </SafeAreaView>
   );
 }

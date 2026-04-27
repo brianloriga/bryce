@@ -185,25 +185,44 @@ export async function validateSelfContained(
 For each question, answer ONE thing: can a child answer it correctly using ONLY what the app shows
 them — with NO access to any worksheet, image, diagram, or external material?
 
-RULE 0 — UNCONDITIONAL OVERRIDE (check this first before anything else):
-If nlMode="count"           → ALWAYS return ok:true. No further checks needed.
-If nlMode="read"            → ALWAYS return ok:true. No further checks needed.
-If measureTool="clock"      → ALWAYS return ok:true. The app renders the full clock face from geometry.
-If measureTool="coin"       → ALWAYS return ok:true. The app renders the coins from geometry.
-If measureTool="protractor" → ALWAYS return ok:true. The app draws the angle from geometry.
-If measureTool="ruler"      → ALWAYS return ok:true. The app draws the ruler from geometry.
+RULE 0 — UNCONDITIONAL OVERRIDE (check these first, before any other rules):
+If nlMode="count"                    → ALWAYS return ok:true.
+If nlMode="read"                     → ALWAYS return ok:true.
+If measureTool="clock"               → ALWAYS return ok:true.
+If measureTool="coin"                → ALWAYS return ok:true.
+If measureTool="protractor"          → ALWAYS return ok:true.
+If measureTool="ruler"               → ALWAYS return ok:true.
+If measureTool="fraction_bar"        → ALWAYS return ok:true.
+If measureTool="fraction_build"      → ALWAYS return ok:true.
+If measureTool="fraction_number_line"→ ALWAYS return ok:true.
+
+RULE 0B — MATH EXPRESSIONS (check after RULE 0, before RULE 1–3):
+If the question text contains a COMPLETE mathematical expression — meaning ALL the numbers,
+fractions, and operations needed to solve it are written directly in the question text —
+ALWAYS return ok:true. The student can answer using only the math in the text.
+
+This includes:
+• Plain fraction notation:  3/4,  19/8,  25/100
+• Mixed numbers:  4 1/2,  6 2/3,  15 1/4
+• LaTeX math embedded in the question text:
+    \\frac{3}{4}   \\sqrt{2}   \\times   \\left(   \\( ... \\)   \\[ ... \\]
+  LaTeX notation is MATHEMATICAL CONTENT embedded in the question, NOT a reference to an
+  external diagram or worksheet. A question like "Convert \\(19\\frac{7}{8}\\) to an improper
+  fraction" is fully self-contained — the value 19 7/8 is right there in the text.
+• Equations and calculations where every operand is stated: "Find the product: -6/5 × 3 + 2¼"
+• Conversion questions where the starting value is given: "Simplify 25/100", "Convert 47/9 to a mixed number"
 
 RULE 1 — place mode (nlMode="place" or nlMode="" ):
   ✅ PASS: question explicitly names a target value — "Place a point at 3/4", "Mark 14", "Where does 0.5 go?"
-  ❌ FAIL: question asks the student to read/identify/count an existing marker or parts
+  ❌ FAIL: question asks the student to read/identify/count an existing marker or parts without naming the value
 
 RULE 2 — other geometry (rulers, angles, protractors):
   hasGeometry=true means the app draws the tool. ✅ PASS.
 
 RULE 3 — no geometry, text-only questions:
   ✅ PASS: answerable from text alone with no external materials
-  ❌ FAIL: references an unseen visual ("this diagram", "the chart", "shown above")
-  ❌ FAIL: ordinal worksheet reference ("the third number line", "the second row")
+  ❌ FAIL: references an unseen visual ("this diagram", "the chart", "shown above", "the figure below")
+  ❌ FAIL: ordinal worksheet reference ("the third number line", "the second row", "question 2b")
 
 Return ONLY a JSON array — one object per input, same order:
 [{"i":0,"ok":true},{"i":1,"ok":false},...]`;

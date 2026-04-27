@@ -17,6 +17,21 @@ import { sanitizeQuestion, sanitizeResponse }  from './sanitize.ts';
 import { enrichNumberLineQuestions, enrichDrawAngleQuestions, validateSelfContained } from './enrich.ts';
 import { MAX_SCANS_PER_DAY, parseJwtUserId }   from './rateLimit.ts';
 
+// Repair unescaped LaTeX backslashes in AI-generated JSON strings so JSON.parse succeeds.
+// GPT often writes \frac{}{} or \( \) inside JSON string values without escaping the backslash.
+// Strategy (two passes):
+//   Pass A: catch clearly invalid escapes like \( \[ \{ \s \c \a \d \e \g \h …
+//   Pass B: catch "looks valid but wrong" escapes \f \t \b \n \r followed by more letters
+//            (e.g. \frac → pass A misses because \f is valid JSON, but \frac is LaTeX)
+function repairLatexJson(raw: string): string {
+  return raw
+    // Pass A: backslash + char that is NOT a valid JSON escape char at all
+    .replace(/\\([^"\\/bfnrtu])/g, '\\\\$1')
+    // Pass B: backslash + valid-looking escape char that is actually part of a LaTeX word
+    //         e.g. \frac, \times, \beta, \newline — recognise by letter immediately after
+    .replace(/\\([bfnrt])(?=[a-zA-Z])/g, '\\\\$1');
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -81,6 +96,34 @@ serve(async (req) => {
         toolContextLine = `\nORIGINAL TOOL: measurementTool="coin", mode="${mode}". ` +
           `You MUST generate a fill_in question with measurementTool:"coin" and geometry.mode:"${mode}". ` +
           `Generate FRESH coin combinations. See MEASUREMENT TOOL REGEN RULES in your instructions.`;
+      } else if (qc?.measurementTool === 'clock') {
+        const mode = qc.clockMode ?? 'read';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="clock", clockMode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"clock" and geometry.clockMode:"${mode}". ` +
+          `Generate FRESH hours and minutes — NEVER reuse the original time. See MEASUREMENT TOOL REGEN RULES in your instructions.`;
+      } else if (qc?.measurementTool === 'fraction_bar') {
+        const mode = qc.fractionBarMode ?? 'read';
+        const modeExtra = mode === 'compare'
+          ? 'Generate FRESH parts/shaded/parts2/shaded2. Compute correctAnswer="top"|"bottom"|"equal" precisely.'
+          : mode === 'equivalent'
+          ? 'Generate FRESH parts/shaded and parts2 (must give a whole-number equivalent). Set correctAnswer=round((shaded/parts)*parts2) as a string.'
+          : 'Generate FRESH parts (2–10) and shaded (1 to parts−1). shaded must be ≥ 1 and < parts.';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="fraction_bar", mode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"fraction_bar" and geometry.mode:"${mode}". ` +
+          `${modeExtra} Use grade-appropriate denominators (2,3,4,5,6,8,10). See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'fraction_build') {
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="fraction_build". ` +
+          `You MUST generate a fill_in question with measurementTool:"fraction_build" and geometry.target="<N>/<D>". ` +
+          `Generate a FRESH target fraction (denominator 2,3,4,5,6,8,10; numerator ≥ 1 and < denominator). ` +
+          `correctAnswer = geometry.target. See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'fraction_number_line') {
+        const mode = qc.fractionNumberLineMode ?? 'read';
+        const modeExtra = mode === 'order'
+          ? 'Generate 3 FRESH distinct tick indices (fractions array). correctAnswer = sorted fraction strings joined with comma.'
+          : 'Generate FRESH denominator (2–8) and target (1 to denominator−1). correctAnswer = fraction string.';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="fraction_number_line", mode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"fraction_number_line" and geometry.mode:"${mode}". ` +
+          `${modeExtra} See MEASUREMENT TOOL REGEN RULES.`;
       }
 
       userContent.push({
@@ -110,7 +153,7 @@ serve(async (req) => {
       const regenContent = regenData.choices?.[0]?.message?.content ?? '';
       const jsonMatch    = regenContent.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('AI did not return valid JSON. Please try again.');
-      const parsed      = JSON.parse(jsonMatch[0]);
+      const parsed      = JSON.parse(repairLatexJson(jsonMatch[0]));
       const sanitizedQ  = sanitizeQuestion(parsed.question ?? parsed);
 
       return new Response(
@@ -262,7 +305,7 @@ serve(async (req) => {
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('AI did not return valid JSON. Please try again.');
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(repairLatexJson(jsonMatch[0]));
 
     // ── Pass 1 logging ────────────────────────────────────────
     if (Array.isArray(parsed.questions)) {
@@ -348,7 +391,7 @@ serve(async (req) => {
             const retryText  = retryData.choices?.[0]?.message?.content ?? '';
             const retryMatch = retryText.match(/\{[\s\S]*\}/);
             if (retryMatch) {
-              const retryParsed = JSON.parse(retryMatch[0]);
+              const retryParsed = JSON.parse(repairLatexJson(retryMatch[0]));
               let retryQs = (retryParsed.questions as Array<Record<string, unknown>> ?? []);
               retryQs = enrichNumberLineQuestions(retryQs);
               retryQs = enrichDrawAngleQuestions(retryQs);
