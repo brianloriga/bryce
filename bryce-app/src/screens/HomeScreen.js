@@ -46,13 +46,13 @@ export default function HomeScreen() {
     }, [isLoggedIn])
   );
 
-  async function loadUnits() {
+  async function loadUnits(kidId = activeKid?.id) {
     if (!isLoggedIn) { setLoading(false); setUnits([]); return; }
     setLoadError(null);
     try {
       const [data, results] = await Promise.all([
-        getCustomUnits(activeKid?.id ?? null),
-        activeKid?.id ? getQuizResultsForKid(activeKid.id) : Promise.resolve([]),
+        getCustomUnits(kidId ?? null),
+        kidId ? getQuizResultsForKid(kidId) : Promise.resolve([]),
       ]);
       setUnits(data);
       const map = {};
@@ -469,8 +469,17 @@ export default function HomeScreen() {
                     key={kid.id}
                     style={[styles.switcherKidBtn, isActive && styles.switcherKidBtnActive]}
                     onPress={async () => {
-                      if (!isActive) await selectKid(kid);
-                      setSwitcherVisible(false);
+                      if (!isActive) {
+                        setUnits([]);
+                        setResultsMap({});
+                        setActiveSubject(null);
+                        setLoading(true);
+                        setSwitcherVisible(false);
+                        await selectKid(kid);
+                        loadUnits(kid.id);
+                      } else {
+                        setSwitcherVisible(false);
+                      }
                     }}
                     activeOpacity={0.8}
                   >
