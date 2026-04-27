@@ -176,17 +176,15 @@ export async function generateAudio(unitId, questions, lessonIntro = null, image
 
 // Regenerates a single question using the same scanned images as context.
 // Returns a replacement question object (same shape as a question in the array).
-export async function regenerateQuestion(base64Images, existingQuestion, isVisual = false) {
+// questionContext — optional extra metadata so the server knows what tool type the original used:
+//   { measurementTool, type, protractorMode, coinMode, rulerSubtype, clockMode }
+export async function regenerateQuestion(base64Images, existingQuestion, isVisual = false, questionContext = {}) {
   const images = Array.isArray(base64Images) ? base64Images : [base64Images];
 
-  const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: {
-      regenerate: true,
-      images,
-      existingQuestion,
-      isVisual,
-    },
-  });
+  const body = { regenerate: true, images, existingQuestion, isVisual };
+  if (questionContext.measurementTool) body.questionContext = questionContext;
+
+  const { data, error } = await supabase.functions.invoke('generate-questions', { body });
 
   if (error) {
     try {

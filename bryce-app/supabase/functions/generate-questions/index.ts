@@ -62,9 +62,30 @@ serve(async (req) => {
       }));
 
       const isVisual = body.isVisual === true;
+
+      // Build a rich context description so GPT knows exactly what tool/type to reproduce
+      const qc = body.questionContext as Record<string, string> | undefined;
+      let toolContextLine = '';
+      if (qc?.measurementTool === 'protractor') {
+        const mode = qc.protractorMode ?? 'read';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="protractor", protractorMode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"protractor" and the SAME protractorMode:"${mode}". ` +
+          `Generate a FRESH random angleDeg (never reuse the original angle). See MEASUREMENT TOOL REGEN RULES in your instructions.`;
+      } else if (qc?.measurementTool === 'ruler') {
+        const sub = qc.rulerSubtype ?? 'endpoint';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="ruler", rulerSubtype="${sub}". ` +
+          `You MUST generate a fill_in question with measurementTool:"ruler" and rulerSubtype:"${sub}" (or omit for endpoint). ` +
+          `Generate a fresh length and color. See MEASUREMENT TOOL REGEN RULES in your instructions.`;
+      } else if (qc?.measurementTool === 'coin') {
+        const mode = qc.coinMode ?? 'count';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="coin", mode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"coin" and geometry.mode:"${mode}". ` +
+          `Generate FRESH coin combinations. See MEASUREMENT TOOL REGEN RULES in your instructions.`;
+      }
+
       userContent.push({
         type: 'text',
-        text: `Original question to replace: "${body.existingQuestion ?? ''}"\n\nGenerate ONE replacement question on the same topic. isVisual: ${isVisual}`,
+        text: `Original question to replace: "${body.existingQuestion ?? ''}"${toolContextLine}\n\nGenerate ONE replacement question on the same topic. isVisual: ${isVisual}`,
       });
 
       const regenResponse = await fetch('https://api.openai.com/v1/chat/completions', {

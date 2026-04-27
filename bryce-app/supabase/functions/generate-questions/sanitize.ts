@@ -98,7 +98,12 @@ export function sanitizeResponse(obj: Record<string, unknown>): Record<string, u
   }
 
   const questions = raw
-    .filter((q) => q.selfContained !== false)
+    .filter((q) => {
+      // Measurement tool questions are always self-contained — the app renders
+      // the full interactive tool from geometry, never the original worksheet.
+      if (q.measurementTool) return true;
+      return q.selfContained !== false;
+    })
     .map(sanitizeQuestion);
 
   console.log(`[generate-questions] title="${obj.title}" raw=${raw.length} kept=${questions.length} dropped=${dropped.length} missingField=${missing.length}`);

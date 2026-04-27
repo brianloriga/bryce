@@ -285,6 +285,14 @@ export default function ScanScreen() {
         images.map(img => img.base64),
         existing.question,
         existing.type === 'visual_mc',
+        {
+          measurementTool:  existing.measurementTool,
+          type:             existing.type,
+          protractorMode:   existing.geometry?.protractorMode,
+          coinMode:         existing.geometry?.mode,
+          rulerSubtype:     existing.rulerSubtype,
+          clockMode:        existing.geometry?.clockMode,
+        },
       );
       setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));
     } catch (err) {

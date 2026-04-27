@@ -174,9 +174,10 @@ export async function validateSelfContained(
   const items = questions.map((q, i) => ({
     i,
     q: String(q.question ?? ''),
-    hasContext:  !!q.context,
-    hasGeometry: !!q.geometry,
-    nlMode: String(q.mode ?? (q.type === 'number_line' ? 'place' : '')),
+    hasContext:    !!q.context,
+    hasGeometry:   !!q.geometry,
+    nlMode:        String(q.mode ?? (q.type === 'number_line' ? 'place' : '')),
+    measureTool:   String(q.measurementTool ?? ''),
   }));
 
   const validationPrompt = `You are a strict quality-control checker for children's educational quiz questions.
@@ -185,9 +186,12 @@ For each question, answer ONE thing: can a child answer it correctly using ONLY 
 them — with NO access to any worksheet, image, diagram, or external material?
 
 RULE 0 — UNCONDITIONAL OVERRIDE (check this first before anything else):
-If nlMode="count" → ALWAYS return ok:true. No further checks needed.
-If nlMode="read"  → ALWAYS return ok:true. No further checks needed.
-The server has already verified geometry, options, and target for these modes.
+If nlMode="count"           → ALWAYS return ok:true. No further checks needed.
+If nlMode="read"            → ALWAYS return ok:true. No further checks needed.
+If measureTool="clock"      → ALWAYS return ok:true. The app renders the full clock face from geometry.
+If measureTool="coin"       → ALWAYS return ok:true. The app renders the coins from geometry.
+If measureTool="protractor" → ALWAYS return ok:true. The app draws the angle from geometry.
+If measureTool="ruler"      → ALWAYS return ok:true. The app draws the ruler from geometry.
 
 RULE 1 — place mode (nlMode="place" or nlMode="" ):
   ✅ PASS: question explicitly names a target value — "Place a point at 3/4", "Mark 14", "Where does 0.5 go?"

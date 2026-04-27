@@ -29,6 +29,7 @@ import { mdStyles, mdStylesVisual } from '../renderers/shared/markdownStyles';
 // Tool renderers (Enhanced Questions)
 import ProtractorRenderer     from '../renderers/tools/ProtractorRenderer';
 import RulerRenderer          from '../renderers/tools/RulerRenderer';
+import ClockRenderer          from '../renderers/tools/ClockRenderer';
 import NumberLineRenderer     from '../renderers/tools/NumberLineRenderer';
 import AngleMatchingRenderer  from '../renderers/tools/AngleMatchingRenderer';
 import CoinRenderer           from '../renderers/tools/CoinRenderer';
@@ -323,6 +324,15 @@ export default function QuizScreen() {
     }
     if (q.type === 'multiple_choice' && q.geometry?.type === 'angle') return 'Angle Type';
     if (q.measurementTool === 'ruler') return 'Ruler';
+    if (q.measurementTool === 'clock') {
+      const mode = q.geometry?.clockMode ?? 'read';
+      return {
+        read:         'Clock · Read',
+        set:          'Clock · Set',
+        estimate:     'Clock · Estimate',
+        spot_mistake: 'Clock · Spot the Mistake',
+      }[mode] ?? 'Clock';
+    }
     return TYPE_LABELS[qType] ?? null;
   })();
 
@@ -714,6 +724,8 @@ export default function QuizScreen() {
             <RulerRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' && q.measurementTool === 'coin' ? (
             <CoinRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
+          ) : qType === 'fill_in' && q.measurementTool === 'clock' ? (
+            <ClockRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (

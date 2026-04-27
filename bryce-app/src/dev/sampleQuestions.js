@@ -1695,6 +1695,205 @@ const mixed_coins = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Analog Clock (Enhanced) — 4 interaction modes
+// ─────────────────────────────────────────────────────────────
+
+export const clock_read = {
+  id: 'clock_read',
+  label: 'Clock – Read',
+  unit: {
+    title: 'Clock: Read the Time',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'What time does the clock show?',
+        hint: 'Look at the short hand (hours) and the long hand (minutes).',
+        correctAnswer: '3:15',
+        acceptedAnswers: ['3:15'],
+        geometry: { hours: 3, minutes: 15, clockMode: 'read' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'What time does the clock show?',
+        hint: 'The long hand at 12 means 0 minutes — that\'s on the hour.',
+        correctAnswer: '7:00',
+        acceptedAnswers: ['7:00'],
+        geometry: { hours: 7, minutes: 0, clockMode: 'read' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'What time does the clock show?',
+        hint: 'The minute hand pointing to 6 means 30 minutes past the hour.',
+        correctAnswer: '2:30',
+        acceptedAnswers: ['2:30'],
+        geometry: { hours: 2, minutes: 30, clockMode: 'read' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'What time does the clock show?',
+        hint: 'Count by 5s from 12 to find the minutes.',
+        correctAnswer: '11:45',
+        acceptedAnswers: ['11:45'],
+        geometry: { hours: 11, minutes: 45, clockMode: 'read' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'What time does the clock show?',
+        hint: 'Each number on the clock is 5 minutes apart.',
+        correctAnswer: '9:20',
+        acceptedAnswers: ['9:20'],
+        geometry: { hours: 9, minutes: 20, clockMode: 'read' },
+      },
+    ],
+  },
+};
+
+export const clock_set = {
+  id: 'clock_set',
+  label: 'Clock – Set the Time',
+  unit: {
+    title: 'Clock: Set the Time',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Use the sliders to show 4:30 on the clock.',
+        hint: 'Half past means 30 minutes — the minute hand points to 6.',
+        correctAnswer: '4:30',
+        geometry: { hours: 4, minutes: 30, clockMode: 'set' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Use the sliders to show 1:00 on the clock.',
+        hint: 'When it\'s exactly on the hour, the minute hand points straight up to 12.',
+        correctAnswer: '1:00',
+        geometry: { hours: 1, minutes: 0, clockMode: 'set' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Use the sliders to show 6:15 on the clock.',
+        hint: 'Quarter past means 15 minutes — the minute hand points to 3.',
+        correctAnswer: '6:15',
+        geometry: { hours: 6, minutes: 15, clockMode: 'set' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Use the sliders to show 10:45 on the clock.',
+        hint: 'Quarter to means 45 minutes — the minute hand points to 9.',
+        correctAnswer: '10:45',
+        geometry: { hours: 10, minutes: 45, clockMode: 'set' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Use the sliders to show 8:10 on the clock.',
+        hint: 'Count by 5s — 1 on the clock face = 5 minutes, 2 = 10 minutes.',
+        correctAnswer: '8:10',
+        geometry: { hours: 8, minutes: 10, clockMode: 'set' },
+      },
+    ],
+  },
+};
+
+export const clock_estimate = {
+  id: 'clock_estimate',
+  label: 'Clock – Estimate the Time',
+  unit: {
+    title: 'Clock: Estimate the Time',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'About what time is shown on the clock?',
+        hint: 'Look at roughly where both hands are pointing.',
+        correctAnswer: '8:45',
+        geometry: { hours: 8, minutes: 47, clockMode: 'estimate' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'About what time is shown on the clock?',
+        hint: 'Is the minute hand closer to 12, 3, 6, or 9?',
+        correctAnswer: '3:00',
+        geometry: { hours: 3, minutes: 4, clockMode: 'estimate' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'About what time is shown on the clock?',
+        hint: 'Think about whether the time is closer to a half hour or the hour.',
+        correctAnswer: '12:15',
+        geometry: { hours: 12, minutes: 13, clockMode: 'estimate' },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'About what time is shown on the clock?',
+        hint: 'The hour hand is just past the number — use that to narrow it down.',
+        correctAnswer: '5:30',
+        geometry: { hours: 5, minutes: 32, clockMode: 'estimate' },
+      },
+    ],
+  },
+};
+
+export const clock_spotMistake = {
+  id: 'clock_spotMistake',
+  label: 'Clock – Spot the Mistake',
+  unit: {
+    title: 'Clock: Spot the Mistake',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Nina says the time is 6:15. Sam says it is 6:45. Who is correct?',
+        hint: 'Look carefully at where the minute hand is pointing.',
+        correctAnswer: 'A',
+        geometry: {
+          hours: 6, minutes: 15, clockMode: 'spot_mistake',
+          claimA: { name: 'Nina', time: '6:15' },
+          claimB: { name: 'Sam',  time: '6:45' },
+          correctClaim: 'A',
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Leo says the time is 3:00. Mia says it is 2:00. Who is correct?',
+        hint: 'The short hand tells you the hour — which number is it closest to?',
+        correctAnswer: 'A',
+        geometry: {
+          hours: 3, minutes: 0, clockMode: 'spot_mistake',
+          claimA: { name: 'Leo', time: '3:00' },
+          claimB: { name: 'Mia', time: '2:00' },
+          correctClaim: 'A',
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Ava says the time is 9:30. Max says it is 9:00. Who is correct?',
+        hint: 'Is the minute hand on the 12 or the 6?',
+        correctAnswer: 'A',
+        geometry: {
+          hours: 9, minutes: 30, clockMode: 'spot_mistake',
+          claimA: { name: 'Ava', time: '9:30' },
+          claimB: { name: 'Max', time: '9:00' },
+          correctClaim: 'A',
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'clock',
+        question: 'Sam says the time is 1:20. Nina says it is 1:25. Who is correct?',
+        hint: 'Count by 5s from 12 to find where the minute hand lands.',
+        correctAnswer: 'A',
+        geometry: {
+          hours: 1, minutes: 20, clockMode: 'spot_mistake',
+          claimA: { name: 'Sam',  time: '1:20' },
+          claimB: { name: 'Nina', time: '1:25' },
+          correctClaim: 'A',
+        },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
 // Export all sample sets grouped by category
 // ─────────────────────────────────────────────────────────────
 export const SAMPLE_GROUPS = [
@@ -1739,6 +1938,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Coin / Money (Enhanced)',
     items: [coin_count, coin_make, coin_estimation, coin_spotMistake, coin_fewest, coin_dollars, coin_standard],
+  },
+  {
+    title: 'Analog Clock (Enhanced)',
+    items: [clock_read, clock_set, clock_estimate, clock_spotMistake],
   },
   {
     title: 'Extras',

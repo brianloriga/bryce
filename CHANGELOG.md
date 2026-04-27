@@ -6,6 +6,73 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### Analog Clock Tool — Initial Shell — 2026-04-27
+
+#### Added — `ClockRenderer.js` (`src/renderers/tools/ClockRenderer.js`)
+
+New interactive renderer for the Analog Clock tool with four modes:
+
+- **`read` mode** — Draws a procedural clock face at a fixed time (`geometry.hours`, `geometry.minutes`). Student types the time in `H:MM` format; input is normalised before matching the `correctAnswer`. Shake animation on invalid input, reveal of correct time on wrong answer.
+- **`set` mode** — Displays a digital target time badge. Student uses two independent sliders (Hour 1–12, Minute 0–55 in 5-min steps) to move both clock hands. Diagnostic feedback distinguishes "hour right, minute wrong" / "minute right, hour wrong" / "both wrong". Slider colours match hand colours (purple = hour, green = minute).
+- **`estimate` mode** — Draws a clock at an imprecise time (e.g. 8:47). Four MC buttons are generated client-side by `buildEstimateOptions()` at 15-minute boundaries; the correct option is the nearest boundary. Reuses `measStyles.estimateGrid` / `estimateBtn` styles from the shared measurement style sheet.
+- **`spot_mistake` mode** — Draws a clock, renders two character claim cards (with avatar images), and an optional "They are both wrong" button. Supports `correctClaim: "A"`, `"B"`, or `"neither"`. Reuses `measStyles.claimRow`, `claimBtn`, `neitherBtn`, and `spotExplanation` from the shared style sheet.
+
+Clock face is drawn entirely in code:
+- `View` circle background with purple glow border
+- 12 hour number labels positioned via `Math.cos/sin` around `HOUR_LABEL_R = 76`
+- `armStyle()` helper from `measurementHelpers.js` draws both hands using the midpoint-rotation trick
+- Center dot `View`; no SVG or image assets required
+
+#### Changed — `QuizScreen.js`
+
+- **Import** — added `ClockRenderer` import
+- **Type badge** — clock questions now display contextual badge: `Clock · Read`, `Clock · Set`, `Clock · Estimate`, `Clock · Spot the Mistake`
+- **Render dispatch** — added `qType === 'fill_in' && q.measurementTool === 'clock'` branch before the generic `FillInRenderer` fallback
+
+#### Changed — `sampleQuestions.js`
+
+Added 4 new sample sets for dev preview:
+- `clock_read` — 5 questions: O'clock, half past, quarter past, quarter to, and a :20 time
+- `clock_set` — 5 questions: 4:30, 1:00, 6:15, 10:45, 8:10
+- `clock_estimate` — 4 questions with imprecise times (8:47, 3:04, 12:13, 5:32)
+- `clock_spotMistake` — 4 questions with Nina/Sam/Leo/Mia/Ava/Max characters
+
+Added **"Analog Clock (Enhanced)"** group to `SAMPLE_GROUPS`.
+
+#### Changed — `TOOLS.md`
+
+Updated Clock entry: status → `Shell Built — AI schema wiring pending`; added full 4-mode spec, field table, avatar name list, validation model, and build notes.
+
+---
+
+### Protractor AI Schema Wiring — 2026-04-27
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/prompts.ts`)
+
+- **`REGEN_SYSTEM_PROMPT` extended** — added a full `MEASUREMENT TOOL REGEN RULES` block covering all three interactive tools:
+  - **Protractor** — documents all 5 modes (`read`, `build`, `align`, `estimate`, `spot_mistake`) with mode-specific angle pools, vertex/ray label rules, flipped orientation rules, `claimA`/`claimB`/`correctClaim` schema for `spot_mistake`, and two worked JSON examples; regenerating a protractor question now always returns a fresh protractor question (never a plain fill_in fallback)
+  - **Ruler** — documents all 4 subtypes (`endpoint`, `offset`, `compare`, `difference`) with geometry shapes
+  - **Coin** — documents all 5 modes (`count`, `make`, `estimation`, `spot_mistake`, `fewest`) with geometry shapes
+
+#### Changed — `generate-questions` Edge Function (`supabase/functions/generate-questions/index.ts`)
+
+- **Regen handler enriched with tool context** — when `body.questionContext` is present, the user message sent to GPT is prefixed with a one-line `ORIGINAL TOOL:` directive naming the `measurementTool` and the mode/subtype; this is appended before the user message and explicitly directs GPT to generate a replacement that preserves the same tool schema; handled for `protractor`, `ruler`, and `coin`
+
+#### Changed — `aiService.js` (`src/services/aiService.js`)
+
+- **`regenerateQuestion(base64Images, existingQuestion, isVisual, questionContext)` — new 4th param**; when `questionContext.measurementTool` is present, the object is forwarded in the request body as `questionContext` so the edge function can build the tool directive; backwards compatible (defaults to `{}`)
+
+#### Changed — `ScanScreen.js` (`src/screens/ScanScreen.js`)
+
+- **`handleRegenerate` passes tool context** — now builds a `questionContext` object from the existing question's `measurementTool`, `type`, `geometry.protractorMode`, `geometry.mode` (coin), and `rulerSubtype` fields and passes it to `regenerateQuestion`; protractor/coin/ruler questions now regenerate as the correct interactive tool type instead of falling back to plain fill_in
+
+#### Changed — `TOOLS.md`
+
+- Protractor status updated from "Shell Built — AI schema wiring pending" to **"Done — shell built, AI schema wired, regen wired"**
+- Build notes updated to document `enrichDrawAngleQuestions` auto-upgrade behaviour and the full regen pipeline
+
+---
+
 ### Lesson Intro Audio & Glassmorphism Intro Screen — 2026-04-24
 
 #### Added — Lesson Intro Audio Pipeline

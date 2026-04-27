@@ -300,6 +300,74 @@ QUESTION TYPE RULES — choose the best type for each question:
    • fill_in (word problem): "A toy costs 75¢. You pay with $1.00. How much change do you get? ___ ¢" correctAnswer:"25"
    • true_false: "A nickel is worth 5 cents. True or False?" correctAnswer:true
 
+3c. ANALOG CLOCK — "type": "fill_in", "measurementTool": "clock"
+   When the scanned worksheet shows analog clock faces that students must read or set:
+   Add "measurementTool": "clock" + a "geometry" object. The app draws its own clock face — the
+   student NEVER sees the original worksheet image.
+
+   CLOCK EXTRACTION RULE — CRITICAL:
+   Look at each clock face in the scanned image. READ the hand positions:
+   • The SHORT hand = hours (1–12)
+   • The LONG hand = minutes (0–59, multiples of 1)
+   Extract the exact hours and minutes you see, then encode them into geometry.
+   Do NOT say "refer to the image" — the app renders the clock from your geometry.
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CLOCK MODES — use the most appropriate mode per question
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   • MODE "read" — App draws a clock at a fixed time. Student types the time in H:MM format.
+     Use for: "What time does the clock show?" / "Write the time shown."
+     geometry: { "hours": <1–12>, "minutes": <0–59>, "clockMode": "read" }
+     correctAnswer = time string e.g. "3:15"
+     acceptedAnswers = [same value, no variants needed]
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","hint":"Look at the short hand for the hour and the long hand for the minutes.","correctAnswer":"3:15","acceptedAnswers":["3:15"],"geometry":{"hours":3,"minutes":15,"clockMode":"read"} }
+
+   • MODE "set" — App shows a target digital time. Student uses sliders to move the hands.
+     Use for: "Show 4:30 on the clock." / "Set the clock to 7:00."
+     geometry: { "hours": <1–12>, "minutes": <0 or multiple of 5>, "clockMode": "set" }
+     correctAnswer = time string e.g. "4:30"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"clock","question":"Use the sliders to show 4:30 on the clock.","hint":"The minute hand should point to the 6 for 30 minutes.","correctAnswer":"4:30","geometry":{"hours":4,"minutes":30,"clockMode":"set"} }
+
+   • MODE "estimate" — App draws a clock at an imprecise time. Student picks from 4 MC options.
+     Use for: "About what time is shown?" estimation questions.
+     The app auto-generates the 4 MC options — you do NOT provide them.
+     geometry: { "hours": <1–12>, "minutes": <1–59, NOT a multiple of 5>, "clockMode": "estimate" }
+     correctAnswer = nearest 5-minute mark as a string (the app will compute this too)
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"clock","question":"About what time is shown on the clock?","hint":"Is the minute hand closer to the 9 or the 10?","correctAnswer":"8:45","geometry":{"hours":8,"minutes":47,"clockMode":"estimate"} }
+
+   • MODE "spot_mistake" — App draws the clock + shows two character claim cards.
+     Student taps the character who read the time correctly.
+     geometry: { "hours": <1–12>, "minutes": <0–59>, "clockMode": "spot_mistake",
+       "claimA": { "name": "<Name>", "time": "<H:MM>" },
+       "claimB": { "name": "<Name>", "time": "<H:MM>" },
+       "correctClaim": "A" | "B" | "neither"
+     }
+     correctAnswer = same as correctClaim
+     AVATARS: nina, sam, mia, leo, ava, max
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"clock","question":"Nina says the time is 6:15. Sam says it is 6:45. Who is correct?","hint":"Look carefully at where the long hand is pointing.","correctAnswer":"A","geometry":{"hours":6,"minutes":15,"clockMode":"spot_mistake","claimA":{"name":"Nina","time":"6:15"},"claimB":{"name":"Sam","time":"6:45"},"correctClaim":"A"} }
+
+   ── CLOCK RULES ──
+   • For "read" worksheets (like "Write the Time"): generate one "read" mode question per clock you see.
+     Extract hours and minutes directly from the clock face image.
+   • Keep minutes accurate to the nearest minute for "read" mode.
+   • For "set" mode: use clean times — on the hour, half past, quarter past, quarter to, or multiples of 5.
+   • NEVER reference the worksheet or say "the clock shown" — the app draws its own clock.
+   • selfContained: always true — the app renders the full clock face.
+
+   CLOCK CONSISTENCY RULE — CRITICAL:
+   When the worksheet is about telling time / analog clocks, use measurementTool:"clock" ONLY.
+   Do NOT mix in ruler, protractor, or coin questions on a clock worksheet.
+
+   ── STANDARD QUESTIONS to mix in alongside clock tool modes (1–2 per scan) ──
+   • multiple_choice: "Which hand on a clock shows the hour?" options:["Short hand","Long hand","Both hands","Neither"], correctIndex:0
+   • true_false: "The minute hand points to 6 when it is half past the hour. True or False?" correctAnswer:true
+   • fill_in (word problem): "School starts at 8:00 and lunch is 3 hours later. What time is lunch?" correctAnswer:"11:00"
+
 4. ORDERING — "type": "ordering"
    - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
    - items: 3–6 things to arrange
@@ -385,14 +453,17 @@ QUESTION TYPE RULES — choose the best type for each question:
 
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
-(examples: an analog clock face to read, a coordinate grid to plot points on, a Venn diagram to fill,
+(examples: a coordinate grid to plot points on, a Venn diagram to fill,
 a calendar, a pictograph you cannot embed, a map you cannot embed), you MUST
 fall back to a regular multiple_choice question about the CONCEPT shown instead. Never produce
 broken JSON, empty geometry objects, or placeholder fields for unsupported renderers.
-NOTE: Coin/money questions ARE supported — use measurementTool:"coin" with the appropriate mode.
-BAD:  { "type": "clock", "question": "What time is shown?", "geometry": {} }  ← unsupported
-GOOD: { "question": "A clock shows the hour hand at 3 and the minute hand at 12. What time is it?",
-        "hint": "...", "options": ["3:00","12:03","3:12","12:15"], "correctIndex": 0 }
+NOTE: The following tool types ARE fully supported — do NOT fall back to MC for these:
+  • Analog clock faces → measurementTool:"clock" (read the hand positions and encode into geometry)
+  • Coin / money diagrams → measurementTool:"coin"
+  • Protractor / angle diagrams → measurementTool:"protractor"
+  • Ruler / length diagrams → measurementTool:"ruler"
+BAD:  { "question": "A clock shows the hour hand at 3 and minute hand at 12. What time is it?", "options": [...] }  ← use clock tool instead
+GOOD: { "type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","correctAnswer":"3:00","geometry":{"hours":3,"minutes":0,"clockMode":"read"} }
 The fallback question must be fully self-contained and answerable from the question text alone.
 
 GEOMETRY RULES (optional, math questions only):
@@ -586,11 +657,101 @@ You will be given an original question and asked to generate ONE replacement que
 Match the SAME question type as the original. Use the correct JSON shape for that type:
 - multiple_choice (no type field): { "question": "...", "hint": "...", "options": ["A","B","C","D"], "correctIndex": 0 }
 - visual_mc: { "type": "visual_mc", "question": "...", "hint": "...", "options": [...], "correctIndex": 0 }
-- fill_in: { "type": "fill_in", "question": "...", "hint": "...", "correctAnswer": "...", "acceptedAnswers": [...] }
+- fill_in (plain math): { "type": "fill_in", "question": "...", "hint": "...", "correctAnswer": "...", "acceptedAnswers": [...] }
+- fill_in with measurementTool — see MEASUREMENT TOOL REGEN RULES below
 - ordering: { "type": "ordering", "question": "...", "hint": "...", "items": [...], "correctOrder": [...] }
 - true_false: { "type": "true_false", "question": "...", "hint": "...", "correctAnswer": true|false }
 - word_bank: { "type": "word_bank", "question": "sentence with ____", "hint": "...", "wordBank": [...], "correctAnswer": "..." }
 - number_line: { "type": "number_line", "question": "Place a point at X on the number line.", "hint": "...", "correctAnswer": "X", "geometry": { "min": 0, "max": 10, "step": 1, "target": X } }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MEASUREMENT TOOL REGEN RULES — CRITICAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+When the user message tells you the original question had a "measurementTool", the replacement
+MUST preserve that tool and schema exactly. NEVER downgrade to a plain fill_in — the student
+needs the interactive tool.
+
+── PROTRACTOR (measurementTool: "protractor") ──────────────────
+The replacement MUST include:
+  "type": "fill_in", "measurementTool": "protractor", and a valid "geometry" object.
+Always match the SAME protractorMode as the original.
+ALWAYS generate a FRESH random angleDeg — NEVER reuse the original angle value.
+ALWAYS generate FRESH random vertex/ray letter triples (pick from: ABC, DEF, GHI, JKL, MNO, PQR, STU, WXY, XYZ).
+Randomly set "flipped": true or false (~50/50). When flipped: true → also add "scaleOrigin": "left".
+For flipped: false → add "scaleOrigin": "right" only for obtuse angles; omit for acute.
+
+Angle value pools:
+  Acute  (< 90°): 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85
+  Obtuse (> 90°): 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155
+  Build  (clean): 30, 45, 60, 75, 90, 105, 120, 135, 150
+
+Mode-specific rules:
+  "read"  — No slider; angle drawn at a fixed position; student reads and types the value.
+            Question: "What is the measure of ∠XYZ? ___ degrees"
+            correctAnswer = angleDeg as string. acceptedAnswers = [angleDeg, angleDeg+"°"].
+
+  "build" — No reference arm; student drags to create the angle.
+            Question: "Draw a X° angle at point P."
+            Pick angleDeg from the build pool. correctAnswer = angleDeg as string.
+
+  "align" — 3-step flow; student estimates, aligns, then types.
+            Question: "What is the measure of ∠XYZ? ___ degrees"
+            correctAnswer = angleDeg as string. acceptedAnswers = [angleDeg, angleDeg+"°"].
+
+  "estimate" — Angle shown without protractor; student picks closest from 4 MC buttons (auto-generated).
+               Question: "About how large is this angle?"
+               correctAnswer = angleDeg as string. App generates MC options automatically.
+
+  "spot_mistake" — Protractor shown; two named characters each claim a different measurement.
+                   One is correct (the real angleDeg); the other is always 180° − angleDeg.
+                   Randomly decide which character (A or B) has the correct answer.
+                   Pick TWO different names from: nina, sam, mia, leo, ava, max
+                   Add to geometry:
+                     "claimA": { "name": "<Name>", "valueDeg": <value> },
+                     "claimB": { "name": "<Name>", "valueDeg": <180-value> },
+                     "correctClaim": "A" | "B"
+                   Question text: "[Name A] says the angle is X°. [Name B] says it's Y°. Who is correct?"
+                   correctAnswer = same as correctClaim ("A" or "B"). No acceptedAnswers needed.
+
+PROTRACTOR EXAMPLES:
+
+read, normal orientation:
+{ "type":"fill_in","measurementTool":"protractor","question":"What is the measure of ∠DEF? ___ degrees","hint":"Look at where the arm crosses the degree scale.","correctAnswer":"75","acceptedAnswers":["75","75°"],"geometry":{"type":"angle","angleDeg":75,"vertex":"E","ray1":"D","ray2":"F","flipped":false,"protractorMode":"read"} }
+
+build, clean angle:
+{ "type":"fill_in","measurementTool":"protractor","question":"Draw a 120° angle at point K.","hint":"120° is obtuse — it opens past the 90° mark.","correctAnswer":"120","acceptedAnswers":["120","120°"],"geometry":{"type":"angle","angleDeg":120,"vertex":"K","ray1":"L","ray2":"M","flipped":false,"protractorMode":"build"} }
+
+align, flipped:
+{ "type":"fill_in","measurementTool":"protractor","question":"What is the measure of ∠PQR? ___ degrees","hint":"Start reading from the 0° on the left side.","correctAnswer":"130","acceptedAnswers":["130","130°"],"geometry":{"type":"angle","angleDeg":130,"vertex":"Q","ray1":"P","ray2":"R","flipped":true,"scaleOrigin":"left","protractorMode":"align"} }
+
+estimate:
+{ "type":"fill_in","measurementTool":"protractor","question":"About how large is this angle?","hint":"Is it smaller or larger than a right angle?","correctAnswer":"65","acceptedAnswers":["65"],"geometry":{"type":"angle","angleDeg":65,"vertex":"S","ray1":"T","ray2":"U","flipped":false,"protractorMode":"estimate"} }
+
+spot_mistake (Nina correct):
+{ "type":"fill_in","measurementTool":"protractor","question":"Nina says the angle is 40°. Leo says it's 140°. Who is correct?","hint":"One of them read the wrong scale — check which side starts at 0°.","correctAnswer":"A","geometry":{"type":"angle","angleDeg":40,"vertex":"G","ray1":"H","ray2":"I","flipped":false,"protractorMode":"spot_mistake","claimA":{"name":"Nina","valueDeg":40},"claimB":{"name":"Leo","valueDeg":140},"correctClaim":"A"} }
+
+── RULER (measurementTool: "ruler") ────────────────────────────
+The replacement MUST include "type": "fill_in", "measurementTool": "ruler", and a valid "geometry" object.
+Match the same rulerSubtype (endpoint / offset / compare / difference) as the original.
+Generate a fresh length, color, and unit — vary the subtype for variety.
+  Endpoint: { "type":"segment","length":<1–10>,"unit":"inch"|"cm","color":"<color>","rulerMax":<ceil(length)+1> }
+  Offset:   { "type":"segment","start":<1–4>,"length":<1–6>,"unit":"...","color":"...","rulerMax":<ceil(start+length)+1> }
+  Compare:  add "bar2": { "length": <different value>, "color": "<color2>" }
+  Difference: same as compare; correctAnswer = absolute difference between bar lengths
+
+── COIN (measurementTool: "coin") ──────────────────────────────
+The replacement MUST include "type": "fill_in", "measurementTool": "coin", and a valid "geometry" object.
+Match the SAME mode (count / make / estimation / spot_mistake / fewest) as the original.
+ALWAYS generate FRESH coin combinations — NEVER copy the original coins.
+Denominations: "penny"(1¢), "nickel"(5¢), "dime"(10¢), "quarter"(25¢), "dollar"($1), "five_dollar"($5), "ten_dollar"($10)
+  count:       geometry: { "mode":"count","coins":[{"denomination":"quarter","count":2},...] }
+               correctAnswer = total cents as string. acceptedAnswers covers formats (e.g. ["80¢","0.80","$0.80"]).
+  make:        geometry: { "mode":"make","target":<cents integer> }; correctAnswer = target as string.
+  estimation:  geometry: { "mode":"estimation","coins":[...] }; correctAnswer = actual cents. App auto-generates MC.
+  spot_mistake: geometry: { "mode":"spot_mistake","coins":[...],"claimA":{"name":"<Name>","valueCents":<n>},"claimB":{"name":"<Name>","valueCents":<n>},"correctClaim":"A"|"B" }
+               correctAnswer = "A" or "B".
+  fewest:      geometry: { "mode":"fewest","target":<cents integer> }; correctAnswer = min coin count (greedy algorithm).
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SELF-CONTAINED RULE: the replacement must be answerable without any external materials. If the original had a "context" reference card, keep an equivalent context in the replacement.
 If a "context" is needed, use this structure: { "type": "grid", "title": "...", "items": [{ "label": "...", "icon": "car|bicycle|paw|book|cash|flask|person|star|grid|...", "value": "..." }] }

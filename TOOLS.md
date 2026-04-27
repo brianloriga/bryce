@@ -75,7 +75,7 @@ Every tool spec must answer these questions before the build starts:
 
 ### 1. Protractor
 
-**Status:** Shell Built — AI schema wiring pending
+**Status:** Done — shell built, AI schema wired, regen wired
 
 **Description:**
 A virtual protractor rendered on screen. The student interacts with it to measure or construct an angle. The tool draws its own angle stimulus (rays from a vertex) so no external image is needed — this is the key difference from the old approach.
@@ -135,7 +135,7 @@ A virtual protractor rendered on screen. The student interacts with it to measur
 
 **Mockup:** ✅ Received — see `ChatGPT Image Apr 22, 2026, 10_11_43 PM (1).png`
 
-**Status:** Shell built — all 5 modes interactive. AI schema wiring pending.
+**Status:** Done — all 5 modes interactive, AI schema wired, regen wired.
 
 **Build notes:**
 - `ProtractorFace` is a shared display-only sub-component used by all modes
@@ -145,6 +145,8 @@ A virtual protractor rendered on screen. The student interacts with it to measur
 - Avatar images live in `assets/child-avatars/`; name lookup is case-insensitive
 - `flipped: true` mirrors all screen angles and reverses the degree scale labels
 - Scale-choice step (which 0° to read from) only shown for obtuse angles or flipped mode
+- `enrichDrawAngleQuestions` (enrich.ts) auto-upgrades any plain `fill_in` "Draw a X° angle" that GPT forgets to tag with a `measurementTool`
+- Regen fully wired: `REGEN_SYSTEM_PROMPT` documents all 5 modes; ScanScreen passes `protractorMode` context; edge function injects it into the user message so regen always returns a proper protractor question
 
 ---
 
@@ -226,10 +228,10 @@ A virtual number line. Depending on mode, the student drags a point to a target 
 
 ### 4. Analog Clock
 
-**Status:** Pending Mockup
+**Status:** Shell Built — AI schema wiring pending
 
 **Description:**
-A procedurally drawn analog clock face. In read mode, the hands are set to a specific time and the student identifies the time. In draw mode, the student drags the hands to show a stated time.
+A procedurally drawn analog clock face (no image assets — pure React Native Views). Four interactive modes: read a fixed clock time, set hands via sliders to show a target time, estimate the approximate time from MC options, or spot which of two characters read the clock correctly.
 
 **Grade range:** Grades 1–3
 
@@ -237,24 +239,58 @@ A procedurally drawn analog clock face. In read mode, the hands are set to a spe
 
 | Mode | What the student does |
 |---|---|
-| `read` | Clock shows a fixed time. Student types or selects the time (e.g. "3:15"). |
-| `draw` | Student drags hour and minute hands to show a stated time. |
+| `read` | Clock shows a fixed time. Student types the time (H:MM format) in a TextInput. |
+| `set` | A digital target time is shown. Student uses two sliders (Hour + Minute) to move the clock hands to match. |
+| `estimate` | Clock shown at an "unclean" time (e.g. 8:47). Student picks the closest time from 4 auto-generated MC buttons. |
+| `spot_mistake` | Clock shown with a fixed time. Two named characters claim different times. Student taps the correct one (or "They are both wrong"). |
 
 **AI schema:**
 ```json
 {
-  "toolType": "clock",
+  "type": "fill_in",
+  "measurementTool": "clock",
+  "question": "What time does the clock show?",
+  "hint": "Look at the short hand for the hour and the long hand for the minutes.",
+  "correctAnswer": "3:15",
+  "acceptedAnswers": ["3:15"],
   "geometry": {
     "hours": 3,
     "minutes": 15,
-    "mode": "read"
+    "clockMode": "read"
   }
 }
 ```
 
-**Fallback:** `multiple_choice` — "What time does the clock show? A) 3:15 B) 3:45 C) 2:15 D) 4:15"
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `hours` | number | Yes | Hour value 1–12 |
+| `minutes` | number | Yes | Minute value 0–59 |
+| `clockMode` | string | Yes | `"read"`, `"set"`, `"estimate"`, or `"spot_mistake"` |
+| `claimA` | object | `spot_mistake` only | `{ "name": "Nina", "time": "6:15" }` |
+| `claimB` | object | `spot_mistake` only | `{ "name": "Sam", "time": "6:45" }` |
+| `correctClaim` | string | `spot_mistake` only | `"A"`, `"B"`, or `"neither"` |
 
-**Mockup:** *Waiting for designer mockup.*
+**Avatar names** available for `spot_mistake`: `nina`, `sam`, `mia`, `leo`, `ava`, `max`
+
+**Validation model:**
+- `read`: typed value normalised to `H:MM`, exact match against `correctAnswer`
+- `set`: current slider position must match `hours` (mod 12) and `minutes` (exact, 5-min steps)
+- `estimate`: client generates 4 options at 15-min boundaries; correct = closest to actual time
+- `spot_mistake`: student's tapped claim must match `correctClaim`
+
+**Fallback:** `multiple_choice` — "What time does the clock show?" with 4 nearby times as options
+
+**Mockup:** ✅ Received — see workspace assets folder (`ClockUImockup-…png`)
+
+**Build notes:**
+- Clock face drawn entirely in code (circle + number labels + armStyle hands + center dot)
+- `armStyle` helper from `measurementHelpers.js` draws both clock hands using the midpoint-rotation trick
+- Hour hand: purple (`#7c3aed`), 52px, thickness 6; Minute hand: green (`#4ade80`), 76px, thickness 3
+- `set` mode uses two separate `useClockSlider` hooks (same stale-closure-safe PanResponder pattern as Protractor)
+  - Hour slider: 12 steps → values 1–12
+  - Minute slider: 12 steps → values 0, 5, 10 … 55 (5-minute intervals)
+- `estimate` options generated client-side via `buildEstimateOptions(hours, minutes)` — AI does not provide options
+- Avatar images shared with ProtractorRenderer: `assets/child-avatars/{name}_avatar.png`
 
 ---
 
