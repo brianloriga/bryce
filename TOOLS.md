@@ -152,28 +152,32 @@ A virtual protractor rendered on screen. The student interacts with it to measur
 
 ### 2. Ruler
 
-**Status:** Pending Redesign
+**Status:** Done — all 4 subtypes live, MC-based pedagogical redesign complete
 
 **Description:**
-A virtual ruler rendered on screen. The student drags a marker to measure a colored bar segment. The tool draws its own bar stimulus so no external image is needed.
+A virtual ruler rendered in code (no image assets). A colored bar sits above the ruler scale. The interaction is fully multiple-choice — no smooth dragging — so the student must read the ruler, not match by feel. This eliminates "hot/cold" trial-and-error solving and requires real interval-counting and subtraction reasoning.
 
-**Grade range:** Grades 1–8 (measurement units)
+**Grade range:** Grades 1–6 (measurement units)
 
 **Interaction modes / subtypes:**
 
-| Subtype | What the student does |
-|---|---|
-| `endpoint` | Bar starts at 0. Student drags to find where the bar ends. |
-| `offset` | Bar starts at a non-zero position. Student measures the *length* (end minus start). |
-| `compare` | Two colored bars shown. Student picks which is longer (3-button multiple choice). |
-| `difference` | Two colored bars shown. Student drags to find the difference in length. |
+| Subtype | What the student does | Grade |
+|---|---|---|
+| `endpoint` | Bar starts at 0. Static display + 4 MC buttons for the length. | 1–3 |
+| `offset` | Bar starts at a non-zero position. Start value labeled. 4 MC buttons — distractors include the endpoint (most common mistake) and the start value. | 2–4 |
+| `compare` | Two colored bars above the same ruler. 3-button tap: left / right / same. | 2–3 |
+| `difference` | Two colored bars with a yellow bracket over the gap. 4 MC buttons — distractor includes the longer bar's full length. | 3–5 |
 
 **AI schema:**
 ```json
 {
-  "toolType": "ruler",
+  "type": "fill_in",
+  "measurementTool": "ruler",
+  "question": "How long is the blue bar?",
+  "hint": "Start at 0 and count the tick marks.",
+  "correctAnswer": "3.5",
+  "rulerSubtype": "endpoint",
   "geometry": {
-    "rulerSubtype": "endpoint",
     "length": 3.5,
     "unit": "inch",
     "color": "blue",
@@ -183,9 +187,130 @@ A virtual ruler rendered on screen. The student drags a marker to measure a colo
 }
 ```
 
+| Field | Type | Notes |
+|---|---|---|
+| `rulerSubtype` | string | `"endpoint"` \| `"offset"` \| `"compare"` \| `"difference"` |
+| `geometry.length` | number | Correct length (or bar1 length for compare/difference) |
+| `geometry.unit` | string | `"inch"` or `"cm"` |
+| `geometry.color` | string | `"red"`, `"blue"`, `"green"`, `"orange"`, `"purple"`, `"yellow"` |
+| `geometry.start` | number | `offset` mode: where the bar starts (e.g. `2.0`); omit for endpoint |
+| `geometry.bar2` | object | `compare`/`difference` modes: `{ "length": 3, "color": "red" }` |
+| `geometry.rulerMax` | number | Optional; renderer auto-calculates from length if omitted |
+
+**Distractor strategy:**
+- `endpoint`: ±1 tick on each side + whole-number trap (student reads the next whole mark)
+- `offset`: endpoint value + start value + ±1 tick (all three real classroom mistakes)
+- `difference`: longer bar's full length + ±1 tick on each side
+
+**v2 Pedagogy upgrades (post-feedback):**
+- **Tick-counting animation**: when the student taps an MC option, a yellow sweep marker moves from 0 → 1 → 2 → … → selected value before feedback is revealed. This replaces visual estimation with explicit interval reasoning.
+- **Offset counting**: the sweep starts at `startVal` and counts the length intervals, reinforcing "count from the start mark, not from 0."
+- **Difference counting**: sweep starts at the shorter bar's end and counts the gap.
+- **Responsive width**: ruler fills 90% of screen width (capped at 360px) so the tool occupies the majority of the screen area.
+- **Animated MC buttons**: each of the 4 options has a distinct color accent (purple/blue/teal/amber); spring scale animation on press gives tactile feedback.
+- **"Explain Why" feedback**: correct feedback shows the counting sequence (e.g. "1 in → 2 in → 3 in → 3½ in ✓"); wrong feedback names the specific mistake ("You read where the bar ends, not its length. Count FROM the start mark.").
+
 **Fallback:** `fill_in` — "How long is the blue bar?" with `correctAnswer: "3.5"`
 
-**Mockup:** *Pending redesign after Protractor is complete.*
+**Mockup:** ✅ Received — see `measuringtools.png`. MC-based redesign complete.
+
+**Build notes:**
+- Bar-above-ruler layout: bar floats at `BAR_TOP=6`, dashed vertical drop-lines connect endpoints to ruler ticks
+- No drag interaction in endpoint/offset/difference modes — entirely MC
+- `compare` mode retains the 3-button choice (left / right / same) — already MC
+- `EndpointMode`: static bar + 4 MC buttons; `endpointHint()` gives targeted per-wrong-answer feedback
+- `OffsetMode`: badge shows start value; MC distractors include endpoint and start value with explanations; `offsetHint()` explains the subtraction
+- `DifferenceMode`: yellow bracket highlights the gap; `diffHint()` explains longer − shorter = difference
+- `inferRulerSubtype` preserves backward compat with questions stored before `rulerSubtype` was saved
+- Styles fully self-contained in `rulerStyles` (no dependency on shared `measStyles`)
+
+---
+
+### 2b. Measuring Cup
+
+**Status:** Done — all 3 modes live (read, fill, compare), AI schema wired, regen wired
+
+**Description:**
+A procedurally drawn measuring cup (pure React Native Views — no image assets). Tick marks at ¼, ½, ¾, and 1 cup are drawn on the right interior wall. Blue liquid fill, optional yellow target line (fill mode), and a pour spout + handle complete the visual. Three interaction modes cover reading a level, calculating how much more to add, and comparing two cups. All modes use 4-button multiple choice — no dragging.
+
+**Grade range:** Grades 1–4 (liquid measurement units)
+
+**Interaction modes:**
+
+| Mode | What the student does | Grade |
+|---|---|---|
+| `read` | Cup shown at a level. Student picks the correct volume from 4 MC options. | 1–3 |
+| `fill` | Cup shown partially filled; yellow line marks the target. Student picks how much MORE to add. Distractors include the target level and the current level. | 2–4 |
+| `compare` | Two cups shown side by side. 3-button choice: left / right / same. | 1–3 |
+
+**AI schema:**
+
+*read:*
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "measuring_cup",
+  "question": "How much liquid is in the cup?",
+  "hint": "Find the line the top of the liquid touches.",
+  "correctAnswer": "½ cup",
+  "geometry": { "mode": "read", "level": 0.5, "unit": "cup" }
+}
+```
+
+*fill:*
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "measuring_cup",
+  "question": "How much more do you need to add to reach the yellow line?",
+  "hint": "Subtract the current amount from the target.",
+  "correctAnswer": "½ cup",
+  "geometry": { "mode": "fill", "currentLevel": 0.25, "targetLevel": 0.75, "unit": "cup" }
+}
+```
+
+*compare:*
+```json
+{
+  "type": "fill_in",
+  "measurementTool": "measuring_cup",
+  "question": "Which cup has more liquid?",
+  "hint": "Compare where the liquid reaches in each cup.",
+  "correctAnswer": "left",
+  "geometry": { "mode": "compare", "level": 0.75, "level2": 0.5, "unit": "cup" }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `geometry.mode` | string | `"read"` \| `"fill"` \| `"compare"` |
+| `geometry.level` | number | One of `0.25`, `0.5`, `0.75`, `1.0` |
+| `geometry.targetLevel` | number | `fill` mode: target (must be > `currentLevel`) |
+| `geometry.currentLevel` | number | `fill` mode: starting fill level |
+| `geometry.level2` | number | `compare` mode: second cup level |
+| `geometry.unit` | string | Always `"cup"` for now |
+| `correctAnswer` | string | Fraction label: `"¼ cup"`, `"½ cup"`, `"¾ cup"`, `"1 cup"` · or `"left"/"right"/"equal"` for compare |
+
+**Distractor strategy:**
+- `read`: other 3 clean tick levels shuffled (all nearby)
+- `fill`: target level + current level + 1 random other level (both real student mistakes)
+- `compare`: no distractors — 3 fixed buttons: left / right / same
+
+**Fallback:** `fill_in` — "How much liquid is in the cup?" with `correctAnswer: "½ cup"`
+
+**Mockup:** ✅ Received — see `measuringtools.png`. Procedural cup design complete.
+
+**Build notes:**
+- Cup body: `80 × 132` px interior; `3px` border wall; `borderRadius: 4`; dark background `#0f172a`
+- Liquid fill: `position: absolute; bottom: 0` with height proportional to level; color `#60a5fa` (blue)
+- Target line: `2.5px` yellow (`#fbbf24`) horizontal bar at `targetLevel * CUP_INNER_H` from bottom
+- Tick marks: `10 × 1.5px` marks on right interior wall at 25% / 50% / 75% / 100% heights
+- Tick labels: positioned absolutely to the right of the cup body at matching heights
+- Handle: right-side arc using `borderTopRightRadius / borderBottomRightRadius` with no left border
+- Pour spout: `8 × 7px` solid rectangle at top-left of cup
+- `TICK_LEVELS` array drives both the visual tick marks and the MC option generation
+- `levelToAnswer(level)` converts `0.5` → `"½ cup"` etc. for answer comparison
+- `buildFillOptions` includes target level and current level as explicit distractors (real student mistakes)
 
 ---
 
@@ -228,7 +353,7 @@ A virtual number line. Depending on mode, the student drags a point to a target 
 
 ### 4. Analog Clock
 
-**Status:** Shell Built — AI schema wiring pending
+**Status:** Done — all 4 modes live, AI schema wired, regen wired
 
 **Description:**
 A procedurally drawn analog clock face (no image assets — pure React Native Views). Four interactive modes: read a fixed clock time, set hands via sliders to show a target time, estimate the approximate time from MC options, or spot which of two characters read the clock correctly.
@@ -296,7 +421,7 @@ A procedurally drawn analog clock face (no image assets — pure React Native Vi
 
 ### 5. Coin / Money
 
-**Status:** Building — Shell complete, AI schema wired
+**Status:** Done — all 5 modes live, AI schema wired, regen wired
 
 **Description:**
 Displays labeled currency images — coins (penny, nickel, dime, quarter) and bills ($1, $5, $10). Depending on the mode, the student counts a displayed set of coins and/or bills, taps currency from a pool to make an exact amount, estimates a total from MC options, spots a counting mistake, or builds an amount using the fewest pieces possible. Currency assets live in `assets/tool-icons/`. For totals ≥ $1.00 the count-mode input shows a `$` prefix with decimal-pad keyboard; for totals under $1.00 it shows a `¢` suffix with number-pad.
@@ -483,12 +608,12 @@ A horizontal segmented bar split into equal parts. Supports four interaction mod
 
 ---
 
-### 8. Bar / Line Chart
+### 8. Bar / Line Chart (Chart Reader)
 
 **Status:** Pending Mockup
 
 **Description:**
-A rendered bar chart or line graph. Student reads a value, compares bars, or identifies a trend.
+A rendered bar chart or line graph built entirely from AI-extracted data. The student reads a specific value, compares bars, or identifies a trend. No external image required — the chart is drawn from the `labels` and `values` arrays the AI extracts from the page. Applicable to Math (data and graphing units), Science (experiment results, weather data, population data), and Social Studies (population charts, historical data).
 
 **Grade range:** Grades 3–8
 
@@ -496,8 +621,9 @@ A rendered bar chart or line graph. Student reads a value, compares bars, or ide
 
 | Mode | What the student does |
 |---|---|
-| `read_value` | Student reads a specific bar or point value. |
-| `compare` | Student identifies the highest, lowest, or difference. |
+| `read_value` | A specific bar or data point is highlighted. Student types or selects its value. |
+| `compare` | Student identifies the highest bar, lowest bar, or the difference between two named bars. |
+| `trend` | Line chart shown. Student picks the correct description of the trend (increasing / decreasing / stays the same). |
 
 **AI schema:**
 ```json
@@ -508,33 +634,57 @@ A rendered bar chart or line graph. Student reads a value, compares bars, or ide
     "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
     "values": [4, 7, 3, 8, 5],
     "yLabel": "Books Read",
+    "xLabel": "Day of Week",
     "mode": "read_value",
-    "targetLabel": "Wed"
+    "targetLabel": "Wed",
+    "unit": "books"
   }
 }
 ```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `chartType` | string | Yes | `"bar"` or `"line"` |
+| `labels` | string[] | Yes | Category labels (x-axis) |
+| `values` | number[] | Yes | Data values (must match length of `labels`) |
+| `yLabel` | string | No | Y-axis label |
+| `xLabel` | string | No | X-axis label |
+| `mode` | string | Yes | `"read_value"`, `"compare"`, or `"trend"` |
+| `targetLabel` | string | `read_value` only | Which bar / point the question asks about |
+| `unit` | string | No | Unit suffix for display (e.g. `"°F"`, `"students"`) |
+
+**Validation model:**
+- `read_value`: correct answer is `values[labels.indexOf(targetLabel)]`; accept ± 0 (exact)
+- `compare`: AI sets `correctAnswer` to the label or difference value; rendered as MC
+- `trend`: rendered as 3-option MC (increasing / decreasing / no change); AI sets `correctAnswer`
 
 **Fallback:** `multiple_choice` — question rephrased around the chart data.
 
 **Mockup:** *Waiting for designer mockup.*
 
+**Build notes:**
+- Chart drawn using React Native `View` flex bars (bar chart) or SVG path (line chart); no third-party charting library
+- Bar chart: bars are proportional to `max(values)`; target bar highlighted in accent color
+- Line chart: points connected with straight segments; dots at each data point
+- Grid lines at 25% / 50% / 75% / 100% of max value for readability
+
 ---
 
-### 9. Timeline
+### 9. Timeline Builder
 
 **Status:** Pending Mockup
 
 **Description:**
-A horizontal timeline with labeled events. Student orders events by dragging, or reads a date/sequence from a pre-built timeline.
+A horizontal timeline with labeled event slots. The AI extracts events and their dates or sequence positions from the scanned page. In `order` mode, event cards are presented in a shuffled chip bank; the student taps each card and places it on the correct numbered slot on the timeline. In `read` mode, a completed timeline is displayed and the student answers a specific question about it (e.g. "Which event happened first?"). Applicable to Social Studies (history sequences), Science (lifecycle steps, scientific method), and Reading (plot sequence for biography units).
 
-**Grade range:** Grades 3–8 (Social Studies, History)
+**Grade range:** Grades 3–8
 
 **Interaction modes:**
 
 | Mode | What the student does |
 |---|---|
-| `read` | Timeline is shown. Student answers a question about it. |
-| `order` | Student drags event cards onto the timeline in correct order. |
+| `order` | Event chips shuffled in a bank below. Student taps a chip then taps its correct slot on the timeline. |
+| `read` | Pre-built timeline displayed. Student answers a MC or fill_in question about a specific event. |
 
 **AI schema:**
 ```json
@@ -543,17 +693,36 @@ A horizontal timeline with labeled events. Student orders events by dragging, or
   "geometry": {
     "mode": "order",
     "events": [
-      { "label": "Declaration of Independence", "year": 1776 },
-      { "label": "Constitution signed", "year": 1787 },
-      { "label": "Bill of Rights ratified", "year": 1791 }
+      { "label": "Declaration of Independence", "year": 1776, "correctIndex": 0 },
+      { "label": "Constitution signed", "year": 1787, "correctIndex": 1 },
+      { "label": "Bill of Rights ratified", "year": 1791, "correctIndex": 2 }
     ]
   }
 }
 ```
 
-**Fallback:** `ordering` — event labels as chips to order.
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"order"` or `"read"` |
+| `events` | array | Yes | Array of event objects |
+| `events[].label` | string | Yes | Short event description (keep under 50 chars) |
+| `events[].year` | number \| null | No | Year or numeric date; `null` for non-dated sequences |
+| `events[].correctIndex` | number | `order` mode | 0-based position in the correct sequence |
+
+**Validation model:**
+- `order`: all events must be placed in slots matching `correctIndex`; partial credit feedback on Check
+- `read`: answered via the standard MC / fill_in answer layer on top of the timeline display
+
+**Fallback:** `ordering` — event labels as chips to sequence.
 
 **Mockup:** *Waiting for designer mockup.*
+
+**Build notes:**
+- Timeline rendered as a horizontal `ScrollView` (for 5+ events) or fixed row (3–4 events)
+- Each slot shows a numbered circle + empty label area; filled slots show the event card in accent color
+- Chip bank below the timeline; chips removed from bank when placed; tap a placed chip to return it
+- `year` field is optional — for non-dated sequences (scientific method steps, story plot) omit it and slots are labeled 1, 2, 3…
+- Maximum recommended events: 8 (above this, `ordering` fallback is preferred)
 
 ---
 
@@ -759,6 +928,571 @@ Shows a fraction bar with a shaded region. Below it, a decimal display reads "0.
 ```
 
 **Validation model:** accepted if `Math.abs(parseFloat(studentAnswer) - correctValue) < 0.005`.
+
+---
+
+---
+
+## Science, Reading & Social Studies Tools
+
+These tools extend the Enhanced Tool Framework beyond Math. They follow the same contract as Math tools: the developer pre-builds the renderer, the AI extracts data into a fixed schema, and a standard fallback is always available.
+
+---
+
+### S1. Classification Sort
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+Two or three labeled columns (buckets). A bank of word or phrase chips below. The student taps a chip and then taps the correct bucket to place it. Covers the most common sorting/categorization concept across all subjects: living vs. non-living, needs vs. wants, fact vs. opinion, solid/liquid/gas, vertebrate/invertebrate, legislative/executive/judicial, and more.
+
+**Grade range:** Grades 2–6 (Science, Social Studies, Reading, Math)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `two_way` | Two labeled buckets; all chips must be placed |
+| `three_way` | Three labeled buckets; all chips must be placed |
+
+**AI schema:**
+```json
+{
+  "toolType": "classification_sort",
+  "geometry": {
+    "mode": "two_way",
+    "categories": [
+      { "label": "Living", "color": "green" },
+      { "label": "Non-Living", "color": "blue" }
+    ],
+    "items": [
+      { "text": "Dog", "correctCategory": "Living" },
+      { "text": "Rock", "correctCategory": "Non-Living" },
+      { "text": "Tree", "correctCategory": "Living" },
+      { "text": "Water", "correctCategory": "Non-Living" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"two_way"` or `"three_way"` |
+| `categories` | array | Yes | 2 or 3 objects with `label` and `color` (`"green"`, `"blue"`, `"orange"`) |
+| `items` | array | Yes | 4–8 chips; each has `text` and `correctCategory` matching a `categories.label` |
+
+**Validation model:**
+- All items must be placed in their `correctCategory` bucket
+- Check button validates on submission; incorrect items are returned to the chip bank with shake animation
+- `correctAnswer` field not used — validation is purely derived from `items[].correctCategory`
+
+**Fallback:** `ordering` (for 2-way) or `multiple_choice` per item.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Chip bank sits below the two/three column layout
+- Tap chip → chip highlights → tap target bucket → chip snaps into bucket with color feedback
+- Tapping a placed chip returns it to the chip bank
+- Category column headers use the `color` field for a top border accent (not background)
+- Items should be kept short (under 25 chars) to fit in chip UI
+
+---
+
+### S2. Cause & Effect Mapper
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+Two columns: **Cause** and **Effect**. A set of chips in each column is shuffled. The student taps a cause chip, then taps its matching effect chip to form a pair. Correct pairs lock together with a connector line. Interaction pattern is identical to `AngleMatchingRenderer` — this is a low-lift build using the same two-column matching architecture.
+
+**Grade range:** Grades 2–6 (Reading, Science, Social Studies)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `match` | Tap a cause → tap its matching effect → pair locks |
+
+**AI schema:**
+```json
+{
+  "toolType": "cause_effect_map",
+  "geometry": {
+    "pairs": [
+      { "cause": "Too much rain", "effect": "Flooding" },
+      { "cause": "No rain for weeks", "effect": "Drought" },
+      { "cause": "Strong winds", "effect": "Trees fall down" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `pairs` | array | Yes | 2–4 pairs; each has `cause` (string) and `effect` (string) |
+
+**Validation model:**
+- Each pair is correct when the student connects the right cause to the right effect
+- Completed pairs shown with a green connector; incorrect pairings shake and reset
+- `correctAnswer` not used — derived from pair matching
+
+**Fallback:** `matching` via `ordering` or two-column `word_bank`.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Adapts the two-column chip selection pattern from `AngleMatchingRenderer.js`
+- Left column: shuffled cause chips. Right column: shuffled effect chips.
+- Tap state: first tap selects a cause (highlighted), second tap on an effect attempts a match
+- 2–4 pairs recommended; above 4, the screen becomes cramped on small devices
+
+---
+
+### S3. Diagram Labeler
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+An image with numbered or lettered pin markers overlaid at specific positions (specified as percentage coordinates). The student taps a pin, a word bank appears, and they select the correct label for that pin. Core use case: science diagrams (plant cell, water cycle, rock layers, human body, solar system, animal anatomy). Can also handle social studies maps when used with the `map` variant.
+
+**Grade range:** Grades 3–8 (Science primarily)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `label` | Tap a pin → word bank appears → select the correct label |
+| `identify` | All pins pre-labeled; one label is missing → student selects from MC options |
+
+**AI schema:**
+```json
+{
+  "toolType": "diagram_label",
+  "geometry": {
+    "mode": "label",
+    "imageUrl": "https://...",
+    "pins": [
+      { "id": "A", "x": 0.45, "y": 0.30, "correctLabel": "Nucleus" },
+      { "id": "B", "x": 0.60, "y": 0.55, "correctLabel": "Cell Wall" },
+      { "id": "C", "x": 0.30, "y": 0.65, "correctLabel": "Chloroplast" }
+    ],
+    "labelBank": ["Nucleus", "Cell Wall", "Chloroplast", "Mitochondria", "Vacuole"]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"label"` or `"identify"` |
+| `imageUrl` | string | Yes | The diagram image URL (from Pexels visual aid or uploaded asset) |
+| `pins` | array | Yes | Array of pin objects with position and correct label |
+| `pins[].id` | string | Yes | Short label shown on the pin button (`"A"`, `"1"`, etc.) |
+| `pins[].x` | number | Yes | Horizontal position as a fraction of image width (0.0–1.0) |
+| `pins[].y` | number | Yes | Vertical position as a fraction of image height (0.0–1.0) |
+| `pins[].correctLabel` | string | Yes | Must match one entry in `labelBank` |
+| `labelBank` | string[] | Yes | All possible labels including distractors; shuffle at render time |
+
+**Validation model:**
+- Each pin is validated independently; correct placements lock in green
+- All pins must be correctly labeled to pass; Check validates all at once
+- `labelBank` should include 1–2 distractors beyond the actual pin count
+
+**Fallback:** `word_bank` — "What is the part labeled A?" as separate questions.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Image rendered in a fixed-aspect-ratio container; pins positioned with `position: 'absolute'` using `left: x * containerWidth` and `top: y * containerHeight`
+- Pin button: circular, numbered, accent-colored; tapped pin shows a word bank overlay
+- Word bank overlay renders as a bottom sheet or popover near the pin
+- Image must be square or 4:3 to avoid layout issues; landscape images constrained to screen width
+- The `imageUrl` field uses the same Pexels visual aid slot already in the question schema — no new storage required
+
+---
+
+### S4. Context Clues Highlighter
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A short passage (2–4 sentences) with one underlined vocabulary word. Specific phrases or sentence fragments within the passage serve as context clues for the word's meaning. The student taps sentence fragments to highlight them. After highlighting, the question transitions to a standard MC or fill_in asking for the word's definition. Targets reading comprehension and vocabulary inference skills.
+
+**Grade range:** Grades 2–6 (Reading / ELA)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `highlight` | Tap sentence fragments (spans) that help define the underlined word, then answer the meaning question |
+
+**AI schema:**
+```json
+{
+  "toolType": "context_clues",
+  "geometry": {
+    "passage": "The enormous elephant, taller than any tree in the yard, lumbered slowly through the gate.",
+    "targetWord": "enormous",
+    "spans": [
+      { "text": "taller than any tree in the yard", "isClue": true },
+      { "text": "lumbered slowly", "isClue": false }
+    ]
+  },
+  "type": "multiple_choice",
+  "question": "What does the word enormous most likely mean?",
+  "options": ["very small", "very large", "very fast", "very old"],
+  "correctIndex": 1
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `passage` | string | Yes | The full passage text (keep under 100 words) |
+| `targetWord` | string | Yes | The vocabulary word to define (displayed underlined in the passage) |
+| `spans` | array | Yes | Passage segments split for tapping; `isClue: true` segments are the correct highlights |
+| After highlighting | — | — | The definition question is answered via the standard MC / fill_in layer |
+
+**Validation model:**
+- Highlighting phase: student must tap at least one `isClue: true` span; extra taps on non-clue spans are neutral
+- Definition phase: validated by standard MC / fill_in logic
+
+**Fallback:** `multiple_choice` — definition question without the highlighting interaction.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Passage rendered as a sequence of `Text` spans; `isClue` spans are tappable
+- Tapped spans get a highlight background; tapped again → de-highlighted
+- `targetWord` rendered with an underline style wherever it appears in the passage
+- After the student taps "Check Clues," the screen transitions (slide) to the definition MC question
+
+---
+
+### S5. Venn Diagram Sorter
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+Two overlapping circles (or three for advanced). A chip bank below. The student taps a chip and then taps its correct region: left only, right only, or the center overlap (shared). Used for compare-and-contrast tasks across Reading, Science, and Social Studies.
+
+**Grade range:** Grades 2–6 (Reading, Science, Social Studies)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `two_circle` | Two overlapping circles with a shared center region; tap chip → tap region |
+| `three_circle` | Three overlapping circles with multiple shared regions (advanced; Grades 5+) |
+
+**AI schema:**
+```json
+{
+  "toolType": "venn_diagram",
+  "geometry": {
+    "mode": "two_circle",
+    "label1": "Frogs",
+    "label2": "Fish",
+    "items": [
+      { "text": "Lives in water", "placement": "both" },
+      { "text": "Has legs", "placement": "left" },
+      { "text": "Has gills", "placement": "right" },
+      { "text": "Cold-blooded", "placement": "both" },
+      { "text": "Lays eggs on land", "placement": "left" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"two_circle"` (start here) or `"three_circle"` |
+| `label1` | string | Yes | Label for the left circle |
+| `label2` | string | Yes | Label for the right circle |
+| `items` | array | Yes | 4–8 chips; each has `text` and `placement`: `"left"`, `"right"`, or `"both"` |
+
+**Validation model:**
+- Each chip validated independently; correct placement locks green
+- All chips must be correctly placed to complete
+
+**Fallback:** `classification_sort` (two-way) or `multiple_choice` per item.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Two overlapping ovals rendered with SVG or `View` with `borderRadius`; overlap region visually distinct
+- Chip bank below the diagram; tap chip → tap region → chip snaps inside the circle region
+- Keep items to 4–6 for the two-circle mode to avoid crowding
+
+---
+
+### S6. Life Cycle Sequencer
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A cyclic wheel (for true cycles: water cycle, butterfly metamorphosis) or a linear chain (for growth sequences: seed to plant, egg to adult). Stage chips are shuffled in a bank; the student taps a chip and then taps the correct numbered slot around the wheel or along the chain.
+
+**Grade range:** Grades 2–5 (Science)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `cycle` | Stages placed around a circular wheel; arrows connect slots clockwise |
+| `chain` | Stages placed in left-to-right linear slots with forward arrows |
+
+**AI schema:**
+```json
+{
+  "toolType": "lifecycle_sequence",
+  "geometry": {
+    "mode": "cycle",
+    "title": "Butterfly Life Cycle",
+    "stages": [
+      { "label": "Egg", "correctIndex": 0, "imageUrl": null },
+      { "label": "Caterpillar", "correctIndex": 1, "imageUrl": null },
+      { "label": "Chrysalis", "correctIndex": 2, "imageUrl": null },
+      { "label": "Butterfly", "correctIndex": 3, "imageUrl": null }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"cycle"` or `"chain"` |
+| `title` | string | No | Displayed above the diagram |
+| `stages` | array | Yes | 3–6 stage objects with `label` and `correctIndex` |
+| `stages[].imageUrl` | string | No | Optional small image per stage (e.g. Pexels photo) |
+
+**Validation model:**
+- All stages must be placed in their `correctIndex` slots to complete
+- `cycle` mode: slots arranged as a clock face (top = index 0, clockwise)
+- `chain` mode: slots arranged left to right
+
+**Fallback:** `ordering` — stage labels as chips to sequence.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- `cycle` mode: slots positioned around a center circle using trigonometry (`sin`/`cos` offset from center)
+- `chain` mode: horizontal `ScrollView` with arrow connectors between slots; same chip-tap-slot interaction
+- Arrows drawn between consecutive slots to reinforce the directional flow
+- Optional `imageUrl` on each stage renders a small square image inside the chip
+
+---
+
+### S7. Map Labeler
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A vector or image-based map with tappable region overlays. The student taps a region and assigns it the correct name from a word bank. Suitable for US states, continents, oceans, world regions, and local geography. Uses the same coordinate-pin overlay system as Diagram Labeler.
+
+**Grade range:** Grades 3–8 (Social Studies)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `label` | Tap an unlabeled region → word bank appears → select the correct name |
+| `locate` | A name is given; student taps the correct region on the map |
+
+**AI schema:**
+```json
+{
+  "toolType": "map_label",
+  "geometry": {
+    "mode": "label",
+    "mapId": "us_regions",
+    "imageUrl": "https://...",
+    "regions": [
+      { "id": "NE", "x": 0.82, "y": 0.18, "correctLabel": "Northeast" },
+      { "id": "SE", "x": 0.75, "y": 0.55, "correctLabel": "Southeast" },
+      { "id": "MW", "x": 0.52, "y": 0.35, "correctLabel": "Midwest" },
+      { "id": "SW", "x": 0.28, "y": 0.60, "correctLabel": "Southwest" },
+      { "id": "W",  "x": 0.12, "y": 0.35, "correctLabel": "West" }
+    ],
+    "labelBank": ["Northeast", "Southeast", "Midwest", "Southwest", "West"]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"label"` or `"locate"` |
+| `mapId` | string | No | Hint for which map image to load; `"us_regions"`, `"continents"`, `"world_oceans"`, etc. |
+| `imageUrl` | string | Yes | The map image URL |
+| `regions` | array | Yes | Same pin format as Diagram Labeler (`id`, `x`, `y`, `correctLabel`) |
+| `labelBank` | string[] | Yes | All region names including any distractors |
+
+**Validation model:**
+- Same pin-validation model as Diagram Labeler
+- `locate` mode: only one pin is active at a time; correct tap highlights in green, wrong tap shakes
+
+**Fallback:** `multiple_choice` — "What region is shown in the highlighted area?"
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Shares the pin-on-image rendering system with Diagram Labeler — build Diagram Labeler first and extract the overlay component as a shared primitive
+- Map images sourced from Pexels (labeled political maps) or bundled as static assets
+- Pin dots styled slightly larger than Diagram Labeler pins for easier tapping on small maps
+
+---
+
+### S8. Main Idea Web
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A graphic organizer with one "Main Idea" box at the top and three "Supporting Detail" boxes below connected by lines. A chip bank contains the correct main idea, three correct details, and 1–2 distractors mixed together. The student drags or taps chips into the correct box. Targets main idea / supporting detail comprehension in Reading.
+
+**Grade range:** Grades 2–5 (Reading / ELA)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `place` | Tap a chip from the bank, then tap the Main Idea or Detail box to place it |
+
+**AI schema:**
+```json
+{
+  "toolType": "main_idea_web",
+  "geometry": {
+    "mainIdea": "Bees are important to the environment.",
+    "details": [
+      "Bees pollinate flowers and crops.",
+      "Without bees, many plants could not reproduce.",
+      "Bees make honey, which many animals eat."
+    ],
+    "distractors": ["Bees can sting people.", "Honey tastes sweet."]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mainIdea` | string | Yes | The correct main idea sentence |
+| `details` | string[] | Yes | Exactly 3 supporting detail sentences |
+| `distractors` | string[] | No | 1–2 sentences that are related but not main idea or details |
+
+**Validation model:**
+- Main Idea box: correct if the `mainIdea` chip is placed there
+- Each Detail box: correct if one of the three `details` chips is placed (any order)
+- Distractors must not be placed (if placed, they're removed with a shake)
+
+**Fallback:** `word_bank` — fill-in using the main idea sentence.
+
+**Mockup:** *Pending.*
+
+---
+
+### S9. Food Chain Builder
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A set of organism chips arranged on screen. The student builds a food chain by tapping a source organism and then tapping a target organism to draw a directional "eats" arrow between them. Correct connections lock with a green arrow; incorrect connections are removed. Tests understanding of producer/consumer/predator/prey relationships.
+
+**Grade range:** Grades 3–6 (Science)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `build` | Tap organism A → tap organism B → arrow drawn from A to B (A is eaten by B) |
+
+**AI schema:**
+```json
+{
+  "toolType": "food_chain",
+  "geometry": {
+    "organisms": [
+      { "id": "grass",  "label": "Grass",     "imageUrl": null },
+      { "id": "rabbit", "label": "Rabbit",    "imageUrl": null },
+      { "id": "fox",    "label": "Fox",        "imageUrl": null },
+      { "id": "eagle",  "label": "Eagle",     "imageUrl": null }
+    ],
+    "connections": [
+      { "from": "grass",  "to": "rabbit" },
+      { "from": "rabbit", "to": "fox" },
+      { "from": "fox",    "to": "eagle" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `organisms` | array | Yes | 3–5 organism objects; optional `imageUrl` for small image chip |
+| `connections` | array | Yes | Correct directed edges; `from` is eaten by `to` |
+
+**Validation model:**
+- All `connections` must be drawn; no extra incorrect connections allowed
+- Correct connections lock green; incorrect connections are removed with a shake after a short delay
+
+**Fallback:** `ordering` — organisms as chips to put in predator-prey order.
+
+**Mockup:** *Pending.*
+
+**Build notes:**
+- Organisms rendered as chips in a 2-column grid; arrows drawn using SVG `<line>` elements over the layout
+- Tap state: first tap selects source (highlighted), second tap on different chip attempts connection
+- Arrow direction: from selected to target, rendered as a line with an arrowhead at the target end
+- Keep to 3–4 organisms initially; 5 creates visual clutter
+
+---
+
+### S10. Parts of Speech Tagger
+
+**Status:** Specced — Pending Mockup
+
+**Description:**
+A sentence displayed word by word as individual tappable chips. The student taps each word and assigns it a grammatical role (noun, verb, adjective, adverb, pronoun) from a role chip bank. Correct words get a color-coded badge. Targets grammar and parts-of-speech recognition in Reading / ELA.
+
+**Grade range:** Grades 2–5 (Reading / ELA)
+
+**Interaction modes:**
+
+| Mode | What the student does |
+|---|---|
+| `tag_all` | All words must be tagged (short sentence, 5–8 words) |
+| `tag_target` | Only underlined target words must be tagged (longer sentences) |
+
+**AI schema:**
+```json
+{
+  "toolType": "word_tag",
+  "geometry": {
+    "mode": "tag_target",
+    "sentence": ["The", "big", "dog", "ran", "quickly", "away"],
+    "tagOptions": ["noun", "verb", "adjective", "adverb"],
+    "targets": [
+      { "index": 2, "correctTag": "noun" },
+      { "index": 3, "correctTag": "verb" },
+      { "index": 4, "correctTag": "adverb" }
+    ]
+  }
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | Yes | `"tag_all"` or `"tag_target"` |
+| `sentence` | string[] | Yes | The sentence as an array of individual word strings |
+| `tagOptions` | string[] | Yes | Available roles to assign (keep to 3–4 options) |
+| `targets` | array | `tag_target` mode | Words that must be tagged; `index` is 0-based position in `sentence` |
+
+**Validation model:**
+- `tag_all`: every word must be tagged correctly
+- `tag_target`: only `targets` words are scored; other words are non-interactive
+- Correct tags lock with a color badge; incorrect tags return to untagged state with a shake
+
+**Fallback:** `multiple_choice` — "What part of speech is the word 'quickly'?"
+
+**Mockup:** *Pending.*
 
 ---
 

@@ -4,7 +4,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   Animated, PanResponder, Image, Keyboard, StyleSheet,
 } from 'react-native';
-import { armStyle } from '../shared/measurementHelpers';
+import Svg, { Circle, Line, Text as SvgText, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { measStyles, SLIDER_W } from '../shared/measurementStyles';
 
 // ── Avatar map (shared with ProtractorRenderer) ───────────────
@@ -18,13 +18,13 @@ const AVATAR_MAP = {
 };
 
 // ── Clock face constants ──────────────────────────────────────
-const CLOCK_SIZE    = 220;
+const CLOCK_SIZE    = 250;
 const CX            = CLOCK_SIZE / 2;
 const CY            = CLOCK_SIZE / 2;
-const CLOCK_R       = 100;
-const HOUR_LABEL_R  = 76;
-const HOUR_HAND_LEN = 52;
-const MIN_HAND_LEN  = 76;
+const CLOCK_R       = 114;
+const HOUR_LABEL_R  = 86;
+const HOUR_HAND_LEN = 60;
+const MIN_HAND_LEN  = 88;
 
 // ── Time helpers ──────────────────────────────────────────────
 // Clock angle: 0° = 12 o'clock, increases clockwise.
@@ -146,56 +146,103 @@ function setDiagnostic(targetH, targetM, currentH, currentM) {
   return `The time should be ${formatTime(targetH, targetM)}. Check both hands.`;
 }
 
-// ── ClockFace ─────────────────────────────────────────────────
-// Draws a procedural analog clock face.
-// hourDeg / minuteDeg: optional overrides (for set mode live preview).
+// ── ClockFace — SVG implementation ────────────────────────────
+// Clock convention: 0° = 12 o'clock, increases clockwise.
+// SVG helpers use sin/cos with this convention directly (y-down coords).
 function ClockFace({ hours, minutes, hourDeg, minuteDeg }) {
   const hDeg = hourDeg   ?? hourAngleDeg(hours, minutes);
   const mDeg = minuteDeg ?? minAngleDeg(minutes);
 
-  // Position 1–12 around the circle
-  const labels = Array.from({ length: 12 }, (_, i) => {
-    const num   = i + 1;
-    const angle = num * 30 * Math.PI / 180 - Math.PI / 2;
-    return {
-      num,
-      x: CX + HOUR_LABEL_R * Math.cos(angle) - 9,
-      y: CY + HOUR_LABEL_R * Math.sin(angle) - 9,
-    };
-  });
-
-  // Cardinal pip marks at 12, 3, 6, 9
-  const pips = [0, 90, 180, 270].map(deg => {
-    const rad  = (deg - 90) * Math.PI / 180;
-    const outerR = CLOCK_R - 3;
-    const innerR = CLOCK_R - 12;
-    return {
-      ox: CX + outerR * Math.cos(rad),
-      oy: CY + outerR * Math.sin(rad),
-      ix: CX + innerR * Math.cos(rad),
-      iy: CY + innerR * Math.sin(rad),
-    };
-  });
+  // Point on clock circle at clock-degree cdeg (0 = top, CW)
+  function ptc(r, cdeg) {
+    const rad = (cdeg * Math.PI) / 180;
+    return { x: CX + r * Math.sin(rad), y: CY - r * Math.cos(rad) };
+  }
 
   return (
-    <View style={clockStyles.face} pointerEvents="none">
-      {/* Clock circle */}
-      <View style={clockStyles.circle} />
+    <Svg
+      width={CLOCK_SIZE} height={CLOCK_SIZE}
+      style={{ alignSelf: 'center', marginVertical: 12 }}
+      pointerEvents="none"
+    >
+      <Defs>
+        <RadialGradient id="faceGrad" cx="50%" cy="40%" rx="55%" ry="55%">
+          <Stop offset="0"   stopColor="#1e293b" stopOpacity="1" />
+          <Stop offset="1"   stopColor="#0a1220" stopOpacity="1" />
+        </RadialGradient>
+      </Defs>
 
-      {/* Hour number labels */}
-      {labels.map(({ num, x, y }) => (
-        <Text key={num} style={[clockStyles.hourLabel, { left: x, top: y }]}>{num}</Text>
-      ))}
+      {/* ── Face ── */}
+      <Circle cx={CX} cy={CY} r={CLOCK_R}     fill="url(#faceGrad)" />
+      <Circle cx={CX} cy={CY} r={CLOCK_R}     fill="none" stroke="#334155" strokeWidth="2" />
+      <Circle cx={CX} cy={CY} r={CLOCK_R - 8} fill="none" stroke="#1e293b" strokeWidth="1" />
 
-      {/* Minute hand (green, longer, thinner) */}
-      <View style={armStyle(CX, CY, MIN_HAND_LEN, clockToArm(mDeg), '#4ade80', 3)} />
+      {/* ── 60 tick marks ── */}
+      {Array.from({ length: 60 }, (_, i) => {
+        const cdeg    = i * 6;
+        const is5min  = i % 5 === 0;
+        const is15min = i % 15 === 0;
+        const tickLen = is15min ? 14 : is5min ? 9 : 5;
+        const outer   = ptc(CLOCK_R - 2, cdeg);
+        const inner   = ptc(CLOCK_R - 2 - tickLen, cdeg);
+        return (
+          <Line
+            key={i}
+            x1={outer.x.toFixed(2)} y1={outer.y.toFixed(2)}
+            x2={inner.x.toFixed(2)} y2={inner.y.toFixed(2)}
+            stroke={is15min ? '#64748b' : is5min ? '#475569' : '#2d3748'}
+            strokeWidth={is15min ? 2.5 : is5min ? 1.5 : 1}
+            strokeLinecap="round"
+          />
+        );
+      })}
 
-      {/* Hour hand (purple, shorter, thicker) */}
-      <View style={armStyle(CX, CY, HOUR_HAND_LEN, clockToArm(hDeg), '#7c3aed', 6)} />
+      {/* ── Hour numbers 1–12 ── */}
+      {Array.from({ length: 12 }, (_, i) => {
+        const num    = i + 1;
+        const { x, y } = ptc(HOUR_LABEL_R, num * 30);
+        return (
+          <SvgText
+            key={num}
+            x={x.toFixed(2)} y={(y + 5).toFixed(2)}
+            textAnchor="middle"
+            fontSize="15" fontWeight="bold" fill="#e2e8f0"
+          >
+            {num}
+          </SvgText>
+        );
+      })}
 
-      {/* Center dot */}
-      <View style={clockStyles.centerDot} />
-    </View>
+      {/* ── Minute hand (green, thin, with tail stub) ── */}
+      {(() => {
+        const tail = ptc(-16, mDeg);
+        const tip  = ptc(MIN_HAND_LEN, mDeg);
+        return (
+          <Line
+            x1={tail.x.toFixed(2)} y1={tail.y.toFixed(2)}
+            x2={tip.x.toFixed(2)}  y2={tip.y.toFixed(2)}
+            stroke="#4ade80" strokeWidth="3" strokeLinecap="round"
+          />
+        );
+      })()}
+
+      {/* ── Hour hand (purple, wide, with tail stub) ── */}
+      {(() => {
+        const tail = ptc(-12, hDeg);
+        const tip  = ptc(HOUR_HAND_LEN, hDeg);
+        return (
+          <Line
+            x1={tail.x.toFixed(2)} y1={tail.y.toFixed(2)}
+            x2={tip.x.toFixed(2)}  y2={tip.y.toFixed(2)}
+            stroke="#7c3aed" strokeWidth="6.5" strokeLinecap="round"
+          />
+        );
+      })()}
+
+      {/* ── Centre cap ── */}
+      <Circle cx={CX} cy={CY} r="8"   fill="#94a3b8" />
+      <Circle cx={CX} cy={CY} r="4.5" fill="#0f172a" />
+    </Svg>
   );
 }
 
@@ -664,27 +711,6 @@ export default function ClockRenderer({ q, onResolve, setScrollEnabled }) {
 const clockStyles = StyleSheet.create({
   modeWrap: {
     alignItems: 'center', paddingBottom: 8,
-  },
-  face: {
-    width: CLOCK_SIZE, height: CLOCK_SIZE,
-    alignSelf: 'center', marginVertical: 12,
-    position: 'relative',
-  },
-  circle: {
-    position: 'absolute',
-    width: CLOCK_SIZE, height: CLOCK_SIZE,
-    borderRadius: CLOCK_SIZE / 2,
-    backgroundColor: '#0f172a',
-    borderWidth: 3, borderColor: '#7c3aed',
-    shadowColor: '#7c3aed',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
-  },
-  hourLabel: {
-    position: 'absolute',
-    width: 18, height: 18,
-    textAlign: 'center', lineHeight: 18,
-    fontSize: 13, fontWeight: '700', color: '#e2e8f0',
   },
   centerDot: {
     position: 'absolute',

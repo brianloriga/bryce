@@ -25,7 +25,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import { View, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
-import { armStyle } from '../shared/measurementHelpers';
+import Svg, { Line, Circle, Path } from 'react-native-svg';
 
 // ── Local shake animation ────────────────────────────────────────────────────
 function useShake() {
@@ -41,9 +41,25 @@ function useShake() {
   return { anim, shake };
 }
 
-// ── MiniAngle — compact angle drawing for each row ──────────────────────────
+// ── MiniAngle — SVG angle drawing for each matching row ─────────────────────
+const MA_SIZE  = 80;   // square canvas
+const MA_CX    = 40;
+const MA_CY    = 40;
+const MA_ARM   = 32;   // arm radius
+const MA_ARC_R = 18;   // arc indicator radius
+
+// Sector arc path for the angle indicator (from 0° to angleDeg, math coords)
+function miniSectorPath(angleDeg) {
+  const toRad = d => (d * Math.PI) / 180;
+  const x1 = MA_CX + MA_ARC_R;                                   // 0° = right
+  const y1 = MA_CY;
+  const x2 = MA_CX + MA_ARC_R * Math.cos(toRad(angleDeg));
+  const y2 = MA_CY - MA_ARC_R * Math.sin(toRad(angleDeg));
+  const large = angleDeg > 180 ? 1 : 0;
+  return `M ${MA_CX},${MA_CY} L ${x1},${y1} A ${MA_ARC_R},${MA_ARC_R} 0 ${large} 0 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+}
+
 function MiniAngle({ angleDeg, isSelected, isCorrect, isWrong }) {
-  const cx = 40, cy = 40, armLen = 32;
   const borderColor = isCorrect  ? '#22c55e'
     : isWrong   ? '#ef4444'
     : isSelected ? '#7c3aed'
@@ -53,34 +69,36 @@ function MiniAngle({ angleDeg, isSelected, isCorrect, isWrong }) {
     : isSelected ? 'rgba(124,58,237,0.12)'
     : '#0f172a';
   const pivotColor = isCorrect ? '#22c55e' : isWrong ? '#ef4444' : '#7c3aed';
-  const armColor   = isSelected ? '#a78bfa' : '#e2e8f0';
+  const rayColor   = isSelected ? '#a78bfa' : '#e2e8f0';
+
+  const toRad = d => (d * Math.PI) / 180;
+  const tipBaseline = { x: MA_CX + MA_ARM,  y: MA_CY };
+  const tipMovable  = {
+    x: MA_CX + MA_ARM * Math.cos(toRad(angleDeg)),
+    y: MA_CY - MA_ARM * Math.sin(toRad(angleDeg)),
+  };
 
   return (
     <View style={[localStyles.miniAngle, { borderColor, backgroundColor: bgColor }]}>
-      {/* Arc dots */}
-      {Array.from({ length: 7 }, (_, i) => {
-        const a = (i / 6) * angleDeg;
-        const r = (a * Math.PI) / 180;
-        return (
-          <View key={i} style={{
-            position: 'absolute',
-            left: cx + 18 * Math.cos(r) - 1.5,
-            top:  cy - 18 * Math.sin(r) - 1.5,
-            width: 3, height: 3, borderRadius: 1.5,
-            backgroundColor: '#64748b',
-          }} />
-        );
-      })}
-      {/* Baseline ray */}
-      <View style={armStyle(cx, cy, armLen, 0, armColor, 2)} />
-      {/* Movable ray */}
-      <View style={armStyle(cx, cy, armLen, angleDeg, armColor, 2)} />
-      {/* Pivot dot */}
-      <View style={{
-        position: 'absolute', left: cx - 4, top: cy - 4,
-        width: 8, height: 8, borderRadius: 4,
-        backgroundColor: pivotColor,
-      }} />
+      <Svg width={MA_SIZE} height={MA_SIZE}>
+        {/* Sector fill */}
+        <Path d={miniSectorPath(angleDeg)} fill="rgba(100,116,139,0.15)" />
+
+        {/* Baseline ray */}
+        <Line
+          x1={MA_CX} y1={MA_CY}
+          x2={tipBaseline.x.toFixed(2)} y2={tipBaseline.y.toFixed(2)}
+          stroke={rayColor} strokeWidth="2" strokeLinecap="round"
+        />
+        {/* Movable ray */}
+        <Line
+          x1={MA_CX} y1={MA_CY}
+          x2={tipMovable.x.toFixed(2)} y2={tipMovable.y.toFixed(2)}
+          stroke={rayColor} strokeWidth="2" strokeLinecap="round"
+        />
+        {/* Pivot dot */}
+        <Circle cx={MA_CX} cy={MA_CY} r="4" fill={pivotColor} />
+      </Svg>
     </View>
   );
 }

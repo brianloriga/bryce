@@ -1,0 +1,41 @@
+---
+description: Dev server management — when and how to restart Expo
+alwaysApply: true
+---
+
+# Dev Server Rule
+
+The user runs the Expo dev server in a persistent Cursor terminal. The agent NEVER starts or kills it directly.
+
+## Normal flow (no restart needed)
+Editing `.js` / `.ts` / `.tsx` files → **Fast Refresh handles it automatically**. Just save; the app updates within seconds.
+
+## When a restart IS required
+Tell the user to stop the server (`Ctrl+C`) and rerun the start command when any of these happen:
+
+| Trigger | Restart command |
+|---|---|
+| New npm/expo package installed | `npx expo start --tunnel --clear` |
+| `app.json` / `app.config.js` changed | `npx expo start --tunnel` |
+| New native module added | `npx expo start --tunnel --clear` |
+| Metro stuck / bundle error won't clear | `npx expo start --tunnel --clear` |
+
+## What the agent must NOT do
+- Run `npx expo start` from the agent shell
+- Kill or `Stop-Process` Metro/node processes
+- Use `netstat` to hunt for port conflicts
+
+## How the agent should communicate restarts
+After installing a package or making a change that needs a reload, always say:
+
+> "Stop your terminal server (`Ctrl+C`) and restart with:
+> ```
+> npx expo start --tunnel --clear
+> ```
+> Then scan the QR code again in Expo Go."
+
+## User's dev server setup
+- App lives in `bryce-app/`
+- Normal start: `cd bryce-app && npx expo start --tunnel`
+- After package installs: add `--clear` flag
+- Web preview appears at the localhost URL shown in the terminal

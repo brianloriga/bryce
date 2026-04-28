@@ -31,6 +31,7 @@ import FractionText   from '../components/FractionText';
 import ProtractorRenderer     from '../renderers/tools/ProtractorRenderer';
 import RulerRenderer          from '../renderers/tools/RulerRenderer';
 import ClockRenderer          from '../renderers/tools/ClockRenderer';
+import MeasuringCupRenderer   from '../renderers/tools/MeasuringCupRenderer';
 import NumberLineRenderer     from '../renderers/tools/NumberLineRenderer';
 import AngleMatchingRenderer  from '../renderers/tools/AngleMatchingRenderer';
 import CoinRenderer           from '../renderers/tools/CoinRenderer';
@@ -359,6 +360,14 @@ export default function QuizScreen() {
         place: 'Fraction Line · Place',
         order: 'Fraction Line · Order',
       }[mode] ?? 'Fraction Number Line';
+    }
+    if (q.measurementTool === 'measuring_cup') {
+      const mode = q.geometry?.mode ?? 'read';
+      return {
+        read:    'Measuring Cup · Read',
+        fill:    'Measuring Cup · Fill',
+        compare: 'Measuring Cup · Compare',
+      }[mode] ?? 'Measuring Cup';
     }
     return TYPE_LABELS[qType] ?? null;
   })();
@@ -772,6 +781,8 @@ export default function QuizScreen() {
             <FractionBuildRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' && q.measurementTool === 'fraction_number_line' ? (
             <FractionNumberLineRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'measuring_cup' ? (
+            <MeasuringCupRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (

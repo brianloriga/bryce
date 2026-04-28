@@ -4,7 +4,11 @@ import {
   View, Text, TextInput, TouchableOpacity,
   Animated, PanResponder, Image, Keyboard,
 } from 'react-native';
-import { armStyle, AngleStimulus } from '../shared/measurementHelpers';
+import Svg, {
+  Path, Line, Circle, Rect,
+  Text as SvgText, Defs, LinearGradient, Stop,
+} from 'react-native-svg';
+import { AngleStimulus } from '../shared/measurementHelpers';
 import {
   measStyles, PROT_R, PROT_CX, PROT_CY, SLIDER_W,
 } from '../shared/measurementStyles';
@@ -95,223 +99,288 @@ function useShake() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ProtractorFace — redesigned with dual scale, filled sector, and clear labels.
+// ProtractorFace — SVG implementation.
 //
-// Visual design:
-//  • Filled blue sector from vertex to arc shows the measured angle at a glance.
-//  • Inner arc ring creates a "label belt" region for the degree numbers.
-//  • Primary scale (every 10°, bold at 30° multiples) sits near the outer arc.
-//  • Secondary scale (30°/60°/90°/120°/150° only) sits on the inner ring so
-//    students see both reading directions clearly.
-//  • Ray labels (A, B, C) are positioned 44 px beyond the arc — well clear of
-//    the degree numbers — with overflow: visible so nothing gets clipped.
+// Fixes over v1:
+//  • Larger canvas (310 × 200) so the arc fills more screen width.
+//  • Semi-disc face background — labels are legible against the dark fill.
+//  • Solid sector fill (28 % opacity) — clearly visible.
+//  • 0° / 180° labels pushed above the baseline so they don't sit on the line.
+//  • Badge Y is clamped so it never overflows the canvas top.
+//  • Tick colours follow a 3-tier contrast hierarchy.
 // ─────────────────────────────────────────────────────────────────────────────
+
+const SVG_W  = 310;
+const SVG_H  = 200;
+const SVG_CX = 155;   // horizontal centre of canvas
+const SVG_CY = 160;   // baseline y — leaves ~40 px below for vertex label
+const SVG_R  = 132;   // arc radius (larger than the old PROT_R = 108)
+
+// Point on circle of radius r at screen degree deg (0 = right, CCW positive).
+function pt(cx, cy, r, deg) {
+  const rad = (deg * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy - r * Math.sin(rad) };
+}
+
+// Pie-slice sector: M center L arcStart A ... arcEnd Z
+//
+// Sweep direction rules (SVG y-axis points DOWN):
+//   • Face / arc paths start from the LEFT endpoint → sweep-flag=1 (CW) → goes upward ✓
+//   • Sector starts from a point on the RIGHT half (low degree) and sweeps toward the
+//     LEFT half (high degree).  From the right side, sweep-flag=0 (CCW in SVG) goes
+//     UPWARD through the top semicircle.  sweep-flag=1 would go downward — wrong.
+function sectorPath(cx, cy, r, startDeg, endDeg) {
+  const lo    = Math.min(startDeg, endDeg);
+  const hi    = Math.max(startDeg, endDeg);
+  const p1    = pt(cx, cy, r, lo);
+  const p2    = pt(cx, cy, r, hi);
+  const large = (hi - lo) > 180 ? 1 : 0;
+  // sweep-flag=0: CCW in SVG from the right-side start = travels upward ✓
+  return (
+    `M ${cx},${cy} ` +
+    `L ${p1.x.toFixed(2)},${p1.y.toFixed(2)} ` +
+    `A ${r},${r} 0 ${large} 0 ${p2.x.toFixed(2)},${p2.y.toFixed(2)} Z`
+  );
+}
+
 function ProtractorFace({
   refAngle,
   movableAngle,
-  isFlipped     = false,
-  showRefArm    = true,
-  showMovable   = true,
-  armColor      = '#7c3aed',
+  isFlipped   = false,
+  showRefArm  = true,
+  showMovable = true,
+  armColor    = '#7c3aed',
   geo,
-  showReadout   = false,
-  readoutText   = '',
+  showReadout = false,
+  readoutText = '',
 }) {
-  const cx = PROT_CX, cy = PROT_CY;
-  const baselineScreenDeg = isFlipped ? 180 : 0;
-  const refArmScreenDeg   = isFlipped ? 180 - refAngle   : refAngle;
-  const movableScreenDeg  = isFlipped ? 180 - movableAngle : movableAngle;
+  const cx = SVG_CX, cy = SVG_CY, R = SVG_R;
 
-  // Filled sector — shade the active angle area
-  const fillAngle = showRefArm ? refAngle : (showMovable ? movableAngle : 0);
-  const fillCount = Math.ceil(fillAngle / 2) + 1;
+  // Screen-space degrees (0 = right, CCW positive)
+  const baselineDeg = isFlipped ? 180 : 0;
+  const refDeg      = isFlipped ? 180 - refAngle     : refAngle;
+  const movDeg      = isFlipped ? 180 - movableAngle : movableAngle;
 
-  // Ray labels — positioned beyond the arc, clearly outside degree numbers
-  const rayLabelDist = PROT_R + 44;
-  const refArmRad   = (refArmScreenDeg   * Math.PI) / 180;
-  const baselineRad = (baselineScreenDeg * Math.PI) / 180;
-  const refTipX = cx + rayLabelDist * Math.cos(refArmRad);
-  const refTipY = cy - rayLabelDist * Math.sin(refArmRad);
-  const r0TipX  = cx + rayLabelDist * Math.cos(baselineRad);
-  const r0TipY  = cy - rayLabelDist * Math.sin(baselineRad);
+  // Sector: from baseline toward the active arm
+  const fillAngle   = showRefArm ? refAngle : showMovable ? movableAngle : 0;
+  const sectorStart = isFlipped ? 180 - fillAngle : 0;
+  const sectorEnd   = isFlipped ? 180             : fillAngle;
 
-  // Movable arm pip + floating label — show exact position at arc edge
-  const movableRad   = (movableScreenDeg * Math.PI) / 180;
-  const pipX         = cx + PROT_R * Math.cos(movableRad);
-  const pipY         = cy - PROT_R * Math.sin(movableRad);
-  const floatLabelR  = PROT_R + 19;
-  const floatLabelX  = cx + floatLabelR * Math.cos(movableRad) - 18;
-  const floatLabelY  = cy - floatLabelR * Math.sin(movableRad) - 9;
+  // Arc dots near vertex (angle indicator)
+  const dotCount = Math.round(refAngle / 3);
+  const arcDots  = showRefArm
+    ? Array.from({ length: dotCount }, (_, i) => {
+        const t   = dotCount > 0 ? i / dotCount : 0;
+        const deg = isFlipped ? baselineDeg - t * refAngle : t * refAngle;
+        return { ...pt(cx, cy, 40, deg), key: i };
+      })
+    : [];
+
+  // Movable arm pip + floating badge
+  const movPt  = pt(cx, cy, R, movDeg);
+  // Badge: keep Y at least 14 px from the top of the canvas so it doesn't overflow
+  const rawBadgePt = pt(cx, cy, R + 24, movDeg);
+  const badgeX     = rawBadgePt.x - 19;
+  const badgeY     = Math.max(8, rawBadgePt.y - 9);
+
+  // Ray label endpoints (beyond arc)
+  const rayDist   = R + 46;
+  const refRayPt  = pt(cx, cy, rayDist, refDeg);
+  const baseRayPt = pt(cx, cy, rayDist, baselineDeg);
+
+  // For labels at 0° and 180° the computed y equals cy (on the baseline).
+  // Push them 14 px above the baseline so they sit cleanly on the face.
+  function labelY(markDeg, rawY) {
+    return (markDeg === 0 || markDeg === 180) ? cy - 14 : rawY + 4;
+  }
 
   return (
-    <View style={measStyles.protContainer}>
+    <View style={[measStyles.protContainer, { width: SVG_W, height: SVG_H }]}>
+      <Svg width={SVG_W} height={SVG_H} overflow="visible">
 
-      {/* ── 1. Filled angle sector (blue tint from vertex to arc edge) ── */}
-      {fillAngle > 0 && Array.from({ length: fillCount }, (_, i) => {
-        const t   = fillCount > 1 ? i / (fillCount - 1) : 0;
-        const deg = isFlipped ? 180 - t * fillAngle : t * fillAngle;
-        return (
-          <View key={`fill${i}`} style={armStyle(cx, cy, PROT_R - 4, deg, 'rgba(96,165,250,0.11)', 4)} />
-        );
-      })}
+        {/* ── 0. Semi-disc face background ── */}
+        {/* sweep-flag=1 (CW from left) takes the TOP arc, not the bottom */}
+        <Path
+          d={`M ${cx - R},${cy} A ${R},${R} 0 0 1 ${cx + R},${cy} Z`}
+          fill="#1a2535"
+        />
 
-      {/* ── 2. Inner arc ring — defines the label belt visually ── */}
-      <View style={{
-        position: 'absolute',
-        left: cx - (PROT_R - 28), top: cy - (PROT_R - 28),
-        width: (PROT_R - 28) * 2, height: PROT_R - 28,
-        borderTopLeftRadius: PROT_R - 28, borderTopRightRadius: PROT_R - 28,
-        borderWidth: 0.75, borderBottomWidth: 0, borderColor: '#2d3a4a',
-        backgroundColor: 'transparent',
-      }} />
-
-      {/* ── 3. Outer arc ── */}
-      <View style={[measStyles.protArc, { left: cx - PROT_R, top: cy - PROT_R }]} />
-
-      {/* ── 4. Baseline bar ── */}
-      <View style={{
-        position: 'absolute',
-        left: cx - PROT_R - 8, top: cy - 1,
-        width: PROT_R * 2 + 16, height: 1.5,
-        backgroundColor: '#475569',
-      }} />
-
-      {/* ── 5. Tick marks: minor (5°), medium (10°), major (30°) ── */}
-      {Array.from({ length: 37 }, (_, i) => i * 5).map(deg => {
-        if (deg < 0 || deg > 180) return null;
-        const rad     = (deg * Math.PI) / 180;
-        const isMajor = deg % 30 === 0;
-        const isMed   = !isMajor && deg % 10 === 0;
-        const tickLen = isMajor ? 12 : isMed ? 8 : 4;
-        const tickW   = isMajor ? 2 : 1;
-        const tcx     = cx + (PROT_R - tickLen / 2) * Math.cos(rad);
-        const tcy     = cy - (PROT_R - tickLen / 2) * Math.sin(rad);
-        return (
-          <View
-            key={`tick${deg}`}
-            style={armStyle(tcx, tcy, tickLen, deg, isMajor ? '#64748b' : '#334155', tickW)}
+        {/* ── 1. Filled angle sector ── */}
+        {fillAngle > 0 && (
+          <Path
+            d={sectorPath(cx, cy, R - 5, sectorStart, sectorEnd)}
+            fill="rgba(96,165,250,0.28)"
           />
-        );
-      })}
-
-      {/* ── 6. Primary scale: every 10°, inside arc at radius (PROT_R - 13) ── */}
-      {ALL_10_MARKS.map(mark => {
-        const rad     = (mark * Math.PI) / 180;
-        const lx      = cx + (PROT_R - 13) * Math.cos(rad);
-        const ly      = cy - (PROT_R - 13) * Math.sin(rad);
-        const isMajor = MAJOR_MARK_SET.has(mark);
-        const val     = isFlipped ? 180 - mark : mark;
-        const near    = showMovable && Math.abs(val - movableAngle) <= 3;
-        return (
-          <Text key={`prim${mark}`} style={[
-            measStyles.protMarkLabel,
-            {
-              left: lx - 13, top: ly - 7,
-              fontSize: isMajor ? 11 : 8,
-              fontWeight: isMajor ? '700' : '400',
-              color: '#94a3b8',
-            },
-            near && { color: armColor, fontWeight: '800', fontSize: 11 },
-          ]}>
-            {isMajor ? `${val}°` : `${val}`}
-          </Text>
-        );
-      })}
-
-      {/* ── 7. Secondary scale: 30° multiples only, inner ring ── */}
-      {SECONDARY_MARKS.map(mark => {
-        const rad = (mark * Math.PI) / 180;
-        const lx  = cx + (PROT_R - 25) * Math.cos(rad);
-        const ly  = cy - (PROT_R - 25) * Math.sin(rad);
-        const val = isFlipped ? mark : 180 - mark;
-        return (
-          <Text key={`sec${mark}`} style={[
-            measStyles.protMarkLabel,
-            { left: lx - 13, top: ly - 6, fontSize: 8, color: '#3d4f63' },
-          ]}>
-            {val}
-          </Text>
-        );
-      })}
-
-      {/* ── 8. Reference arm ── */}
-      {showRefArm && (
-        <View style={armStyle(cx, cy, PROT_R + 14, refArmScreenDeg, '#e2e8f0', 1.5)} />
-      )}
-
-      {/* ── 9. Small arc dots (angle indicator near vertex) ── */}
-      {showRefArm && Array.from({ length: Math.round(refAngle / 3) }, (_, i) => {
-        const t = Math.round(refAngle / 3) > 0 ? i / Math.round(refAngle / 3) : 0;
-        const a = isFlipped ? baselineScreenDeg - t * refAngle : t * refAngle;
-        const r = (a * Math.PI) / 180;
-        return (
-          <View key={`arc${i}`} style={{
-            position: 'absolute',
-            left: cx + 36 * Math.cos(r) - 1.5,
-            top:  cy - 36 * Math.sin(r) - 1.5,
-            width: 3, height: 3, borderRadius: 1.5,
-            backgroundColor: '#7c3aed', opacity: 0.6,
-          }} />
-        );
-      })}
-
-      {/* ── 10. Baseline arm ── */}
-      <View style={armStyle(cx, cy, PROT_R + 8, baselineScreenDeg, '#475569', 1.5)} />
-
-      {/* ── 11. Movable arm ── */}
-      {showMovable && (
-        <View style={armStyle(cx, cy, PROT_R - 6, movableScreenDeg, armColor, 3)} />
-      )}
-
-      {/* ── 11b. Pip on arc + floating degree badge for movable arm ── */}
-      {showMovable && <>
-        {/* Bright dot where the arm meets the arc */}
-        <View style={{
-          position: 'absolute',
-          left: pipX - 5, top: pipY - 5,
-          width: 10, height: 10, borderRadius: 5,
-          backgroundColor: armColor,
-          borderWidth: 2, borderColor: '#fff',
-        }} />
-        {/* Small floating badge showing the exact degree */}
-        <Text style={{
-          position: 'absolute',
-          left: floatLabelX, top: floatLabelY,
-          fontSize: 11, fontWeight: '900', color: '#fff',
-          backgroundColor: armColor,
-          paddingHorizontal: 5, paddingVertical: 2,
-          borderRadius: 5, overflow: 'hidden',
-          minWidth: 36, textAlign: 'center',
-        }}>
-          {movableAngle}°
-        </Text>
-      </>}
-
-      {/* ── 12. Center pivot dot ── */}
-      <View style={{
-        position: 'absolute', left: cx - 5, top: cy - 5,
-        width: 10, height: 10, borderRadius: 5, backgroundColor: '#94a3b8',
-      }} />
-
-      {/* ── 13. Ray / vertex labels (well outside the degree number belt) ── */}
-      {geo && <>
-        <Text style={[measStyles.protRayLabel, { left: cx - 8, top: cy + 10 }]}>
-          {geo.vertex}
-        </Text>
-        <Text style={[measStyles.protRayLabel, { left: r0TipX - 6, top: r0TipY - 9 }]}>
-          {geo.ray1}
-        </Text>
-        {showRefArm && (
-          <Text style={[measStyles.protRayLabel, { left: refTipX - 6, top: refTipY - 9 }]}>
-            {geo.ray2}
-          </Text>
         )}
-      </>}
 
-      {/* ── 14. Angle readout overlay ── */}
-      {showReadout && (
-        <Text style={[measStyles.protReadout, { color: armColor }]}>{readoutText}</Text>
-      )}
+        {/* ── 2. Inner arc ring (label-belt separator) ── */}
+        <Path
+          d={`M ${cx - (R - 30)},${cy} A ${R - 30},${R - 30} 0 0 1 ${cx + (R - 30)},${cy}`}
+          fill="none" stroke="#2d3a4a" strokeWidth="1"
+        />
+
+        {/* ── 3. Outer arc ── */}
+        <Path
+          d={`M ${cx - R},${cy} A ${R},${R} 0 0 1 ${cx + R},${cy}`}
+          fill="none" stroke="#64748b" strokeWidth="2"
+        />
+
+        {/* ── 4. Baseline ── */}
+        <Line
+          x1={cx - R - 12} y1={cy}
+          x2={cx + R + 12} y2={cy}
+          stroke="#64748b" strokeWidth="1.5"
+        />
+
+        {/* ── 5. Tick marks — minor 5°, medium 10°, major 30° ── */}
+        {Array.from({ length: 37 }, (_, i) => i * 5).map(deg => {
+          if (deg < 0 || deg > 180) return null;
+          const isMajor = deg % 30 === 0;
+          const isMed   = !isMajor && deg % 10 === 0;
+          const tickLen = isMajor ? 13 : isMed ? 9 : 5;
+          const outer   = pt(cx, cy, R, deg);
+          const inner   = pt(cx, cy, R - tickLen, deg);
+          return (
+            <Line
+              key={`t${deg}`}
+              x1={outer.x.toFixed(2)} y1={outer.y.toFixed(2)}
+              x2={inner.x.toFixed(2)} y2={inner.y.toFixed(2)}
+              stroke={isMajor ? '#94a3b8' : isMed ? '#475569' : '#2d3748'}
+              strokeWidth={isMajor ? 2 : 1}
+              strokeLinecap="round"
+            />
+          );
+        })}
+
+        {/* ── 6. Primary scale labels (every 10°, larger + bold at 30° multiples) ── */}
+        {ALL_10_MARKS.map(mark => {
+          const { x, y } = pt(cx, cy, R - 16, mark);
+          const isMajor  = MAJOR_MARK_SET.has(mark);
+          const val      = isFlipped ? 180 - mark : mark;
+          const near     = showMovable && Math.abs(val - movableAngle) <= 3;
+          return (
+            <SvgText
+              key={`p${mark}`}
+              x={x.toFixed(2)} y={labelY(mark, y).toFixed(2)}
+              textAnchor="middle"
+              fontSize={isMajor ? 12 : 9}
+              fontWeight={near || isMajor ? 'bold' : 'normal'}
+              fill={near ? armColor : isMajor ? '#cbd5e1' : '#64748b'}
+            >
+              {isMajor ? `${val}°` : `${val}`}
+            </SvgText>
+          );
+        })}
+
+        {/* ── 7. Secondary scale labels (inner ring, 30° multiples only) ── */}
+        {SECONDARY_MARKS.map(mark => {
+          const { x, y } = pt(cx, cy, R - 28, mark);
+          const val = isFlipped ? mark : 180 - mark;
+          return (
+            <SvgText
+              key={`s${mark}`}
+              x={x.toFixed(2)} y={(y + 4).toFixed(2)}
+              textAnchor="middle"
+              fontSize="8"
+              fill="#3d4f63"
+            >
+              {val}
+            </SvgText>
+          );
+        })}
+
+        {/* ── 8. Arc dots near vertex ── */}
+        {arcDots.map(dot => (
+          <Circle
+            key={dot.key}
+            cx={dot.x.toFixed(2)} cy={dot.y.toFixed(2)}
+            r="1.8" fill="#7c3aed" opacity="0.7"
+          />
+        ))}
+
+        {/* ── 9. Baseline arm ── */}
+        {(() => {
+          const tip = pt(cx, cy, R + 12, baselineDeg);
+          return (
+            <Line x1={cx} y1={cy} x2={tip.x.toFixed(2)} y2={tip.y.toFixed(2)}
+              stroke="#64748b" strokeWidth="1.5" />
+          );
+        })()}
+
+        {/* ── 10. Reference arm ── */}
+        {showRefArm && (() => {
+          const tip = pt(cx, cy, R + 16, refDeg);
+          return (
+            <Line x1={cx} y1={cy} x2={tip.x.toFixed(2)} y2={tip.y.toFixed(2)}
+              stroke="#e2e8f0" strokeWidth="2" />
+          );
+        })()}
+
+        {/* ── 11. Movable arm ── */}
+        {showMovable && (() => {
+          const tip = pt(cx, cy, R - 4, movDeg);
+          return (
+            <Line x1={cx} y1={cy} x2={tip.x.toFixed(2)} y2={tip.y.toFixed(2)}
+              stroke={armColor} strokeWidth="3.5" strokeLinecap="round" />
+          );
+        })()}
+
+        {/* ── 12. Pip on arc + floating degree badge ── */}
+        {showMovable && <>
+          <Circle
+            cx={movPt.x.toFixed(2)} cy={movPt.y.toFixed(2)}
+            r="5.5" fill={armColor} stroke="white" strokeWidth="2"
+          />
+          <Rect
+            x={badgeX.toFixed(2)} y={badgeY.toFixed(2)}
+            width="40" height="20" rx="6" fill={armColor}
+          />
+          <SvgText
+            x={(badgeX + 20).toFixed(2)} y={(badgeY + 14).toFixed(2)}
+            textAnchor="middle" fontSize="12" fontWeight="bold" fill="white"
+          >
+            {movableAngle}°
+          </SvgText>
+        </>}
+
+        {/* ── 13. Centre pivot ── */}
+        <Circle cx={cx} cy={cy} r="5.5" fill="#94a3b8" />
+
+        {/* ── 14. Ray / vertex labels ── */}
+        {geo && <>
+          <SvgText
+            x={cx} y={cy + 24}
+            textAnchor="middle" fontSize="16" fontWeight="bold" fontStyle="italic" fill="#e2e8f0"
+          >
+            {geo.vertex}
+          </SvgText>
+          <SvgText
+            x={baseRayPt.x.toFixed(2)} y={(baseRayPt.y + 5).toFixed(2)}
+            textAnchor="middle" fontSize="16" fontWeight="bold" fontStyle="italic" fill="#e2e8f0"
+          >
+            {geo.ray1}
+          </SvgText>
+          {showRefArm && (
+            <SvgText
+              x={refRayPt.x.toFixed(2)} y={(refRayPt.y + 5).toFixed(2)}
+              textAnchor="middle" fontSize="16" fontWeight="bold" fontStyle="italic" fill="#e2e8f0"
+            >
+              {geo.ray2}
+            </SvgText>
+          )}
+        </>}
+
+        {/* ── 15. Angle readout (post-submit overlay) ── */}
+        {showReadout && (
+          <SvgText
+            x={cx} y={cy - 50}
+            textAnchor="middle" fontSize="24" fontWeight="bold" fill={armColor}
+          >
+            {readoutText}
+          </SvgText>
+        )}
+
+      </Svg>
     </View>
   );
 }

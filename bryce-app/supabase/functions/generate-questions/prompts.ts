@@ -481,6 +481,39 @@ QUESTION TYPE RULES — choose the best type for each question:
    • Vary modes — do not repeat the same mode
    • selfContained: always true
 
+3g. MEASURING CUP — "type": "fill_in", "measurementTool": "measuring_cup"
+   When the scanned worksheet shows measuring cups, asks about liquid volume, or has students read/fill a measuring cup.
+   The app draws a measuring cup procedurally with markings at ¼, ½, ¾, and 1 cup.
+
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   MEASURING CUP MODES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   • MODE "read" — Cup shown filled to a level. Student picks the correct volume from 4 MC options.
+     geometry: { "mode": "read", "level": <0.25|0.5|0.75|1.0>, "unit": "cup" }
+     correctAnswer = fraction label string: "¼ cup" | "½ cup" | "¾ cup" | "1 cup"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"measuring_cup","question":"How much liquid is in the cup?","hint":"Find the line that the top of the liquid touches.","correctAnswer":"½ cup","geometry":{"mode":"read","level":0.5,"unit":"cup"} }
+
+   • MODE "fill" — Cup shown partially filled with a yellow target line above current level. Student picks how much MORE to add.
+     geometry: { "mode": "fill", "currentLevel": <0.25|0.5|0.75>, "targetLevel": <0.5|0.75|1.0>, "unit": "cup" }
+     RULE: targetLevel must be strictly greater than currentLevel.
+     correctAnswer = difference as fraction label e.g. "¼ cup" | "½ cup" | "¾ cup"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"measuring_cup","question":"How much more do you need to add to reach the yellow line?","hint":"Subtract the current amount from the target.","correctAnswer":"½ cup","geometry":{"mode":"fill","currentLevel":0.25,"targetLevel":0.75,"unit":"cup"} }
+
+   • MODE "compare" — Two cups shown side by side. Student picks which has more (or equal).
+     geometry: { "mode": "compare", "level": <0.25|0.5|0.75|1.0>, "level2": <0.25|0.5|0.75|1.0>, "unit": "cup" }
+     correctAnswer = "left" | "right" | "equal"
+     EXAMPLE:
+     { "selfContained":true,"type":"fill_in","measurementTool":"measuring_cup","question":"Which cup has more liquid?","hint":"Compare where the liquid reaches in each cup.","correctAnswer":"left","geometry":{"mode":"compare","level":0.75,"level2":0.5,"unit":"cup"} }
+
+   ── MEASURING CUP RULES ──
+   • level values MUST be one of: 0.25, 0.5, 0.75, 1.0 (clean quarter-cup marks)
+   • For fill mode, targetLevel MUST be strictly greater than currentLevel
+   • Vary modes across questions
+   • selfContained: always true
+
 4. ORDERING — "type": "ordering"
    - PREFER for: "put in order from least to greatest", chronological sequences, story events, steps in a process
    - items: 3–6 things to arrange

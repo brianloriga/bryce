@@ -2316,6 +2316,120 @@ const fractionNumberLine_order = {
 // ─────────────────────────────────────────────────────────────
 // Export all sample sets grouped by category
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// MEASURING CUP – read
+// ─────────────────────────────────────────────────────────────
+const measuringCup_read = {
+  id: 'measuring_cup_read',
+  label: 'Measuring Cup – Read',
+  unit: {
+    title: 'Measuring Cup: Read',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'How much liquid is in the cup?',
+        hint: 'Find the line the top of the liquid touches.',
+        correctAnswer: '½ cup',
+        geometry: { mode: 'read', level: 0.5, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'How much liquid is in the cup?',
+        hint: 'Look at where the liquid reaches on the scale.',
+        correctAnswer: '¾ cup',
+        geometry: { mode: 'read', level: 0.75, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'How much liquid is in the cup?',
+        hint: 'Count the marks from the bottom.',
+        correctAnswer: '¼ cup',
+        geometry: { mode: 'read', level: 0.25, unit: 'cup' },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// MEASURING CUP – fill
+// ─────────────────────────────────────────────────────────────
+const measuringCup_fill = {
+  id: 'measuring_cup_fill',
+  label: 'Measuring Cup – Fill',
+  unit: {
+    title: 'Measuring Cup: Fill',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'How much more liquid do you need to add to reach the yellow line?',
+        hint: 'Target minus current = amount to add.',
+        correctAnswer: '½ cup',
+        geometry: { mode: 'fill', currentLevel: 0.25, targetLevel: 0.75, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'How much more do you need to add to fill to the yellow line?',
+        hint: 'Subtract what you have from the target.',
+        correctAnswer: '¼ cup',
+        geometry: { mode: 'fill', currentLevel: 0.5, targetLevel: 0.75, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'The yellow line shows the target. How much more liquid is needed?',
+        hint: 'The blue liquid is what you have. The yellow line is the goal.',
+        correctAnswer: '¾ cup',
+        geometry: { mode: 'fill', currentLevel: 0.25, targetLevel: 1.0, unit: 'cup' },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// MEASURING CUP – compare
+// ─────────────────────────────────────────────────────────────
+const measuringCup_compare = {
+  id: 'measuring_cup_compare',
+  label: 'Measuring Cup – Compare',
+  unit: {
+    title: 'Measuring Cup: Compare',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'Which cup has more liquid?',
+        hint: 'Compare where the liquid reaches in each cup.',
+        correctAnswer: 'left',
+        geometry: { mode: 'compare', level: 0.75, level2: 0.5, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'Which cup has more liquid?',
+        hint: 'Look at the measurement lines.',
+        correctAnswer: 'right',
+        geometry: { mode: 'compare', level: 0.25, level2: 0.75, unit: 'cup' },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'measuring_cup',
+        question: 'Do both cups have the same amount?',
+        hint: 'Check what line the liquid reaches in each cup.',
+        correctAnswer: 'equal',
+        geometry: { mode: 'compare', level: 0.5, level2: 0.5, unit: 'cup' },
+      },
+    ],
+  },
+};
+
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
@@ -2354,6 +2468,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Ruler (Enhanced)',
     items: [ruler_endpoint, ruler_offset, ruler_compare, ruler_difference],
+  },
+  {
+    title: 'Measuring Cup (Enhanced)',
+    items: [measuringCup_read, measuringCup_fill, measuringCup_compare],
   },
   {
     title: 'Coin / Money (Enhanced)',

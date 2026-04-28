@@ -294,6 +294,7 @@ export default function ScanScreen() {
           clockMode:        existing.geometry?.clockMode,
           fractionBarMode:          existing.measurementTool === 'fraction_bar'          ? existing.geometry?.mode : undefined,
           fractionNumberLineMode:   existing.measurementTool === 'fraction_number_line'  ? existing.geometry?.mode : undefined,
+          cupMode:                  existing.measurementTool === 'measuring_cup'          ? existing.geometry?.mode : undefined,
         },
       );
       setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));

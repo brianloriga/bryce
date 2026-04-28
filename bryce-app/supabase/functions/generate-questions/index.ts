@@ -124,6 +124,16 @@ serve(async (req) => {
         toolContextLine = `\nORIGINAL TOOL: measurementTool="fraction_number_line", mode="${mode}". ` +
           `You MUST generate a fill_in question with measurementTool:"fraction_number_line" and geometry.mode:"${mode}". ` +
           `${modeExtra} See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'measuring_cup') {
+        const mode = qc.cupMode ?? 'read';
+        const modeExtra = mode === 'compare'
+          ? 'Generate FRESH level (0.25/0.5/0.75/1.0) and level2 (0.25/0.5/0.75/1.0). correctAnswer = "left"|"right"|"equal".'
+          : mode === 'fill'
+          ? 'Generate FRESH currentLevel and targetLevel (both in 0.25/0.5/0.75/1.0; targetLevel > currentLevel). correctAnswer = difference as fraction string e.g. "½ cup".'
+          : 'Generate FRESH level (0.25/0.5/0.75/1.0). correctAnswer = fraction label e.g. "½ cup".';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="measuring_cup", mode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"measuring_cup" and geometry.mode:"${mode}". ` +
+          `${modeExtra} See MEASUREMENT TOOL REGEN RULES.`;
       }
 
       userContent.push({
