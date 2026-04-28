@@ -178,6 +178,7 @@ export async function validateSelfContained(
     hasGeometry:   !!q.geometry,
     nlMode:        String(q.mode ?? (q.type === 'number_line' ? 'place' : '')),
     measureTool:   String(q.measurementTool ?? ''),
+    imageRef:      q.image_ref != null ? Number(q.image_ref) : null,
   }));
 
   const validationPrompt = `You are a strict quality-control checker for children's educational quiz questions.
@@ -186,6 +187,7 @@ For each question, answer ONE thing: can a child answer it correctly using ONLY 
 them — with NO access to any worksheet, image, diagram, or external material?
 
 RULE 0 — UNCONDITIONAL OVERRIDE (check these first, before any other rules):
+If imageRef is a number (not null)   → ALWAYS return ok:true. The app renders that visual aid image inline next to the question, so any reference to "the image shown", "the photo", "the diagram", etc. is valid.
 If nlMode="count"                    → ALWAYS return ok:true.
 If nlMode="read"                     → ALWAYS return ok:true.
 If measureTool="clock"               → ALWAYS return ok:true.
