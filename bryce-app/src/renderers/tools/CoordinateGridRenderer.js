@@ -827,7 +827,7 @@ function ErrorDetectMode({ q, onResolve, styles }) {
         setCaughtPause(false);
         setStep(2);
         Animated.timing(step2Anim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
-      }, 750);
+      }, 1000);
     } else if (!sayingWrong && !claimIsWrong) {
       // Correct — claim was actually right
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
