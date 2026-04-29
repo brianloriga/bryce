@@ -66,6 +66,7 @@ function GridSvgContent({
   prePlacedPoints    = [],   // [{x,y,color,label}]
   ghostPoint         = null, // {x,y,color?,label?} — student preview
   submittedPoints    = [],   // [{x,y,color,label,correct}]
+  showCoordLabel     = false, // floating x/y readout during drag
 }) {
   const ox = toPixelX(0, gridRange, cellSize);
   const oy = toPixelY(0, gridRange, cellSize);
@@ -166,6 +167,10 @@ function GridSvgContent({
         const px = toPixelX(ghostPoint.x, gridRange, cellSize);
         const py = toPixelY(ghostPoint.y, gridRange, cellSize);
         const fill = POINT_COLORS[ghostPoint.color] ?? '#7c3aed';
+        const lblW = 76;
+        const lblH = 20;
+        const lx = (px + 18 + lblW > W - 4) ? px - 18 - lblW : px + 18;
+        const ly = Math.max(GRID_PAD + 2, py - 14);
         return (
           <G key="ghost">
             <Circle cx={px.toFixed(1)} cy={py.toFixed(1)} r={DOT_GHOST_R}
@@ -175,6 +180,16 @@ function GridSvgContent({
                 textAnchor="start" fontSize="11" fontWeight="bold" fill="#a78bfa">
                 {ghostPoint.label}
               </SvgText>
+            )}
+            {showCoordLabel && (
+              <G key="clbl">
+                <Rect x={lx} y={ly} width={lblW} height={lblH} rx={5}
+                  fill="rgba(15,23,42,0.92)" stroke="#6d28d9" strokeWidth="1" />
+                <SvgText x={(lx + lblW / 2).toFixed(1)} y={(ly + 13.5).toFixed(1)}
+                  textAnchor="middle" fontSize="10" fontWeight="700" fill="#c4b5fd">
+                  {`x: ${ghostPoint.x}  y: ${ghostPoint.y}`}
+                </SvgText>
+              </G>
             )}
           </G>
         );
@@ -289,6 +304,49 @@ function MCOptions({ options, correctIndex, onResolve, styles }) {
   );
 }
 
+// ── StepperRow — single axis +/- stepper ─────────────────────
+function StepperRow({ label, value, onDec, onInc, disabled }) {
+  return (
+    <View style={cgLocal.stepperRow}>
+      <Text style={cgLocal.stepperLabel}>{label}</Text>
+      <TouchableOpacity style={cgLocal.stepperBtn} onPress={onDec} disabled={disabled} activeOpacity={0.7}>
+        <Text style={cgLocal.stepperBtnText}>−</Text>
+      </TouchableOpacity>
+      <View style={cgLocal.stepperValueBox}>
+        <Text style={cgLocal.stepperValue}>{value}</Text>
+      </View>
+      <TouchableOpacity style={cgLocal.stepperBtn} onPress={onInc} disabled={disabled} activeOpacity={0.7}>
+        <Text style={cgLocal.stepperBtnText}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ── XYSteppers — x and y axis pickers ────────────────────────
+function XYSteppers({ gridRange, onCheck, disabled, initX = 0, initY = 0 }) {
+  const [xVal, setXVal] = useState(initX);
+  const [yVal, setYVal] = useState(initY);
+  const clamp = (v) => Math.max(-gridRange, Math.min(gridRange, v));
+
+  return (
+    <View style={cgLocal.stepperContainer}>
+      <StepperRow label="x" value={xVal}
+        onDec={() => setXVal(clamp(xVal - 1))}
+        onInc={() => setXVal(clamp(xVal + 1))}
+        disabled={disabled} />
+      <StepperRow label="y" value={yVal}
+        onDec={() => setYVal(clamp(yVal - 1))}
+        onInc={() => setYVal(clamp(yVal + 1))}
+        disabled={disabled} />
+      {!disabled && (
+        <TouchableOpacity style={cgLocal.checkBtn} onPress={() => onCheck(xVal, yVal)} activeOpacity={0.8}>
+          <Text style={cgLocal.checkBtnText}>Check Answer</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 // ── GridWithTouch — grid + transparent touch overlay ─────────
 function GridWithTouch({ W, cellSize, gridRange, panHandlers, svgProps = {}, children }) {
   return (
@@ -365,6 +423,7 @@ function PlotMode({ q, onResolve, styles, setScrollEnabled }) {
             prePlacedPoints={prePlaced}
             ghostPoint={ghostToShow ? { ...ghostToShow, color: 'purple' } : null}
             submittedPoints={submittedPts}
+            showCoordLabel={!feedback}
           />
         </GridWithTouch>
       </Animated.View>
@@ -372,7 +431,7 @@ function PlotMode({ q, onResolve, styles, setScrollEnabled }) {
       {!ghost && !feedback && <Text style={cgLocal.placeHint}>Tap the grid to place the point</Text>}
       {ghost && !feedback && (
         <Text style={cgLocal.placeHint}>
-          Point at ({ghost.x}, {ghost.y}) — tap Check when ready
+          Tap Check when ready
         </Text>
       )}
       {feedback === 'correct' && (
@@ -403,15 +462,30 @@ function PlotMode({ q, onResolve, styles, setScrollEnabled }) {
 
 // ═══════════════════════════════════════════════════════════════
 // MODE 2 — ReadMode
-// Pre-placed colored point; student picks coordinates from MC.
+// Pre-placed colored point; student uses x/y steppers to name coords.
 // ═══════════════════════════════════════════════════════════════
 function ReadMode({ q, onResolve, styles }) {
   const geo       = q.geometry ?? {};
   const gridRange = geo.gridRange ?? 5;
   const { W, cellSize } = useGridLayout(gridRange);
   const pts       = Array.isArray(geo.points) ? geo.points : [];
-  const options   = Array.isArray(q.options) ? q.options : [];
-  const correctIndex = typeof q.correctIndex === 'number' ? q.correctIndex : 0;
+
+  // The correct answer is simply the first point's coordinates
+  const correctX  = pts[0]?.x ?? (geo.correctX ?? 0);
+  const correctY  = pts[0]?.y ?? (geo.correctY ?? 0);
+
+  const [feedback,  setFeedback]  = useState(null);
+  const [submitted, setSubmitted] = useState(null);
+
+  function handleCheck(xVal, yVal) {
+    const ok = xVal === correctX && yVal === correctY;
+    setSubmitted({ x: xVal, y: yVal });
+    setFeedback(ok ? 'correct' : 'wrong');
+    Haptics.notificationAsync(ok
+      ? Haptics.NotificationFeedbackType.Success
+      : Haptics.NotificationFeedbackType.Error);
+    setTimeout(() => onResolve(ok), 2200);
+  }
 
   return (
     <View style={{ alignItems: 'center' }}>
@@ -421,8 +495,21 @@ function ReadMode({ q, onResolve, styles }) {
           showQuadrantTints={false}
         />
       </Svg>
-      <MCOptions options={options} correctIndex={correctIndex}
-        onResolve={onResolve} styles={styles} />
+      <Text style={cgLocal.readPrompt}>What are the coordinates of the point?</Text>
+      <XYSteppers gridRange={gridRange} onCheck={handleCheck} disabled={!!feedback} />
+      {feedback === 'correct' && (
+        <Text style={[styles.fillInCorrectMsg, { marginTop: 8 }]}>
+          Correct! ({correctX}, {correctY}) 🎯
+        </Text>
+      )}
+      {feedback === 'wrong' && (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.fillInRevealLabel}>
+            Not quite — you entered ({submitted?.x}, {submitted?.y}).
+          </Text>
+          <Text style={styles.fillInRevealAnswer}>Answer: ({correctX}, {correctY})</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -623,6 +710,7 @@ function MissingMode({ q, onResolve, styles, setScrollEnabled }) {
             prePlacedPoints={[...shownPoints, ...(correctGhost ? [correctGhost] : [])]}
             ghostPoint={!feedback && ghost ? { ...ghost, color: 'purple', label: tLabel } : null}
             submittedPoints={submittedPts}
+            showCoordLabel={!feedback}
           />
         </GridWithTouch>
       </Animated.View>
@@ -693,14 +781,122 @@ function QuadrantMode({ q, onResolve, styles }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MODE 6 — ErrorDetectMode
+// A point is shown. A named character claims wrong coordinates.
+// Step 1: Is the claim right or wrong?
+// Step 2 (if wrong & student correct): Enter the actual coordinates.
+// ═══════════════════════════════════════════════════════════════
+function ErrorDetectMode({ q, onResolve, styles }) {
+  const geo       = q.geometry ?? {};
+  const gridRange = geo.gridRange ?? 5;
+  const { W, cellSize } = useGridLayout(gridRange);
+  const pts       = Array.isArray(geo.points) ? geo.points : [];
+  const claim     = geo.claim ?? {};
+  const claimName = claim.name ?? 'Sam';
+  const claimX    = typeof claim.x === 'number' ? claim.x : 0;
+  const claimY    = typeof claim.y === 'number' ? claim.y : 0;
+  const correctX  = geo.correctX ?? (pts[0]?.x ?? 0);
+  const correctY  = geo.correctY ?? (pts[0]?.y ?? 0);
+  const claimIsWrong = (claimX !== correctX) || (claimY !== correctY);
+
+  const [step,     setStep]     = useState(1);
+  const [feedback, setFeedback] = useState(null);
+
+  function handleJudgement(sayingWrong) {
+    const judgementCorrect = sayingWrong === claimIsWrong;
+    if (judgementCorrect && claimIsWrong) {
+      Haptics.selectionAsync();
+      setStep(2);
+    } else if (judgementCorrect && !claimIsWrong) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFeedback('correct');
+      setTimeout(() => onResolve(true), 2000);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setFeedback('wrong_judge');
+      setTimeout(() => onResolve(false), 2200);
+    }
+  }
+
+  function handleCoordCheck(xVal, yVal) {
+    const ok = xVal === correctX && yVal === correctY;
+    setFeedback(ok ? 'correct' : 'wrong_coords');
+    Haptics.notificationAsync(ok
+      ? Haptics.NotificationFeedbackType.Success
+      : Haptics.NotificationFeedbackType.Error);
+    setTimeout(() => onResolve(ok), 2200);
+  }
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={cgLocal.claimBadge}>
+        <Text style={cgLocal.claimText}>
+          {claimName} says this point is{' '}
+          <Text style={cgLocal.claimCoord}>({claimX}, {claimY})</Text>
+        </Text>
+      </View>
+
+      <Svg width={W} height={W} style={{ alignSelf: 'center' }}>
+        <GridSvgContent W={W} cellSize={cellSize} gridRange={gridRange}
+          prePlacedPoints={pts}
+          showQuadrantTints={false}
+        />
+      </Svg>
+
+      {step === 1 && !feedback && (
+        <View style={cgLocal.judgeRow}>
+          <TouchableOpacity style={[cgLocal.judgeBtn, cgLocal.judgeBtnYes]}
+            onPress={() => handleJudgement(false)} activeOpacity={0.8}>
+            <Text style={cgLocal.judgeBtnText}>✓  {claimName} is right</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[cgLocal.judgeBtn, cgLocal.judgeBtnNo]}
+            onPress={() => handleJudgement(true)} activeOpacity={0.8}>
+            <Text style={cgLocal.judgeBtnText}>✗  {claimName} is wrong</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {step === 2 && !feedback && (
+        <View style={{ width: '100%', alignItems: 'center' }}>
+          <Text style={cgLocal.readPrompt}>Good catch! What are the correct coordinates?</Text>
+          <XYSteppers gridRange={gridRange} onCheck={handleCoordCheck} disabled={false} />
+        </View>
+      )}
+
+      {feedback === 'correct' && (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.fillInCorrectMsg}>Correct! 🎯</Text>
+          <Text style={cgLocal.feedbackSub}>
+            The point is ({correctX}, {correctY}) — {claimName} had x and y swapped.
+          </Text>
+        </View>
+      )}
+      {feedback === 'wrong_judge' && (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.fillInRevealLabel}>{claimName} was actually wrong!</Text>
+          <Text style={styles.fillInRevealAnswer}>The point is ({correctX}, {correctY}).</Text>
+        </View>
+      )}
+      {feedback === 'wrong_coords' && (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.fillInRevealLabel}>Not quite!</Text>
+          <Text style={styles.fillInRevealAnswer}>The point is ({correctX}, {correctY}).</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CoordinateGridRenderer — dispatcher
 // ═══════════════════════════════════════════════════════════════
 export default function CoordinateGridRenderer({ q, onResolve, styles, setScrollEnabled }) {
   const mode = (q.geometry?.mode ?? q.mode ?? 'plot').toLowerCase();
-  if (mode === 'read')       return <ReadMode      q={q} onResolve={onResolve} styles={styles} />;
-  if (mode === 'multi_plot') return <MultiPlotMode q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
-  if (mode === 'missing')    return <MissingMode   q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
-  if (mode === 'quadrant')   return <QuadrantMode  q={q} onResolve={onResolve} styles={styles} />;
+  if (mode === 'read')         return <ReadMode         q={q} onResolve={onResolve} styles={styles} />;
+  if (mode === 'multi_plot')   return <MultiPlotMode    q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+  if (mode === 'missing')      return <MissingMode      q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
+  if (mode === 'quadrant')     return <QuadrantMode     q={q} onResolve={onResolve} styles={styles} />;
+  if (mode === 'error_detect') return <ErrorDetectMode  q={q} onResolve={onResolve} styles={styles} />;
   return <PlotMode q={q} onResolve={onResolve} styles={styles} setScrollEnabled={setScrollEnabled} />;
 }
 
@@ -770,4 +966,50 @@ const cgLocal = StyleSheet.create({
   mcBtnCorrect:  { backgroundColor: '#166534', borderColor: '#4ade80' },
   mcBtnWrong:    { backgroundColor: '#7f1d1d', borderColor: '#f87171' },
   mcBtnText:     { fontSize: 16, fontWeight: '700', color: '#e2e8f0' },
+
+  // Read mode prompt
+  readPrompt: {
+    fontSize: 14, fontWeight: '600', color: '#94a3b8',
+    textAlign: 'center', marginTop: 10, marginBottom: 4,
+  },
+
+  // X/Y Steppers
+  stepperContainer: { width: '100%', gap: 10, marginTop: 10 },
+  stepperRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 4,
+  },
+  stepperLabel: {
+    width: 16, fontSize: 15, fontWeight: '800',
+    color: '#a78bfa', fontStyle: 'italic', textAlign: 'center',
+  },
+  stepperBtn: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: '#1e3a5f', borderWidth: 1.5, borderColor: '#334155',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepperBtnText: { fontSize: 22, fontWeight: '700', color: '#e2e8f0', lineHeight: 26 },
+  stepperValueBox: {
+    flex: 1, height: 44, borderRadius: 12,
+    backgroundColor: '#0f172a', borderWidth: 1.5, borderColor: '#334155',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepperValue: { fontSize: 20, fontWeight: '800', color: '#e2e8f0' },
+
+  // Error detect mode
+  claimBadge: {
+    width: '100%', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+    backgroundColor: 'rgba(251,191,36,0.07)',
+    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10, alignItems: 'center',
+  },
+  claimText: { fontSize: 14, fontWeight: '600', color: '#94a3b8' },
+  claimCoord: { fontSize: 16, fontWeight: '900', color: '#fbbf24' },
+  judgeRow: { flexDirection: 'row', gap: 10, marginTop: 14, width: '100%' },
+  judgeBtn: {
+    flex: 1, paddingVertical: 15, borderRadius: 14,
+    alignItems: 'center', borderWidth: 1.5,
+  },
+  judgeBtnYes: { backgroundColor: '#14532d', borderColor: '#4ade80' },
+  judgeBtnNo:  { backgroundColor: '#7f1d1d', borderColor: '#f87171' },
+  judgeBtnText: { fontSize: 15, fontWeight: '800', color: '#e2e8f0' },
 });

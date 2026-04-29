@@ -2569,7 +2569,7 @@ const coordGrid_plot = {
 
 const coordGrid_read = {
   id: 'cg_read',
-  label: 'Coordinate Grid – Read a Point',
+  label: 'Coordinate Grid – Read a Point (Steppers)',
   unit: {
     title: 'Coordinate Grid: Read',
     subject: 'math',
@@ -2578,9 +2578,7 @@ const coordGrid_read = {
         type: 'fill_in', measurementTool: 'coordinate_grid',
         question: 'What are the coordinates of the blue point?',
         hint: 'Read across first (x), then up or down (y).',
-        options: ['(−3, 2)', '(−3, −2)', '(2, −3)', '(2, 3)'],
-        correctIndex: 0,
-        correctAnswer: '(-3, 2)',
+        correctAnswer: '-3,2',
         geometry: {
           mode: 'read', gridRange: 5,
           points: [{ x: -3, y: 2, color: 'blue', label: null }],
@@ -2590,12 +2588,67 @@ const coordGrid_read = {
         type: 'fill_in', measurementTool: 'coordinate_grid',
         question: 'What are the coordinates of the green point?',
         hint: 'Right is positive x, up is positive y.',
-        options: ['(4, −1)', '(−1, 4)', '(4, 1)', '(−4, 1)'],
-        correctIndex: 0,
-        correctAnswer: '(4, -1)',
+        correctAnswer: '4,-1',
         geometry: {
           mode: 'read', gridRange: 5,
           points: [{ x: 4, y: -1, color: 'green', label: null }],
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'What are the coordinates of the orange point?',
+        hint: 'Is x positive or negative? Is y positive or negative?',
+        correctAnswer: '-2,-4',
+        geometry: {
+          mode: 'read', gridRange: 5,
+          points: [{ x: -2, y: -4, color: 'orange', label: null }],
+        },
+      },
+    ],
+  },
+};
+
+const coordGrid_errorDetect = {
+  id: 'cg_error_detect',
+  label: 'Coordinate Grid – Error Detection',
+  unit: {
+    title: 'Coordinate Grid: Error Detection',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Sam says this point is at (5, 2). Is Sam correct?',
+        hint: 'Remember: x comes first, y comes second.',
+        correctAnswer: 'wrong',
+        geometry: {
+          mode: 'error_detect', gridRange: 5,
+          points: [{ x: 2, y: 5, color: 'blue', label: 'P' }],
+          claim: { name: 'Sam', x: 5, y: 2 },
+          correctX: 2, correctY: 5,
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Nina says this point is at (−3, 4). Is Nina correct?',
+        hint: 'Look carefully at which axis is x and which is y.',
+        correctAnswer: 'wrong',
+        geometry: {
+          mode: 'error_detect', gridRange: 5,
+          points: [{ x: 4, y: -3, color: 'red', label: 'A' }],
+          claim: { name: 'Nina', x: -3, y: 4 },
+          correctX: 4, correctY: -3,
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Leo says this point is at (−2, −4). Is Leo correct?',
+        hint: 'Check x first — is it negative or positive?',
+        correctAnswer: 'wrong',
+        geometry: {
+          mode: 'error_detect', gridRange: 5,
+          points: [{ x: -4, y: -2, color: 'purple', label: 'B' }],
+          claim: { name: 'Leo', x: -2, y: -4 },
+          correctX: -4, correctY: -2,
         },
       },
     ],
@@ -2720,7 +2773,7 @@ export const SAMPLE_GROUPS = [
   },
   {
     title: 'Coordinate Grid (Enhanced)',
-    items: [coordGrid_plot, coordGrid_read, coordGrid_multiPlot, coordGrid_missing, coordGrid_quadrant],
+    items: [coordGrid_plot, coordGrid_read, coordGrid_errorDetect, coordGrid_multiPlot, coordGrid_missing, coordGrid_quadrant],
   },
   {
     title: 'Number Line',

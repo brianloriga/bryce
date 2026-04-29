@@ -615,9 +615,16 @@ QUESTION TYPE RULES — choose the best type for each question:
    { "type":"fill_in","measurementTool":"coordinate_grid","question":"Plot the point (−4, 1).","hint":"Move 4 left, then 1 up.","correctAnswer":"-4,1","geometry":{"mode":"plot","target":[-4,1],"gridRange":5} }
 
    ── MODE: read ──
-   Pre-placed colored point. Student picks coordinates from 4 MC options.
-   options: 4 coordinate strings; correctIndex; correctAnswer = correct string
-   { "type":"fill_in","measurementTool":"coordinate_grid","question":"What are the coordinates of the blue point?","hint":"Read x first, then y.","options":["(−3, 2)","(−3, −2)","(2, −3)","(2, 3)"],"correctIndex":0,"correctAnswer":"(-3, 2)","geometry":{"mode":"read","gridRange":5,"points":[{"x":-3,"y":2,"color":"blue"}]} }
+   Pre-placed colored point. Student uses x/y steppers (no keyboard, no MC) to enter the coordinates.
+   correctAnswer = "x,y" — no options or correctIndex needed.
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"What are the coordinates of the blue point?","hint":"Read x first (horizontal), then y (vertical).","correctAnswer":"-3,2","geometry":{"mode":"read","gridRange":5,"points":[{"x":-3,"y":2,"color":"blue"}]} }
+
+   ── MODE: error_detect ──
+   A point is plotted. A named character (Sam, Nina, Leo, etc.) claims the WRONG coordinates (always
+   swap x and y, e.g. point at (2,5) → claim (5,2)). Student judges right/wrong, then enters correct coords.
+   claim: {name, x, y} — the wrong values. correctX/correctY — the true values (same as points[0]).
+   correctAnswer: "wrong" (the claim is always wrong in this mode)
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Sam says this point is at (5, 2). Is Sam correct?","hint":"Remember: x comes first, y comes second.","correctAnswer":"wrong","geometry":{"mode":"error_detect","gridRange":5,"points":[{"x":2,"y":5,"color":"blue","label":"P"}],"claim":{"name":"Sam","x":5,"y":2},"correctX":2,"correctY":5} }
 
    ── MODE: multi_plot ──
    Student plots 2–3 labeled colored points in sequence, then submits.
@@ -625,9 +632,12 @@ QUESTION TYPE RULES — choose the best type for each question:
    { "type":"fill_in","measurementTool":"coordinate_grid","question":"Plot all of the points on the grid.","hint":"Tap the correct intersection for each point.","correctAnswer":"-2,3;4,-1;1,-3","geometry":{"mode":"multi_plot","gridRange":5,"targets":[{"x":-2,"y":3,"label":"A","color":"red"},{"x":4,"y":-1,"label":"B","color":"green"},{"x":1,"y":-3,"label":"C","color":"purple"}]} }
 
    ── MODE: missing ──
-   2–3 points pre-shown (A, B, C). Student plots the missing one (D). Submit required.
+   2–3 points pre-shown as part of a shape or pattern (e.g., 3 corners of a rectangle, collinear points).
+   Student plots the missing point that COMPLETES the shape or pattern. This is educationally distinct
+   from plain plot because the shown points provide spatial scaffolding and allow the student to verify
+   their placement makes geometric sense. ALWAYS frame as shape/pattern completion.
    shownPoints: [{x,y,label,color}]; target: {x,y,label}
-   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Points A, B, and C are shown. Plot point D at (−4, −2).","hint":"Move 4 left, then 2 down.","correctAnswer":"-4,-2","geometry":{"mode":"missing","gridRange":5,"shownPoints":[{"x":-2,"y":3,"label":"A","color":"red"},{"x":4,"y":-1,"label":"B","color":"green"},{"x":1,"y":3,"label":"C","color":"blue"}],"target":{"x":-4,"y":-2,"label":"D"}} }
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Points A, B, and C are corners of a rectangle. Plot the missing corner D.","hint":"Rectangles have 4 right-angle corners — use A, B, C to find where D must go.","correctAnswer":"-4,-2","geometry":{"mode":"missing","gridRange":5,"shownPoints":[{"x":-2,"y":3,"label":"A","color":"red"},{"x":4,"y":-1,"label":"B","color":"green"},{"x":1,"y":3,"label":"C","color":"blue"}],"target":{"x":-4,"y":-2,"label":"D"}} }
 
    ── MODE: quadrant ──
    Pre-placed point. Student picks which quadrant from 4 MC options.
@@ -639,8 +649,10 @@ QUESTION TYPE RULES — choose the best type for each question:
    - Keep all points within the gridRange (|x| ≤ gridRange, |y| ≤ gridRange)
    - colors: red | green | blue | purple | orange | yellow
    - multi_plot: 2–3 points max; use distinct colors and single-letter labels (A, B, C)
-   - For read/quadrant: always provide 4 MC options; all must be plausible wrong answers
-   - selfContained: true for read/quadrant — the app draws the full stimulus
+   - read: NO options or correctIndex — correctAnswer is "x,y" string (e.g. "-3,2")
+   - error_detect: claim must ALWAYS be wrong (swap x and y); correctAnswer is always "wrong"
+   - quadrant: always provide 4 MC options; all must be plausible wrong answers
+   - selfContained: true for read/quadrant/error_detect — the app draws the full stimulus
    - HARD RULE: do NOT use coordinate_grid for questions that show the grid in the worksheet image without a clear x/y coordinate system — fall back to fill_in instead
 
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
@@ -868,10 +880,11 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
 - coordinate_grid: { "type":"fill_in","measurementTool":"coordinate_grid","question":"...","hint":"...","correctAnswer":"...","geometry":{...} }
   MATCH the same mode as the original. Fresh coordinates. See section 8 for full schemas.
   - plot: new target [x, y] — integer coords within gridRange
-  - read: new point + 4 MC coordinate options + correctIndex
+  - read: new point at different coords; correctAnswer = "x,y" string; NO options/correctIndex
   - multi_plot: new set of 2–3 targets with labels and colors
-  - missing: new shownPoints + new target; keep same number of shown points as original
+  - missing: new shownPoints forming a shape/pattern + new target; keep same number of shown points
   - quadrant: new point in a different quadrant from the original + correct Quadrant I/II/III/IV options
+  - error_detect: new point + new wrong claim (swap x and y); correctAnswer = "wrong"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEASUREMENT TOOL REGEN RULES — CRITICAL

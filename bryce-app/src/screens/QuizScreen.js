@@ -373,11 +373,12 @@ export default function QuizScreen() {
     if (q.measurementTool === 'coordinate_grid') {
       const mode = q.geometry?.mode ?? q.mode ?? 'plot';
       return {
-        plot:       'Coordinate Grid · Plot',
-        read:       'Coordinate Grid · Read',
-        multi_plot: 'Coordinate Grid · Multi-Plot',
-        missing:    'Coordinate Grid · Missing Point',
-        quadrant:   'Which Quadrant?',
+        plot:         'Coordinate Grid · Plot',
+        read:         'Coordinate Grid · Read',
+        multi_plot:   'Coordinate Grid · Multi-Plot',
+        missing:      'Coordinate Grid · Missing Point',
+        quadrant:     'Which Quadrant?',
+        error_detect: 'Coordinate Grid · Error Detection',
       }[mode] ?? 'Coordinate Grid';
     }
     return TYPE_LABELS[qType] ?? null;
