@@ -6,7 +6,125 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
-### Fraction Build + Fraction Number Line — 2026-04-27
+### Coordinate Grid — Cognitive Depth Upgrade — 2026-04-29
+
+A second pass over the Coordinate Grid tool focusing on **cognitive depth** and **misconception correction**. The original `read` mode was MC-based, which allowed students to avoid true axis-reading. The new interaction modes force axis-first thinking and catch the most common coordinate mistake (x/y order swap).
+
+#### `CoordinateGridRenderer.js` — Mode Upgrades
+
+**`read` mode — x/y steppers (replaces MC)**
+- Removed `options` / `correctIndex` from `read` mode entirely; student now uses two `+/−` number steppers — one for x, one for y — to enter coordinates
+- `StepperRow` component: label + value display + decrement/increment `TouchableOpacity` buttons; range capped at ±grid range
+- `XYSteppers` composite: two `StepperRow`s plus a "Check Answer" button; reads `pts[0].x` / `pts[0].y` as the correct answer
+- Correct `answer` check: both x and y must match exactly; wrong-answer feedback names which axis(es) were off
+- Educationally: forces x-before-y sequencing with haptic confirmation; eliminates MC guessing
+
+**`error_detect` mode (new — 6th mode)**
+- A pre-placed point is shown on the grid alongside a **character claim card** — avatar portrait (sam/nina/leo/ava/max/mia), character name, and their claimed coordinates in large colored text
+- **Step 1 — Judge the claim:** two buttons, "✓ [Name] is right" and "✗ [Name] is wrong"
+  - If right when right: banner "Correct! [Name] read it perfectly." ends interaction
+  - If wrong when wrong (correct catch): amber claim card turns red with `✗` badge, then a 1-second "You caught it! 🎯" celebration banner animates in before Step 2
+  - If wrong when right (incorrect): "Actually, [Name] was right!" feedback shown
+- **Step 2 — Correct the coordinates:** same `XYSteppers` control fades in with a smooth slide-up animation (`Animated.timing`); student enters the actual coordinates to complete
+- `AVATAR_IMG` registry maps the 6 character names to their PNG paths in `assets/child-avatars/`
+- `QuizScreen.js` updated: `typeLabel` for `error_detect` mode shows "Coordinate Grid · Error Detection"
+- Prompts (`prompts.ts`): `error_detect` mode added to the AI schema with instructions to always swap x/y for the claim and set `correctAnswer: "wrong"`; REGEN rules added for `error_detect`
+
+**`plot` and `missing` modes — floating coordinate label**
+- `GridSvgContent` accepts a `showCoordLabel` prop; when the ghost point is active and `showCoordLabel` is true, an SVG `Rect` + `SvgText` floating label renders `x: N  y: N` next to the dragged point
+- Label positioned dynamically (right / left flip at grid boundary) to stay visible
+- Label hides immediately on submit so it does not leak the answer after the check
+
+**`missing` mode — shape/pattern framing (prompts + sample data)**
+- AI prompt updated in `prompts.ts`: `missing` mode description now explicitly requires a **shape or pattern** context (e.g. "3 corners of a rectangle, student plots the 4th corner D"); plain "place a point" scenarios are disallowed for `missing` mode to prevent it from being pedagogically identical to `plot`
+- `sampleQuestions.js` updated to reflect the stronger framing
+
+#### `sampleQuestions.js` — New Test Cases
+- `coordGrid_read`: `options` / `correctIndex` removed; `correctAnswer` updated to `"x,y"` format
+- `coordGrid_errorDetect` (new set — 2 questions):
+  - Q1: Sam claims `(5,2)` for a point actually at `(2,5)` — wrong claim, forces Step 2
+  - Q2: Leo claims `(3,−2)` for a point actually at `(3,−2)` — correct claim, resolves at Step 1
+- Both added to "Coordinate Grid (Enhanced)" group in `SAMPLE_GROUPS`
+
+#### Styles added (`CoordinateGridRenderer.js` StyleSheet)
+`readPrompt`, `stepperContainer`, `stepperRow`, `stepperLabel`, `stepperBtn`, `stepperBtnText`, `stepperValueBox`, `stepperValue`, `errCharCard`, `errCharCardWrong`, `errAvatar`, `errCharName`, `errCharSays`, `errCharCoord`, `errCharCoordWrong`, `caughtBanner`, `caughtBannerText`, `caughtBannerSub`
+
+---
+
+### Coordinate Grid — Initial Build — 2026-04-29
+
+#### `CoordinateGridRenderer.js` (new — Tool #6)
+- New `measurementTool: "coordinate_grid"` renderer — 5 initial interaction modes
+- SVG-based grid drawn with `react-native-svg`; grid lines, axis lines, tick marks, and numeric labels all rendered in code (no image assets)
+- Subtle quadrant tinting (I: teal, II: amber, III: red, IV: blue) helps students build quadrant mental models
+- Points snap to nearest integer intersection via `PanResponder` + coordinate transform helpers; no free dragging
+- Submit button required for all placement modes — no auto-advance on snap
+- Haptic feedback on snap (`Expo.Haptics`) and on correct/wrong check
+
+**`plot` mode** — student drags a point to the given target coordinate; submit validates
+
+**`read` mode** (initial) — pre-placed point; 4 MC buttons; *(upgraded to steppers in next pass)*
+
+**`multi_plot` mode** — active point label cycles through targets (A → B → C); each placed point freezes in its color; submit validates all at once
+
+**`missing` mode** — shown points (A, B, C) rendered as static labeled dots; student plots missing point D
+
+**`quadrant` mode** — pre-placed point; 4 MC buttons (Quadrant I/II/III/IV)
+
+#### AI Wiring
+- `prompts.ts`: `coordinate_grid` section added with all 5 mode schemas, field rules, and example JSONs; `MEASUREMENT TOOL REGEN RULES` section updated for all 5 modes
+- `index.ts`: regen branch added for `coordinate_grid` with `coordinateGridMode` context routing
+- `ScanScreen.js`: `coordinateGridMode` added to `questionContext` for regen
+
+#### `sampleQuestions.js`
+- Added `coordGrid_plot`, `coordGrid_read`, `coordGrid_multiPlot`, `coordGrid_missing`, `coordGrid_quadrant` question sets
+- Added "Coordinate Grid (Enhanced)" group to `SAMPLE_GROUPS`
+
+#### `QuizScreen.js`
+- `typeLabel` updated to display mode-specific labels for all 5 Coordinate Grid modes
+- `TOOL_REGISTRY` updated to include `"coordinate_grid"`
+
+---
+
+### Number Line — Redesign — 2026-04-29
+
+Complete redesign of the Number Line tool from a single draggable-point renderer into a 5-mode educational system focused on **interval reasoning, magnitude, and pattern recognition** — not "drag dot until green."
+
+**Design principles applied:**
+- No live value readout while dragging — student acts first, then submits
+- Snap-to-tick only — no free pixel dragging
+- Each mode tests a distinct mathematical concept on the same number line UI
+
+#### `NumberLineRenderer.js` — 5 modes
+
+**`read` mode** — A pre-placed colored dot; student picks its value from 4 MC options. Distractors probe specific mistakes (adjacent tick, wrong interval count). Tick labels hidden except endpoints — student must count intervals.
+
+**`place` mode** — Target value badge shown; student taps/drags to place a point; snaps to nearest tick; submit required. Color: purple → green/red on feedback.
+
+**`missing` mode** — A sequence with one value replaced by a "?" badge. Student picks the missing value from 4 MC options. Tests skip-counting and pattern recognition.
+
+**`partition` mode** — Unlabeled number line (0 and max only shown). Student counts equal parts and picks from 4 MC options. The `1 2 3 4` section-number labels appear *above* each gap (not at ticks) to reinforce that "parts" are spaces, not marks.
+
+**`distance` mode** — Two labeled colored points (A and B) shown with a bracket/brace spanning the gap. Student picks the distance from 4 MC options. Teaches subtraction and absolute value.
+
+#### Technical details
+- Canvas width responsive: `min(screenWidth − 40, 360)` — fills the screen
+- Negative number zone: red-tinted background for values left of zero
+- Touch targets: 40×40 px absolute-positioned areas (larger than visible tick)
+- Backward compatible: old `"mode": "count"` falls through to `partition` renderer
+- `endLabelsOnly` flag on `read`/`partition` modes prevents label/notation mismatch with MC options
+
+#### AI Wiring
+- `prompts.ts`: All 5 mode schemas added; distractor strategy documented; REGEN rules updated
+- `index.ts`: regen branch handles `read`, `place`, `missing`, `partition`, `distance` via `numberLineMode`
+- `ScanScreen.js`: `numberLineMode` added to `questionContext`
+
+#### `sampleQuestions.js`
+- Added 5 question sets (one per mode) to the "Number Line (Enhanced)" group
+
+---
+
+
 
 #### `FractionBuildRenderer.js` (new — T3-B)
 - New `measurementTool: "fraction_build"` renderer — **Build-a-Fraction**

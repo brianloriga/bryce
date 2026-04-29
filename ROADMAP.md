@@ -80,6 +80,8 @@ See [TOOLS.md](./TOOLS.md) for the full design spec of each tool.
 - Per-user rate limiting on the edge function (20 scans/day)
 - COPPA-compliant privacy policy and terms of service screens
 - Parental consent gate on signup, parent PIN lock on Account tab
+- **Number Line** — 5 interactive modes (read, place, missing, partition, distance); snap-to-tick, no live readout, staged thinking, negative number support
+- **Coordinate Grid** — 6 interactive modes (plot, read, multi_plot, missing, quadrant, error_detect); snap-to-intersection, floating x/y label during drag, x/y steppers for coordinate entry, error detection with avatar character cards and animated step transitions
 
 ---
 
@@ -100,10 +102,10 @@ Each tool is designed before a line of code is written. The process for every to
 | 1 | **Protractor** | Math, Geometry, Grades 4-8 | Done — all 5 modes live |
 | 2 | **Ruler** | Math, Grades 1-6 | Done — all 4 subtypes live, MC pedagogical redesign complete |
 | 2b | **Measuring Cup** | Math, Grades 1-4 | Done — all 3 modes live (read, fill, compare) |
-| 3 | **Number Line** | Math, Grades 1-8 | Pending Redesign |
+| 3 | **Number Line** | Math, Grades 1-8 | Done — 5 modes live (read, place, missing, partition, distance) |
 | 4 | **Analog Clock** | Math, Grades 1-3 | Done — all 4 modes live |
 | 5 | **Coin / Money** | Math, Grades 1-3 | Done — all 5 modes live |
-| 6 | **Coordinate Grid** | Math, Grades 4-8 | Pending Mockup |
+| 6 | **Coordinate Grid** | Math, Grades 4-8 | Done — 6 modes live (plot, read, multi_plot, missing, quadrant, error_detect) |
 | 7 | **Fraction Bar** | Math, Grades 3-5 | Done — 4 modes live |
 | 8 | **Fraction Number Line** | Math, Grades 3-5 | Done — 3 modes live |
 | 9 | **Build-a-Fraction** | Math, Grades 4-5 | Done — build mode live |

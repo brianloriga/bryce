@@ -573,10 +573,10 @@ Displays labeled currency images — coins (penny, nickel, dime, quarter) and bi
 
 ### 6. Coordinate Grid
 
-**Status:** Done — 5 modes live (`plot`, `read`, `multi_plot`, `missing`, `quadrant`)
+**Status:** Done — 6 modes live (`plot`, `read`, `multi_plot`, `missing`, `quadrant`, `error_detect`)
 
 **Description:**
-A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer intersections — no pixel-perfect dragging. Submit button required for placement modes. Quadrant tints provide subtle visual cues.
+A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer intersections — no pixel-perfect dragging. Submit button required for placement modes. Quadrant tints provide subtle visual cues. A floating `x: N  y: N` label appears next to the ghost point during dragging to reinforce axis concepts without leaking the target answer.
 
 **Grade range:** Grades 4–8
 
@@ -584,11 +584,12 @@ A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer interse
 
 | # | Mode | What the student does | Educational value |
 |---|---|---|---|
-| 1 | `plot` | Tap/drag to place a single point at a given coordinate. Submit required. | Ordered pairs, x/y axis navigation |
-| 2 | `read` | A pre-placed colored point is shown. Student picks its coordinates from 4 MC options. | Reading the grid, (x,y) notation |
+| 1 | `plot` | Tap/drag to place a single point at a given coordinate. Submit required. Floating coord label shows current x/y during drag. | Ordered pairs, x/y axis navigation |
+| 2 | `read` | A pre-placed colored point is shown. Student uses **x/y number steppers** (not MC) to enter the coordinates. x before y — forces correct axis sequencing. | Reading the grid, axis ordering, (x,y) notation |
 | 3 | `multi_plot` | Student places 2–3 labeled colored points sequentially, then submits. | Multiple ordered pairs, plotting fluency |
-| 4 | `missing` | Some points shown (A, B, C). Student plots the missing point (D). | Ordered pair recall, grid navigation |
+| 4 | `missing` | Some points shown forming a **shape or pattern** (e.g. 3 corners of a rectangle). Student plots the missing point that completes it. | Spatial reasoning, shape completion, ordered pair recall |
 | 5 | `quadrant` | A pre-placed point shown. Student picks which quadrant from 4 MC options. | Quadrant awareness, negative coordinates |
+| 6 | `error_detect` | A pre-placed point is shown with a **character avatar** (Sam, Nina, Leo, etc.) claiming wrong coordinates (always an x/y swap). Step 1: student judges right or wrong. Step 2: if wrong, student enters correct coords via steppers. | Misconception detection — ordered pair order (x before y) |
 
 **AI schema — `type: "fill_in"`, `measurementTool: "coordinate_grid"` for all modes:**
 
@@ -603,14 +604,13 @@ A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer interse
 }
 ```
 
-*Mode 2 — read:*
+*Mode 2 — read (x/y steppers — NO options or correctIndex):*
 ```json
 {
   "type": "fill_in", "measurementTool": "coordinate_grid",
   "question": "What are the coordinates of the blue point?",
-  "hint": "Read across first (x), then up or down (y).",
-  "options": ["(−3, 2)", "(−3, −2)", "(2, −3)", "(2, 3)"],
-  "correctIndex": 0, "correctAnswer": "(-3, 2)",
+  "hint": "Read x first (horizontal), then y (vertical).",
+  "correctAnswer": "-3,2",
   "geometry": { "mode": "read", "gridRange": 5, "points": [{ "x": -3, "y": 2, "color": "blue" }] }
 }
 ```
@@ -633,12 +633,12 @@ A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer interse
 }
 ```
 
-*Mode 4 — missing:*
+*Mode 4 — missing (always a shape or pattern — do NOT use like plain plot):*
 ```json
 {
   "type": "fill_in", "measurementTool": "coordinate_grid",
-  "question": "Points A, B, and C are shown. Plot point D at (−4, −2).",
-  "hint": "Move 4 left, then 2 down.",
+  "question": "Points A, B, and C are corners of a rectangle. Plot the missing corner D.",
+  "hint": "Use the positions of A, B, and C to figure out where D must go.",
   "correctAnswer": "-4,-2",
   "geometry": {
     "mode": "missing", "gridRange": 5,
@@ -664,24 +664,51 @@ A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer interse
 }
 ```
 
+*Mode 6 — error_detect (claim is ALWAYS wrong — always swap x and y):*
+```json
+{
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "Sam says this point is at (5, 2). Is Sam correct?",
+  "hint": "Remember: x comes first (horizontal), y comes second (vertical).",
+  "correctAnswer": "wrong",
+  "geometry": {
+    "mode": "error_detect", "gridRange": 5,
+    "points": [{ "x": 2, "y": 5, "color": "blue", "label": "P" }],
+    "claim": { "name": "Sam", "x": 5, "y": 2 },
+    "correctX": 2, "correctY": 5
+  }
+}
+```
+
 **Field reference:**
 
 | Field | Required by | Type | Notes |
 |---|---|---|---|
-| `geometry.mode` | all | string | `plot`, `read`, `multi_plot`, `missing`, `quadrant` |
+| `geometry.mode` | all | string | `plot`, `read`, `multi_plot`, `missing`, `quadrant`, `error_detect` |
 | `geometry.gridRange` | all | number | Half-width of grid (default 5 → grid from −5 to 5) |
 | `geometry.target` | plot | [x, y] | The coordinate to plot |
-| `geometry.points` | read, quadrant | array | `[{x, y, color, label?}]` — pre-placed |
+| `geometry.points` | read, quadrant, error_detect | array | `[{x, y, color, label?}]` — pre-placed |
 | `geometry.targets` | multi_plot | array | `[{x, y, label, color}]` — 2–3 points |
-| `geometry.shownPoints` | missing | array | Pre-placed points (A, B, C) |
+| `geometry.shownPoints` | missing | array | Pre-placed points forming a shape/pattern (A, B, C) |
 | `geometry.target` | missing | object | `{x, y, label}` — the point to find |
-| `options` | read, quadrant | string[] | 4 MC choices |
-| `correctIndex` | read, quadrant | number | 0–3 |
-| `correctAnswer` | all | string | `"x,y"` for placement; coordinate string for read/quadrant |
+| `geometry.claim` | error_detect | object | `{name, x, y}` — the character's wrong claim (always swap x/y) |
+| `geometry.correctX` / `correctY` | error_detect | number | Actual coordinates (matches `points[0]`) |
+| `options` | quadrant | string[] | 4 MC choices |
+| `correctIndex` | quadrant | number | 0–3 |
+| `correctAnswer` | all | string | `"x,y"` for placement; coordinate string for quadrant; `"wrong"` for error_detect |
 
 **Point colors:** `red`, `green`, `blue`, `purple`, `orange`, `yellow`
 
-**Fallback:** `fill_in` for plot/missing; `multiple_choice` for read/quadrant.
+**Avatar names** available for `error_detect` mode: `sam`, `nina`, `leo`, `ava`, `max`, `mia`
+(name in `claim.name` must match one of these, case-insensitive; avatar image is shown automatically)
+
+**Interaction UX details:**
+- All placement modes: points snap to integer intersections only — no free dragging
+- `plot` and `missing` modes: floating `x: N  y: N` label appears next to the ghost point during drag
+- `read` mode: two +/− number steppers (one for x, one for y) replace MC — forces axis-first, axis-second thinking
+- `error_detect` mode: 3-step flow — character card (avatar + claim) → judge buttons → if caught: 1-second "You caught it!" celebration banner → steppers fade in for coordinate entry; claim card turns red when caught
+
+**Fallback:** `fill_in` for plot/missing/error_detect; `multiple_choice` for read/quadrant.
 
 ---
 
