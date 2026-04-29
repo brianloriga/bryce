@@ -144,6 +144,24 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 
 ---
 
+## Generation Pipeline — Optimization & Cleanup (Pending)
+
+### In Progress / Recently Shipped
+- Parallel GPT-4o calls: one text track + one isolated call per visual aid (eliminates cross-contamination)
+- Visual aid questions are now additive to the standard question count
+- Pass-2 validator pre-filter (TypeScript) skips LLM check for obviously self-contained questions
+- `image_ref` numeric index preserved through sanitization pipeline (fixes wrong-image bug)
+- Dynamic generating screen with elapsed timer and progressive stage messages
+- Dev logging via AsyncStorage (visible in Dev tab)
+
+### Pending Validation
+- **Test low-detail lesson pages in visual aid calls** — Lesson pages are sent at `detail:'low'` in VA GPT calls (topic context only; VA image itself stays `detail:'high'`). This cuts per-scan cost by ~35%. Validate across 3–5 scans with dense-text and vocabulary-heavy lessons to confirm VA question vocabulary quality is not degraded. If quality drops, fall back to sending only the lesson title as a text string instead of low-detail images.
+
+### Pending Cleanup
+- **Clean up all development logging** — Remove or gate all `devLogger` calls, AsyncStorage log entries, and `console.log`/`console.warn` statements in the edge function before App Store submission. Replace with a structured, production-safe logging strategy (e.g., Supabase audit table or edge function metrics only).
+
+---
+
 ## Guardrails & Storage Limits (7E) — Pending
 
 - Kid profile cap (max 6 per account)

@@ -212,8 +212,11 @@ serve(async (req) => {
 
     const questionCount: number = Math.min(Math.max(Number(body.questionCount) || 9, 5), 20);
 
-    // Over-generate by ~40% so Pass-2 filtering never leaves us short.
-    // We trim back to exactly questionCount after validation.
+    // Visual aid questions are ADDITIVE — they do not consume from the text budget.
+    const totalVisualQs: number = rawVisuals.reduce((s, v) => s + (v.questionCount ?? 1), 0);
+
+    // Over-generate text questions by ~40% so Pass-2 filtering never leaves us short.
+    // Visual aid questions are requested on top of this, separately.
     const overGenCount: number = questionCount + Math.ceil(questionCount * 0.4);
 
     if (imageList.length === 0) {
@@ -262,48 +265,78 @@ serve(async (req) => {
       }
     }
 
-    // Build user message
-    const userContent: unknown[] = imageList.map((b64) => ({
-      type: 'image_url',
-      image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' },
-    }));
-    for (const v of rawVisuals) {
-      userContent.push({
-        type: 'image_url',
-        image_url: { url: `data:image/jpeg;base64,${v.base64}`, detail: 'high' },
-      });
+    // ── Image block helpers ───────────────────────────────────
+    // high  — full detail, used for lesson pages in the text call and for the VA image itself
+    // low   — ~85 tokens/image, used for lesson pages sent as topic context in VA calls
+    function imgBlock(b64: string): Record<string, unknown> {
+      return { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'high' } };
+    }
+    function imgBlockLow(b64: string): Record<string, unknown> {
+      return { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'low' } };
     }
 
-    const pageText = imageList.length > 1
-      ? `These are ${imageList.length} pages from the same lesson. Generate exactly ${overGenCount} practice questions spread evenly across all pages.`
-      : `Generate exactly ${overGenCount} practice questions from this page.`;
+    // Common suffix appended to every generation prompt
+    const QUESTION_RULES =
+      ' Every question must include a "hint" field.' +
+      ' WORKSHEET EXTRACTION PRIORITY: if the image shows a worksheet or problem set, base the questions as closely as possible on the ACTUAL questions printed on the worksheet — same numbers, same scenarios, same level of difficulty.' +
+      ' Use fill_in ONLY for math/number calculations, ordering for sequence questions, true_false for comparisons, word_bank for vocabulary/grammar, multiple_choice for all other text-based answers.' +
+      ' CRITICAL: visual_mc is ONLY for emoji/symbol pattern sequences. NEVER use visual_mc for reading comprehension, main idea, vocabulary, or science concepts.';
 
-    let visualAidInstruction = '';
-    if (rawVisuals.length > 0) {
-      const totalVisualQs = rawVisuals.reduce((s, v) => s + (v.questionCount ?? 1), 0);
-      const perImageInstructions = rawVisuals.map((v, i) =>
-        `Visual Aid ${i + 1} (image at position ${imageList.length + i + 1}): generate exactly ${v.questionCount ?? 1} question(s), mark each with "image_ref": ${i + 1}`
-      ).join('. ');
-      visualAidInstruction = ` The LAST ${rawVisuals.length} image(s) are visual aids the parent photographed from the same lesson — they are NOT text pages. ${perImageInstructions}. CRITICAL for visual aid questions: you have already read the lesson text pages — use that topic and vocabulary as your anchor. Ask questions that use the image as evidence for a concept from the lesson (e.g. if the lesson is about traits, ask how the image illustrates an inherited or learned trait). Do NOT ask trivial identification questions like "what animal is shown" or "what colour is this" — the question must connect the image to a concept from the lesson text. Reference "the image shown" or "the diagram above" in the question text. The remaining ${overGenCount - totalVisualQs} questions come from the text pages only.`;
-    }
-
-    userContent.push({
+    // ── Track A: text questions (lesson pages only, NO visual aids) ──
+    const textContent: unknown[] = imageList.map(imgBlock);
+    textContent.push({
       type: 'text',
-      text: `${pageText}${visualAidInstruction} Every question must include a "hint" field. WORKSHEET EXTRACTION PRIORITY: if the image shows a worksheet or problem set, base the questions as closely as possible on the ACTUAL questions printed on the worksheet — same numbers, same scenarios, same level of difficulty. Do NOT simplify or restate the questions in a generic way. Use fill_in ONLY for math/number calculations, ordering for sequence questions, true_false for comparisons, word_bank for vocabulary/grammar, multiple_choice for all other text-based answers. CRITICAL: visual_mc is ONLY for emoji/symbol pattern sequences (like colour patterns or shape sequences). NEVER use visual_mc for reading comprehension, main idea, vocabulary, science concepts, or any question whose answer is a word or sentence — use regular multiple_choice with text answers instead.`,
+      text: (imageList.length > 1
+        ? `These are ${imageList.length} pages from the same lesson. Generate exactly ${overGenCount} practice questions spread evenly across all pages.`
+        : `Generate exactly ${overGenCount} practice questions from this page.`
+      ) + QUESTION_RULES,
     });
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const textCallPromise = fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4o',
-          max_tokens: 10000,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user',   content: userContent },
-        ],
+        model: 'gpt-4o', max_tokens: 10000,
+        messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: textContent }],
       }),
     });
+
+    // ── Track B: one dedicated GPT call per visual aid ────────
+    // Each call sees ONLY the lesson pages + that ONE visual aid image.
+    // This completely eliminates cross-image contamination.
+    const visualCallPromises = rawVisuals.map((visual, i) => {
+      const imageRef = i + 1;
+      const n = visual.questionCount ?? 1;
+      const vaContent: unknown[] = [
+        ...imageList.map(imgBlockLow),
+        imgBlock(visual.base64),
+        {
+          type: 'text',
+          text:
+            `The LAST image is a visual aid photo from the same lesson. ` +
+            `Generate exactly ${n} question${n > 1 ? 's' : ''} about ONLY this visual aid image. ` +
+            `Rules: ` +
+            `(1) Set "image_ref": ${imageRef} and "selfContained": true on every question. ` +
+            `(2) Questions must be directly about what is VISIBLE in this specific image — no content from any other image. ` +
+            `(3) Connect the image content to the lesson topic and vocabulary from the text pages. ` +
+            `(4) Reference "the image shown" or "the image above" — never "Image A/B/C" or "the top-left image". ` +
+            `(5) ALL answer options must come from this image only. ` +
+            `(6) Every question must include a "hint" field. ` +
+            `Use multiple_choice unless the question clearly fits true_false, word_bank, or ordering.`,
+        },
+      ];
+      return fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4o', max_tokens: Math.max(1200, n * 600),
+          messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: vaContent }],
+        }),
+      });
+    });
+
+    // ── Run text + all visual aid calls in parallel ───────────
+    const [openaiResponse, ...vaResponses] = await Promise.all([textCallPromise, ...visualCallPromises]);
 
     if (!openaiResponse.ok) {
       const err = await openaiResponse.text();
@@ -317,13 +350,37 @@ serve(async (req) => {
     if (!jsonMatch) throw new Error('AI did not return valid JSON. Please try again.');
     const parsed = JSON.parse(repairLatexJson(jsonMatch[0]));
 
-    // ── Pass 1 logging ────────────────────────────────────────
+    // ── Parse visual aid responses ────────────────────────────
+    const rawVisualQs: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < vaResponses.length; i++) {
+      const imageRef = i + 1;
+      const resp = vaResponses[i];
+      if (!resp.ok) {
+        console.warn(`[generate-questions] Visual aid ${imageRef} HTTP ${resp.status} — skipping`);
+        continue;
+      }
+      const vaData    = await resp.json();
+      const vaText    = vaData.choices?.[0]?.message?.content ?? '';
+      const vaMatch   = vaText.match(/\{[\s\S]*\}/);
+      if (!vaMatch) {
+        console.warn(`[generate-questions] Visual aid ${imageRef}: no JSON returned`);
+        continue;
+      }
+      const vaParsed = JSON.parse(repairLatexJson(vaMatch[0]));
+      const vaQs     = (vaParsed.questions ?? []) as Array<Record<string, unknown>>;
+      // Force correct image_ref and selfContained regardless of what GPT wrote
+      const tagged = vaQs.map(q => ({ ...q, image_ref: imageRef, selfContained: true }));
+      console.log(`[generate-questions] Visual aid ${imageRef}: ${tagged.length} question(s) returned`);
+      rawVisualQs.push(...tagged);
+    }
+
+    // ── Pass 1 logging (text questions) ──────────────────────
     if (Array.isArray(parsed.questions)) {
-      console.log(`[generate-questions] GPT returned ${parsed.questions.length} question(s) for "${parsed.title}":`);
+      console.log(`[generate-questions] Text track: ${parsed.questions.length} question(s) for "${parsed.title}"`);
       (parsed.questions as Array<Record<string, unknown>>).forEach((q, i) => {
         const sc   = q.selfContained;
-        const flag = sc === false ? '❌ NOT self-contained' : sc === true ? '✅' : '⚠️  missing selfContained';
-        console.log(`  [${i + 1}] ${flag} | type=${q.type ?? 'mc'} | "${q.question}"`);
+        const flag = sc === false ? '❌' : sc === true ? '✅' : '⚠️';
+        console.log(`  [${i + 1}] ${flag} | ${q.type ?? 'mc'} | "${q.question}"`);
       });
     }
 
@@ -333,7 +390,9 @@ serve(async (req) => {
       parsed.questions = enrichDrawAngleQuestions(parsed.questions as Array<Record<string, unknown>>);
     }
 
-    // ── Pass 2: independent validation via gpt-4o-mini ────────
+    // ── Pass 2: validate TEXT questions only ──────────────────
+    // Visual aid questions are auto-approved (selfContained forced to true above,
+    // and the pre-filter in validateSelfContained passes image_ref questions instantly).
     if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
       const qs      = parsed.questions as Array<Record<string, unknown>>;
       const allowed = await validateSelfContained(qs, openaiKey);
@@ -341,18 +400,23 @@ serve(async (req) => {
       parsed.questions = qs.filter((_, i) => allowed[i]);
       const dropped2 = qs.filter((_, i) => !allowed[i]);
       if (dropped2.length > 0) {
-        console.warn(`[generate-questions] PASS-2 dropped ${dropped2.length} question(s) GPT mislabelled as self-contained:`);
+        console.warn(`[generate-questions] PASS-2 dropped ${dropped2.length} text question(s):`);
         dropped2.forEach((q, i) => console.warn(`  [${i + 1}] "${q.question}"`));
       }
-      console.log(`[generate-questions] Pass-2 result: ${before} → ${parsed.questions.length} questions kept`);
+      console.log(`[generate-questions] Pass-2 text: ${before} → ${parsed.questions.length} kept`);
 
-      // Trim surplus from over-generation down to the count the user requested
-      if ((parsed.questions as Array<Record<string, unknown>>).length > questionCount) {
-        parsed.questions = (parsed.questions as Array<Record<string, unknown>>).slice(0, questionCount);
-        console.log(`[generate-questions] Trimmed to exactly ${questionCount} questions`);
+      // Text questions only (visual aids handled separately)
+      const visualQs = rawVisualQs; // already tagged, pre-approved
+      let   textQs   = parsed.questions as Array<Record<string, unknown>>;
+
+      // Trim surplus TEXT questions down to the count the user requested (visual aid questions are kept in full)
+      if (textQs.length > questionCount) {
+        textQs = textQs.slice(0, questionCount);
+        console.log(`[generate-questions] Trimmed text questions to exactly ${questionCount}`);
       }
+      console.log(`[generate-questions] text=${textQs.length}/${questionCount} visual=${visualQs.length}/${totalVisualQs}`);
 
-      if (parsed.questions.length === 0) {
+      if (textQs.length === 0 && visualQs.length === 0) {
         console.warn('[generate-questions] All questions failed Pass-2 — worksheet is too visually dependent to digitize');
         return new Response(
           JSON.stringify({
@@ -363,12 +427,12 @@ serve(async (req) => {
         );
       }
 
-      // ── Retry pass: fill gap if Pass-2 dropped some questions
-      const shortfall = questionCount - (parsed.questions as Array<Record<string, unknown>>).length;
+      // ── Retry pass: fill gap in TEXT questions only if Pass-2 dropped some
+      const shortfall = questionCount - textQs.length;
       if (shortfall > 0) {
-        console.log(`[generate-questions] Shortfall of ${shortfall} — attempting retry pass`);
+        console.log(`[generate-questions] Shortfall of ${shortfall} text question(s) — attempting retry pass`);
         try {
-          const coveredTopics = (parsed.questions as Array<Record<string, unknown>>)
+          const coveredTopics = textQs
             .map((q) => String(q.question ?? '').slice(0, 80))
             .join(' | ');
 
@@ -406,15 +470,20 @@ serve(async (req) => {
               retryQs = enrichNumberLineQuestions(retryQs);
               retryQs = enrichDrawAngleQuestions(retryQs);
               const retryAllowed = await validateSelfContained(retryQs, openaiKey);
-              const retryKept   = retryQs.filter((_, i) => retryAllowed[i]);
+              // Only pick text questions from the retry (no image_ref)
+              const retryKept = retryQs.filter((q, i) => retryAllowed[i] && q.image_ref == null);
               console.log(`[generate-questions] Retry kept ${retryKept.length} / ${retryQs.length} question(s)`);
-              (parsed.questions as Array<Record<string, unknown>>).push(...retryKept.slice(0, shortfall));
+              textQs.push(...retryKept.slice(0, shortfall));
             }
           }
         } catch (retryErr) {
           console.warn('[generate-questions] Retry pass failed (non-fatal):', (retryErr as Error).message);
         }
       }
+
+      // Recombine: text questions first, then visual aid questions appended at the end
+      parsed.questions = [...textQs, ...visualQs];
+      console.log(`[generate-questions] title="${parsed.title}" raw=${before} kept=${parsed.questions.length} dropped=${before - parsed.questions.length} missingField=0`);
     }
 
     const safe = sanitizeResponse(parsed);
@@ -457,9 +526,10 @@ serve(async (req) => {
       supabase.from('scan_logs').insert({ user_id: userId }).then(() => {});
     }
 
-    const generatedCount = (safe.questions as unknown[])?.length ?? 0;
-    const countMeta = generatedCount < questionCount
-      ? { generated_count: generatedCount, requested_count: questionCount }
+    const allGenerated   = (safe.questions as Array<Record<string, unknown>> | undefined) ?? [];
+    const textGenerated  = allGenerated.filter((q) => q.image_ref == null).length;
+    const countMeta = textGenerated < questionCount
+      ? { generated_count: allGenerated.length, requested_count: questionCount + totalVisualQs }
       : {};
 
     const responseBody = {
