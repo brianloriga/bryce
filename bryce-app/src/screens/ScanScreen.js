@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as ImageManipulator from 'expo-image-manipulator';
+import LottieView from 'lottie-react-native';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
   ScrollView, Alert, ActivityIndicator, TextInput,
@@ -22,12 +23,26 @@ const MAX_IMAGES = 10;
 
 // ── Stage messages shown sequentially during generation ────────
 const GEN_STAGES = [
-  { minSec: 0,  icon: '🔍', msg: 'Reading your lesson pages…' },
-  { minSec: 8,  icon: '✍️', msg: 'Writing practice questions…' },
-  { minSec: 20, icon: '🧠', msg: 'Checking question quality…' },
-  { minSec: 35, icon: '🖼️', msg: 'Processing visual aids…' },
-  { minSec: 55, icon: '⚙️', msg: 'Finalising and ordering questions…' },
-  { minSec: 80, icon: '⏳', msg: 'Almost there — large lessons take a little longer…' },
+  {
+    minSec: 0,  msg: 'Reading your lesson pages…',
+    lottie: require('../../assets/lottie-animations/Scanning.json'),
+  },
+  {
+    minSec: 5,  msg: 'Checking question quality…',
+    lottie: require('../../assets/lottie-animations/Scanning.json'),
+  },
+  {
+    minSec: 10, msg: 'Writing practice questions…',
+    lottie: require('../../assets/lottie-animations/writingquestions.json'),
+  },
+  {
+    minSec: 15, msg: 'Finalising and ordering questions…',
+    lottie: require('../../assets/lottie-animations/finalising.json'),
+  },
+  {
+    minSec: 20, msg: 'Almost there — large lessons take a little longer…',
+    lottie: require('../../assets/lottie-animations/finalising.json'),
+  },
 ];
 
 function GeneratingScreen({ images, questionCount, activeVisualQCount, totalQuestionCount, onCancel, styles, theme }) {
@@ -52,12 +67,20 @@ function GeneratingScreen({ images, questionCount, activeVisualQCount, totalQues
     <SafeAreaView style={styles.safe}>
       <StatusBar style={theme.statusBar} />
       <View style={styles.gate}>
-        <ActivityIndicator size="large" color="#4ade80" />
+
+        {/* Lottie — key forces remount (and replay) whenever the source changes */}
+        <LottieView
+          key={stage.msg}
+          source={stage.lottie}
+          autoPlay
+          loop
+          resizeMode="contain"
+          style={styles.generatingLottie}
+        />
 
         <Text style={styles.generatingTitle}>Generating questions…</Text>
 
         <View style={styles.generatingStageRow}>
-          <Text style={styles.generatingStageIcon}>{stage.icon}</Text>
           <Text style={styles.generatingStageMsg}>{stage.msg}</Text>
         </View>
 
@@ -1259,16 +1282,16 @@ function createStyles(t) {
       backgroundColor: t.accentDim,
     },
     learnBtnText: { fontSize: 15, fontWeight: '700', color: t.accent },
-    generatingTitle: { fontSize: 22, fontWeight: '800', color: t.text, marginTop: 24, marginBottom: 16 },
+    generatingLottie:  { width: 220, height: 220 },
+    generatingTitle: { fontSize: 22, fontWeight: '800', color: t.text, marginBottom: 16 },
     generatingStageRow: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
+      alignItems: 'center',
       backgroundColor: 'rgba(74,222,128,0.08)',
-      borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10,
+      borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10,
       borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)',
       marginBottom: 14,
     },
-    generatingStageIcon: { fontSize: 18 },
-    generatingStageMsg:  { fontSize: 14, fontWeight: '600', color: t.text, flex: 1 },
+    generatingStageMsg:  { fontSize: 14, fontWeight: '600', color: t.text, textAlign: 'center' },
     generatingMeta:      { fontSize: 13, color: t.textMuted, textAlign: 'center', marginBottom: 10 },
     generatingTimerRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 32 },
     generatingTimer:     { fontSize: 13, color: '#64748b', fontWeight: '600' },

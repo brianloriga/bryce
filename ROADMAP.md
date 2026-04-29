@@ -120,7 +120,7 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 | # | Tool | Subject / Grade | Status |
 | --- | --- | --- | --- |
 | S1 | **Classification Sort** | Science, Social Studies, Reading, Math — Grades 2-6 | Done — two_way + three_way modes live |
-| S2 | **Cause & Effect Mapper** | Reading, Science, Social Studies — Grades 2-6 | Specced — Pending Mockup |
+| S2 | **Cause & Effect Mapper** | Reading, Science, Social Studies — Grades 2-6 | Done — match mode live — **UI adjustments needed, under review** |
 | S3 | **Chart Reader** (Bar / Line) | Science, Social Studies, Math — Grades 3-8 | Specced — Pending Mockup |
 | S4 | **Timeline Builder** | Social Studies, Science, Reading — Grades 3-8 | Specced — Pending Mockup |
 | S5 | **Diagram Labeler** | Science — Grades 3-8 | Specced — Pending Mockup |

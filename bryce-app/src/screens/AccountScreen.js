@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Animated, Switch,
+  Alert, Animated,
 } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -101,6 +102,11 @@ export default function AccountScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
+  const lottieRef   = useRef(null);
+  const animatingRef = useRef(false);
+  // Plain number (0-1) for static display. Light = frame 30, Dark = frame 115, total = 481.
+  const [lottieProgress, setLottieProgress] = useState(() => isDark ? 115 / 481 : 30 / 481);
+
   const [pinState, setPinState] = useState('checking');
   const [setupPin, setSetupPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -178,6 +184,23 @@ export default function AccountScreen() {
         },
       ]
     );
+  }
+
+  function handleThemeToggle() {
+    if (animatingRef.current) return;
+    animatingRef.current = true;
+    if (isDark) {
+      lottieRef.current?.play(300, 385); // moon → sun
+    } else {
+      lottieRef.current?.play(30, 115);  // sun → moon
+    }
+    toggleTheme();
+  }
+
+  function handleLottieFinish() {
+    animatingRef.current = false;
+    // isDark is now the NEW value; lock progress to the correct static frame
+    setLottieProgress(isDark ? 115 / 481 : 30 / 481);
   }
 
   async function handleSignOut() {
@@ -416,20 +439,19 @@ export default function AccountScreen() {
         <Text style={styles.sectionTitle}>Appearance</Text>
         <View style={styles.card}>
           <View style={styles.themeRow}>
-            <Ionicons
-              name={isDark ? 'moon-outline' : 'sunny-outline'}
-              size={20}
-              color={isDark ? theme.accent2 : '#f59e0b'}
-              style={{ marginRight: 12 }}
-            />
             <Text style={styles.themeLabel}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
-            <Switch
-              value={isDark}
-              onValueChange={toggleTheme}
-              trackColor={{ false: '#e2e8f0', true: theme.accent2 + '80' }}
-              thumbColor={isDark ? theme.accent2 : '#94a3b8'}
-              ios_backgroundColor={isDark ? theme.bgCard : '#e2e8f0'}
-            />
+            <TouchableOpacity onPress={handleThemeToggle} activeOpacity={0.8}>
+              <LottieView
+                ref={lottieRef}
+                source={require('../../assets/lottie-animations/Dark Mode Button.json')}
+                progress={lottieProgress}
+                autoPlay={false}
+                loop={false}
+                resizeMode="contain"
+                onAnimationFinish={handleLottieFinish}
+                style={styles.lottieToggle}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -605,9 +627,10 @@ function createStyles(t) {
     // Appearance / theme toggle
     themeRow: {
       flexDirection: 'row', alignItems: 'center',
-      paddingHorizontal: 16, paddingVertical: 14,
+      paddingHorizontal: 16, paddingVertical: 10,
     },
     themeLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: t.text },
+    lottieToggle: { width: 88, height: 50 },
 
     listRow: {
       flexDirection: 'row', alignItems: 'center',

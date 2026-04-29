@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Audio } from 'expo-av';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import LottieView from 'lottie-react-native';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -40,6 +41,7 @@ import FractionBuildRenderer        from '../renderers/tools/FractionBuildRender
 import FractionNumberLineRenderer   from '../renderers/tools/FractionNumberLineRenderer';
 import CoordinateGridRenderer       from '../renderers/tools/CoordinateGridRenderer';
 import ClassificationSortRenderer   from '../renderers/tools/ClassificationSortRenderer';
+import CauseEffectRenderer          from '../renderers/tools/CauseEffectRenderer';
 import ScratchPadModal, { ScratchPadButton } from '../components/ScratchPadModal';
 
 // Standard renderers
@@ -70,6 +72,8 @@ export default function QuizScreen() {
   const [scrollEnabled, setScrollEnabled]   = useState(true);
   const [scratchVisible, setScratchVisible] = useState(false);
   const [scratchHasContent, setScratchHasContent] = useState(false);
+  const [showSuccessAnim, setShowSuccessAnim] = useState(false);
+  const successAnimTimeout = useRef(null);
 
   // Intro phase — shown before Q1 when intro_audio_url is available.
   // liveIntroUrl starts from the nav-param value, then gets updated by a
@@ -150,7 +154,10 @@ export default function QuizScreen() {
   }, [currentIndex]);
 
   useEffect(() => {
-    return () => { if (answerTimeout.current) clearTimeout(answerTimeout.current); };
+    return () => {
+      if (answerTimeout.current)    clearTimeout(answerTimeout.current);
+      if (successAnimTimeout.current) clearTimeout(successAnimTimeout.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -386,6 +393,7 @@ export default function QuizScreen() {
       const mode = q.geometry?.mode ?? 'two_way';
       return mode === 'three_way' ? 'Sort · 3 Categories' : 'Sort It Out';
     }
+    if (q.measurementTool === 'cause_effect_map') return 'Cause & Effect';
     return TYPE_LABELS[qType] ?? null;
   })();
 
@@ -433,6 +441,9 @@ export default function QuizScreen() {
         Animated.timing(celebAnim, { toValue: 1.04, duration: 150, useNativeDriver: true }),
         Animated.timing(celebAnim, { toValue: 1,    duration: 150, useNativeDriver: true }),
       ]).start();
+      setShowSuccessAnim(true);
+      if (successAnimTimeout.current) clearTimeout(successAnimTimeout.current);
+      successAnimTimeout.current = setTimeout(() => setShowSuccessAnim(false), 1100);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
@@ -643,12 +654,28 @@ export default function QuizScreen() {
             <Text style={styles.backBtnText}>← Back</Text>
           </TouchableOpacity>
           <View style={styles.resultsCard}>
-            <Text style={styles.resultsStars}>
-              {stars >= 1 ? '⭐' : '☆'}{stars >= 2 ? '⭐' : '☆'}{stars >= 3 ? '⭐' : '☆'}
-            </Text>
+            {pct >= 0.70 ? (
+              <LottieView
+                source={require('../../assets/lottie-animations/Star Success.json')}
+                autoPlay
+                loop={false}
+                resizeMode="contain"
+                style={styles.resultsLottie}
+              />
+            ) : (
+              <LottieView
+                source={require('../../assets/lottie-animations/tryagain.json')}
+                autoPlay
+                loop={false}
+                resizeMode="contain"
+                style={styles.resultsLottie}
+              />
+            )}
             <Text style={styles.resultsScore}>{score}/{questions.length}</Text>
             <Text style={styles.resultsLabel}>
-              {stars === 3 ? 'Outstanding! 🎉' : stars === 2 ? 'Great work! 👏' : stars === 1 ? 'Good effort! 💪' : 'Keep practicing! 📚'}
+              {pct >= 0.70
+                ? (stars === 3 ? 'Outstanding! 🎉' : 'Great work! 👏')
+                : (stars === 1 ? 'Good effort! 💪' : 'Keep practicing! 📚')}
             </Text>
             <Text style={styles.resultsUnit}>{unit.title}</Text>
           </View>
@@ -804,6 +831,8 @@ export default function QuizScreen() {
             <CoordinateGridRenderer     key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' && q.measurementTool === 'classification_sort' ? (
             <ClassificationSortRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'cause_effect_map' ? (
+            <CauseEffectRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (
@@ -878,6 +907,18 @@ export default function QuizScreen() {
         questionKey={currentIndex}
         onContentChange={setScratchHasContent}
       />
+
+      {/* ── Success Lottie overlay (MC correct answer) ── */}
+      {showSuccessAnim && (
+        <View style={styles.successLottieOverlay} pointerEvents="none">
+          <LottieView
+            source={require('../../assets/lottie-animations/Success.json')}
+            autoPlay
+            loop={false}
+            style={styles.successLottieAnim}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1043,7 +1084,7 @@ const styles = StyleSheet.create({
   backBtn:          { marginBottom: 16 },
   backBtnText:      { fontSize: 16, color: '#64748b', fontWeight: '600' },
   resultsCard:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  resultsStars:     { fontSize: 52, marginBottom: 16 },
+  resultsLottie:    { width: 180, height: 180, marginBottom: 8 },
   resultsScore:     { fontSize: 72, fontWeight: '900', color: '#fff', lineHeight: 80 },
   resultsLabel:     { fontSize: 22, fontWeight: '700', color: '#94a3b8', marginTop: 8, marginBottom: 6 },
   resultsUnit:      { fontSize: 14, color: '#475569', textAlign: 'center', maxWidth: 240 },
@@ -1064,6 +1105,19 @@ const styles = StyleSheet.create({
   emptyDesc:      { fontSize: 15, color: '#64748b', textAlign: 'center', lineHeight: 22, marginBottom: 28 },
   emptyBtn:       { backgroundColor: '#1e293b', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 },
   emptyBtnText:   { fontSize: 15, fontWeight: '700', color: '#94a3b8' },
+
+  // ── Success Lottie overlay
+  successLottieOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  successLottieAnim: {
+    width: 220,
+    height: 220,
+  },
 
   // ── Intro phase — visionOS glass
   introScreen:        { flex: 1, backgroundColor: '#000' },
