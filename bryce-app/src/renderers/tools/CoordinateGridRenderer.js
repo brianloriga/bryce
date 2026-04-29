@@ -5,7 +5,7 @@ import React, { useState, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import {
   View, Text, TouchableOpacity, Animated, PanResponder,
-  StyleSheet, useWindowDimensions,
+  StyleSheet, useWindowDimensions, Image,
 } from 'react-native';
 import Svg, { Line, Circle, Rect, Path, G, Text as SvgText } from 'react-native-svg';
 
@@ -20,6 +20,16 @@ const POINT_COLORS = {
   purple: '#a78bfa', orange: '#fb923c', yellow: '#fbbf24',
 };
 const COLOR_ORDER = ['red', 'green', 'blue', 'purple', 'orange', 'yellow'];
+
+// ── Character avatar registry (used in Error Detection) ───────
+const AVATAR_IMG = {
+  sam:  require('../../../assets/child-avatars/sam_avatar.png'),
+  nina: require('../../../assets/child-avatars/nina_avatar.png'),
+  leo:  require('../../../assets/child-avatars/leo_avatar.png'),
+  ava:  require('../../../assets/child-avatars/ava_avatar.png'),
+  max:  require('../../../assets/child-avatars/max_avatar.png'),
+  mia:  require('../../../assets/child-avatars/mia_avatar.png'),
+};
 
 const Q_TINT = {
   I:   'rgba(74,222,128,0.08)',
@@ -782,9 +792,11 @@ function QuadrantMode({ q, onResolve, styles }) {
 
 // ═══════════════════════════════════════════════════════════════
 // MODE 6 — ErrorDetectMode
-// A point is shown. A named character claims wrong coordinates.
-// Step 1: Is the claim right or wrong?
-// Step 2 (if wrong & student correct): Enter the actual coordinates.
+// A point is shown. A character claims the WRONG coordinates.
+// Step 1: judge — is the claim right or wrong?
+// Step 1.5: "You caught it!" pause (700ms) before steppers appear.
+// Step 2: enter the correct coordinates via x/y steppers.
+// Supports both wrong claims (most common) and correct claims.
 // ═══════════════════════════════════════════════════════════════
 function ErrorDetectMode({ q, onResolve, styles }) {
   const geo       = q.geometry ?? {};
@@ -799,43 +811,68 @@ function ErrorDetectMode({ q, onResolve, styles }) {
   const correctY  = geo.correctY ?? (pts[0]?.y ?? 0);
   const claimIsWrong = (claimX !== correctX) || (claimY !== correctY);
 
-  const [step,     setStep]     = useState(1);
-  const [feedback, setFeedback] = useState(null);
+  const avatarImg = AVATAR_IMG[(claimName).toLowerCase()] ?? null;
+
+  const [step,        setStep]        = useState(1);
+  const [caughtPause, setCaughtPause] = useState(false);
+  const [feedback,    setFeedback]    = useState(null);
+  const step2Anim = useRef(new Animated.Value(0)).current;
 
   function handleJudgement(sayingWrong) {
-    const judgementCorrect = sayingWrong === claimIsWrong;
-    if (judgementCorrect && claimIsWrong) {
-      Haptics.selectionAsync();
-      setStep(2);
-    } else if (judgementCorrect && !claimIsWrong) {
+    if (sayingWrong && claimIsWrong) {
+      // Correct — student caught the error
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setFeedback('correct');
+      setCaughtPause(true);
+      setTimeout(() => {
+        setCaughtPause(false);
+        setStep(2);
+        Animated.timing(step2Anim, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+      }, 750);
+    } else if (!sayingWrong && !claimIsWrong) {
+      // Correct — claim was actually right
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFeedback('correct_right');
       setTimeout(() => onResolve(true), 2000);
     } else {
+      // Wrong judgement
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFeedback('wrong_judge');
-      setTimeout(() => onResolve(false), 2200);
+      setTimeout(() => onResolve(false), 2400);
     }
   }
 
   function handleCoordCheck(xVal, yVal) {
     const ok = xVal === correctX && yVal === correctY;
-    setFeedback(ok ? 'correct' : 'wrong_coords');
+    setFeedback(ok ? 'correct_caught' : 'wrong_coords');
     Haptics.notificationAsync(ok
       ? Haptics.NotificationFeedbackType.Success
       : Haptics.NotificationFeedbackType.Error);
     setTimeout(() => onResolve(ok), 2200);
   }
 
+  const cardIsWrong = caughtPause || step === 2 || feedback === 'wrong_judge';
+
   return (
     <View style={{ alignItems: 'center' }}>
-      <View style={cgLocal.claimBadge}>
-        <Text style={cgLocal.claimText}>
-          {claimName} says this point is{' '}
-          <Text style={cgLocal.claimCoord}>({claimX}, {claimY})</Text>
-        </Text>
+
+      {/* ── Character claim card ── */}
+      <View style={[cgLocal.errCharCard, cardIsWrong && cgLocal.errCharCardWrong]}>
+        {avatarImg && (
+          <Image source={avatarImg} style={cgLocal.errAvatar} />
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={cgLocal.errCharName}>{claimName}</Text>
+          <Text style={cgLocal.errCharSays}>says this point is</Text>
+          <Text style={[
+            cgLocal.errCharCoord,
+            cardIsWrong && cgLocal.errCharCoordWrong,
+          ]}>
+            ({claimX}, {claimY}){cardIsWrong ? '  ✗' : ''}
+          </Text>
+        </View>
       </View>
 
+      {/* ── Grid ── */}
       <Svg width={W} height={W} style={{ alignSelf: 'center' }}>
         <GridSvgContent W={W} cellSize={cellSize} gridRange={gridRange}
           prePlacedPoints={pts}
@@ -843,7 +880,8 @@ function ErrorDetectMode({ q, onResolve, styles }) {
         />
       </Svg>
 
-      {step === 1 && !feedback && (
+      {/* ── Step 1: judge buttons ── */}
+      {step === 1 && !feedback && !caughtPause && (
         <View style={cgLocal.judgeRow}>
           <TouchableOpacity style={[cgLocal.judgeBtn, cgLocal.judgeBtnYes]}
             onPress={() => handleJudgement(false)} activeOpacity={0.8}>
@@ -856,14 +894,25 @@ function ErrorDetectMode({ q, onResolve, styles }) {
         </View>
       )}
 
-      {step === 2 && !feedback && (
-        <View style={{ width: '100%', alignItems: 'center' }}>
-          <Text style={cgLocal.readPrompt}>Good catch! What are the correct coordinates?</Text>
-          <XYSteppers gridRange={gridRange} onCheck={handleCoordCheck} disabled={false} />
+      {/* ── Step 1.5: "You caught it!" pause banner ── */}
+      {caughtPause && (
+        <View style={cgLocal.caughtBanner}>
+          <Text style={cgLocal.caughtBannerText}>You caught it! 🎯</Text>
+          <Text style={cgLocal.caughtBannerSub}>Now enter the correct coordinates.</Text>
         </View>
       )}
 
-      {feedback === 'correct' && (
+      {/* ── Step 2: coordinate entry (fades in) ── */}
+      {step === 2 && !feedback && (
+        <Animated.View style={{ width: '100%', opacity: step2Anim,
+          transform: [{ translateY: step2Anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+          <Text style={cgLocal.readPrompt}>What are the correct coordinates?</Text>
+          <XYSteppers gridRange={gridRange} onCheck={handleCoordCheck} disabled={false} />
+        </Animated.View>
+      )}
+
+      {/* ── Feedback messages ── */}
+      {feedback === 'correct_caught' && (
         <View style={{ alignItems: 'center', marginTop: 8 }}>
           <Text style={styles.fillInCorrectMsg}>Correct! 🎯</Text>
           <Text style={cgLocal.feedbackSub}>
@@ -871,16 +920,30 @@ function ErrorDetectMode({ q, onResolve, styles }) {
           </Text>
         </View>
       )}
+      {feedback === 'correct_right' && (
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Text style={styles.fillInCorrectMsg}>Correct! 🎯</Text>
+          <Text style={cgLocal.feedbackSub}>
+            {claimName} got it right — the point IS ({correctX}, {correctY}).
+          </Text>
+        </View>
+      )}
       {feedback === 'wrong_judge' && (
         <View style={{ alignItems: 'center', marginTop: 8 }}>
-          <Text style={styles.fillInRevealLabel}>{claimName} was actually wrong!</Text>
-          <Text style={styles.fillInRevealAnswer}>The point is ({correctX}, {correctY}).</Text>
+          <Text style={styles.fillInRevealLabel}>
+            Not quite — {claimName} was actually {claimIsWrong ? 'wrong' : 'right'}!
+          </Text>
+          <Text style={styles.fillInRevealAnswer}>
+            The point is ({correctX}, {correctY}).
+          </Text>
         </View>
       )}
       {feedback === 'wrong_coords' && (
         <View style={{ alignItems: 'center', marginTop: 8 }}>
           <Text style={styles.fillInRevealLabel}>Not quite!</Text>
-          <Text style={styles.fillInRevealAnswer}>The point is ({correctX}, {correctY}).</Text>
+          <Text style={styles.fillInRevealAnswer}>
+            The point is ({correctX}, {correctY}).
+          </Text>
         </View>
       )}
     </View>
@@ -996,14 +1059,35 @@ const cgLocal = StyleSheet.create({
   },
   stepperValue: { fontSize: 20, fontWeight: '800', color: '#e2e8f0' },
 
-  // Error detect mode
-  claimBadge: {
-    width: '100%', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+  // Error detect mode — character card
+  errCharCard: {
+    width: '100%', flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.35)',
     backgroundColor: 'rgba(251,191,36,0.07)',
-    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 10, alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
   },
-  claimText: { fontSize: 14, fontWeight: '600', color: '#94a3b8' },
-  claimCoord: { fontSize: 16, fontWeight: '900', color: '#fbbf24' },
+  errCharCardWrong: {
+    borderColor: 'rgba(248,113,113,0.5)',
+    backgroundColor: 'rgba(248,113,113,0.07)',
+  },
+  errAvatar: {
+    width: 54, height: 54, borderRadius: 27, backgroundColor: '#334155',
+  },
+  errCharName:  { fontSize: 15, fontWeight: '900', color: '#e2e8f0' },
+  errCharSays:  { fontSize: 12, fontWeight: '500', color: '#64748b', marginTop: 1 },
+  errCharCoord: { fontSize: 18, fontWeight: '900', color: '#fbbf24', marginTop: 2 },
+  errCharCoordWrong: { color: '#f87171' },
+
+  // Caught pause banner
+  caughtBanner: {
+    width: '100%', borderRadius: 14, borderWidth: 1.5, borderColor: '#4ade80',
+    backgroundColor: 'rgba(74,222,128,0.1)',
+    paddingVertical: 14, paddingHorizontal: 16, marginTop: 12, alignItems: 'center', gap: 2,
+  },
+  caughtBannerText: { fontSize: 18, fontWeight: '900', color: '#4ade80' },
+  caughtBannerSub:  { fontSize: 13, fontWeight: '500', color: '#86efac' },
+
+  // Judge buttons
   judgeRow: { flexDirection: 'row', gap: 10, marginTop: 14, width: '100%' },
   judgeBtn: {
     flex: 1, paddingVertical: 15, borderRadius: 14,

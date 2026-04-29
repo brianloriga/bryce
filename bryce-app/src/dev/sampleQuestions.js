@@ -2618,7 +2618,7 @@ const coordGrid_errorDetect = {
       {
         type: 'fill_in', measurementTool: 'coordinate_grid',
         question: 'Sam says this point is at (5, 2). Is Sam correct?',
-        hint: 'Remember: x comes first, y comes second.',
+        hint: 'Remember: x comes first (horizontal), y comes second (vertical).',
         correctAnswer: 'wrong',
         geometry: {
           mode: 'error_detect', gridRange: 5,
@@ -2630,7 +2630,7 @@ const coordGrid_errorDetect = {
       {
         type: 'fill_in', measurementTool: 'coordinate_grid',
         question: 'Nina says this point is at (−3, 4). Is Nina correct?',
-        hint: 'Look carefully at which axis is x and which is y.',
+        hint: 'Look at which axis goes left-right and which goes up-down.',
         correctAnswer: 'wrong',
         geometry: {
           mode: 'error_detect', gridRange: 5,
@@ -2641,14 +2641,26 @@ const coordGrid_errorDetect = {
       },
       {
         type: 'fill_in', measurementTool: 'coordinate_grid',
-        question: 'Leo says this point is at (−2, −4). Is Leo correct?',
-        hint: 'Check x first — is it negative or positive?',
+        question: 'Leo says this point is at (3, −2). Is Leo correct?',
+        hint: 'Read the x-axis (horizontal) first to check.',
+        correctAnswer: 'right',
+        geometry: {
+          mode: 'error_detect', gridRange: 5,
+          points: [{ x: 3, y: -2, color: 'green', label: 'B' }],
+          claim: { name: 'Leo', x: 3, y: -2 },
+          correctX: 3, correctY: -2,
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Ava says this point is at (−4, −2). Is Ava correct?',
+        hint: 'Both values are negative — check the quadrant first.',
         correctAnswer: 'wrong',
         geometry: {
           mode: 'error_detect', gridRange: 5,
-          points: [{ x: -4, y: -2, color: 'purple', label: 'B' }],
-          claim: { name: 'Leo', x: -2, y: -4 },
-          correctX: -4, correctY: -2,
+          points: [{ x: -2, y: -4, color: 'purple', label: 'C' }],
+          claim: { name: 'Ava', x: -4, y: -2 },
+          correctX: -2, correctY: -4,
         },
       },
     ],
