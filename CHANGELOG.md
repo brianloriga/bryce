@@ -6,6 +6,33 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### S1 Classification Sort — Enhanced Tool — 2026-04-29
+
+First Science/Reading/Social Studies enhanced tool. Covers any sorting or categorizing worksheet question across all subjects and grades 2–6.
+
+#### `ClassificationSortRenderer.js` (new — Tool S1)
+- New `measurementTool: "classification_sort"` renderer — two modes: `two_way` (2 buckets) and `three_way` (3 buckets)
+- Tap-tap interaction: tap a chip from the bank to select it (highlights + columns show "Tap to place ↓"), then tap a column to place it
+- Tap a placed chip (shows ✕) to return it to the bank; tap the same chip again to deselect
+- On Check: wrong placements shake (`Animated.sequence` spring) and return to the bank automatically after 900ms; student retries with only incorrect chips
+- Category column headers use color-coded top-border accents (green / blue / orange) matching the chip color when placed
+- Live step hint above columns updates as student progresses ("tap a card → tap a category → all placed → check")
+- `selfContained: true` — renderer draws the entire interactive UI; no external image assets
+- Fallback: `ordering` (two-way) or `multiple_choice` per item
+
+#### AI Wiring
+- `prompts.ts`: section 9 added with `two_way` and `three_way` schemas, field rules, trigger examples (living/non-living, solid/liquid/gas, legislative/executive/judicial, etc.), and tool added to the supported-tools list in the VISUAL INTERACTION FALLBACK RULE; regen entry added to `REGEN_SYSTEM_PROMPT`
+- `index.ts`: regen context handler added for `classification_sort` — preserves mode and category concept, generates fresh items
+- `ScanScreen.js`: `sortMode` added to `questionContext` for regen
+- `QuizScreen.js`: import, `typeLabel` badge ("Sort It Out" / "Sort · 3 Categories"), and dispatcher added
+
+#### `sampleQuestions.js`
+- `classSort_twoWay`: 3 questions — Living/Non-Living (Science), Noun/Verb (ELA), Needs/Wants (Social Studies)
+- `classSort_threeWay`: 2 questions — States of Matter (Science), Branches of Government (Social Studies)
+- Added "Classification Sort (Enhanced)" group to `SAMPLE_GROUPS`
+
+---
+
 ### Coordinate Grid — Cognitive Depth Upgrade — 2026-04-29
 
 A second pass over the Coordinate Grid tool focusing on **cognitive depth** and **misconception correction**. The original `read` mode was MC-based, which allowed students to avoid true axis-reading. The new interaction modes force axis-first thinking and catch the most common coordinate mistake (x/y order swap).

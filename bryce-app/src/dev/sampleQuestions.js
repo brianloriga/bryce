@@ -2765,6 +2765,148 @@ const coordGrid_quadrant = {
   },
 };
 
+// ─────────────────────────────────────────────────────────────
+// CLASSIFICATION SORT (Enhanced)
+// ─────────────────────────────────────────────────────────────
+const classSort_twoWay = {
+  id: 'class_sort_two_way',
+  label: 'Classification Sort – Two Categories',
+  unit: {
+    title: 'Living vs. Non-Living',
+    subject: 'science',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'classification_sort',
+        question: 'Sort each item into the correct category.',
+        hint: 'Living things grow, breathe, and reproduce. Non-living things do not.',
+        correctAnswer: 'sorted',
+        selfContained: true,
+        geometry: {
+          mode: 'two_way',
+          categories: [
+            { label: 'Living', color: 'green' },
+            { label: 'Non-Living', color: 'blue' },
+          ],
+          items: [
+            { text: 'Dog', correctCategory: 'Living' },
+            { text: 'Rock', correctCategory: 'Non-Living' },
+            { text: 'Tree', correctCategory: 'Living' },
+            { text: 'Cloud', correctCategory: 'Non-Living' },
+            { text: 'Mushroom', correctCategory: 'Living' },
+            { text: 'Water', correctCategory: 'Non-Living' },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'classification_sort',
+        question: 'Sort each word as a noun or a verb.',
+        hint: 'Nouns name a person, place, or thing. Verbs describe an action.',
+        correctAnswer: 'sorted',
+        selfContained: true,
+        geometry: {
+          mode: 'two_way',
+          categories: [
+            { label: 'Noun', color: 'blue' },
+            { label: 'Verb', color: 'orange' },
+          ],
+          items: [
+            { text: 'Run', correctCategory: 'Verb' },
+            { text: 'Mountain', correctCategory: 'Noun' },
+            { text: 'Jump', correctCategory: 'Verb' },
+            { text: 'Teacher', correctCategory: 'Noun' },
+            { text: 'Laugh', correctCategory: 'Verb' },
+            { text: 'City', correctCategory: 'Noun' },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'classification_sort',
+        question: 'Sort each item as a need or a want.',
+        hint: 'Needs are things you must have to survive. Wants are nice to have but not required.',
+        correctAnswer: 'sorted',
+        selfContained: true,
+        geometry: {
+          mode: 'two_way',
+          categories: [
+            { label: 'Need', color: 'green' },
+            { label: 'Want', color: 'orange' },
+          ],
+          items: [
+            { text: 'Food', correctCategory: 'Need' },
+            { text: 'Video game', correctCategory: 'Want' },
+            { text: 'Shelter', correctCategory: 'Need' },
+            { text: 'Toy', correctCategory: 'Want' },
+            { text: 'Water', correctCategory: 'Need' },
+            { text: 'Bicycle', correctCategory: 'Want' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+const classSort_threeWay = {
+  id: 'class_sort_three_way',
+  label: 'Classification Sort – Three Categories',
+  unit: {
+    title: 'States of Matter',
+    subject: 'science',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'classification_sort',
+        question: 'Sort each item into the correct state of matter.',
+        hint: 'Solids have a fixed shape. Liquids flow. Gases spread out to fill their container.',
+        correctAnswer: 'sorted',
+        selfContained: true,
+        geometry: {
+          mode: 'three_way',
+          categories: [
+            { label: 'Solid', color: 'blue' },
+            { label: 'Liquid', color: 'green' },
+            { label: 'Gas', color: 'orange' },
+          ],
+          items: [
+            { text: 'Ice', correctCategory: 'Solid' },
+            { text: 'Water', correctCategory: 'Liquid' },
+            { text: 'Steam', correctCategory: 'Gas' },
+            { text: 'Rock', correctCategory: 'Solid' },
+            { text: 'Juice', correctCategory: 'Liquid' },
+            { text: 'Oxygen', correctCategory: 'Gas' },
+          ],
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'classification_sort',
+        question: 'Sort each branch of government.',
+        hint: 'Congress makes laws. The President carries out laws. Courts interpret laws.',
+        correctAnswer: 'sorted',
+        selfContained: true,
+        geometry: {
+          mode: 'three_way',
+          categories: [
+            { label: 'Legislative', color: 'blue' },
+            { label: 'Executive', color: 'green' },
+            { label: 'Judicial', color: 'orange' },
+          ],
+          items: [
+            { text: 'Congress', correctCategory: 'Legislative' },
+            { text: 'President', correctCategory: 'Executive' },
+            { text: 'Supreme Court', correctCategory: 'Judicial' },
+            { text: 'Senate', correctCategory: 'Legislative' },
+            { text: 'Cabinet', correctCategory: 'Executive' },
+            { text: 'Federal Judges', correctCategory: 'Judicial' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
@@ -2827,6 +2969,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Fraction – Build & Number Line',
     items: [fractionBuild, fractionNumberLine_read, fractionNumberLine_place, fractionNumberLine_order],
+  },
+  {
+    title: 'Classification Sort (Enhanced)',
+    items: [classSort_twoWay, classSort_threeWay],
   },
   {
     title: 'Extras',

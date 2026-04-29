@@ -655,6 +655,57 @@ QUESTION TYPE RULES — choose the best type for each question:
    - selfContained: true for read/quadrant/error_detect — the app draws the full stimulus
    - HARD RULE: do NOT use coordinate_grid for questions that show the grid in the worksheet image without a clear x/y coordinate system — fall back to fill_in instead
 
+9. CLASSIFICATION SORT — "type": "fill_in", "measurementTool": "classification_sort"
+   The app renders 2 or 3 labeled category buckets. A chip bank of items sits below. The student
+   taps a chip, then taps a bucket to place it. Used for ANY sorting/categorizing task across all subjects.
+
+   ── MODE: two_way — 2 category buckets (most common) ──
+   USE when the worksheet asks students to sort items into exactly 2 groups.
+   Examples: living/non-living, needs/wants, fact/opinion, solid/liquid, vertebrate/invertebrate.
+
+   ── MODE: three_way — 3 category buckets ──
+   USE when the worksheet asks students to sort items into exactly 3 groups.
+   Examples: solid/liquid/gas, legislative/executive/judicial, plant/animal/fungi.
+
+   Schema:
+   {
+     "type": "fill_in",
+     "measurementTool": "classification_sort",
+     "question": "Sort each item into the correct category.",
+     "hint": "Think about what makes each item belong to a group.",
+     "correctAnswer": "sorted",
+     "selfContained": true,
+     "geometry": {
+       "mode": "two_way",
+       "categories": [
+         { "label": "Living", "color": "green" },
+         { "label": "Non-Living", "color": "blue" }
+       ],
+       "items": [
+         { "text": "Dog", "correctCategory": "Living" },
+         { "text": "Rock", "correctCategory": "Non-Living" },
+         { "text": "Tree", "correctCategory": "Living" },
+         { "text": "Water", "correctCategory": "Non-Living" },
+         { "text": "Mushroom", "correctCategory": "Living" },
+         { "text": "Cloud", "correctCategory": "Non-Living" }
+       ]
+     }
+   }
+
+   THREE-WAY EXAMPLE:
+   { "type":"fill_in","measurementTool":"classification_sort","question":"Sort each item into the correct state of matter.","hint":"Think about whether it has a fixed shape and volume.","correctAnswer":"sorted","selfContained":true,"geometry":{"mode":"three_way","categories":[{"label":"Solid","color":"blue"},{"label":"Liquid","color":"green"},{"label":"Gas","color":"orange"}],"items":[{"text":"Ice","correctCategory":"Solid"},{"text":"Water","correctCategory":"Liquid"},{"text":"Steam","correctCategory":"Gas"},{"text":"Rock","correctCategory":"Solid"},{"text":"Juice","correctCategory":"Liquid"},{"text":"Oxygen","correctCategory":"Gas"}]} }
+
+   RULES:
+   - categories: exactly 2 objects for two_way; exactly 3 for three_way
+   - category colors: "green" | "blue" | "orange" (use all 3 for three_way; pick 2 for two_way)
+   - items: 4–8 chip objects; each must have "text" (≤ 25 chars) and "correctCategory" matching a category label exactly
+   - correctAnswer: always the string "sorted" (validation is derived from items[].correctCategory)
+   - selfContained: always true — the app draws the entire interactive UI
+   - question: short — "Sort each item into the correct category." is fine
+   - hint: short and relevant to the concept being sorted
+   - NEVER put a correctCategory value that doesn't exactly match one of the categories[].label values
+   - Aim for roughly equal numbers of items per category (e.g. 3+3 for two_way, 2+2+2 for three_way)
+
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
 (examples: a Venn diagram to fill,
@@ -670,6 +721,7 @@ NOTE: The following tool types ARE fully supported — do NOT fall back to MC fo
   • Build-a-fraction / construct-a-fraction → measurementTool:"fraction_build"
   • Fraction number line diagrams → measurementTool:"fraction_number_line"
   • Coordinate grid (plot/read points) → measurementTool:"coordinate_grid"
+  • Sorting / categorizing items into 2–3 groups → measurementTool:"classification_sort"
 BAD:  { "question": "A clock shows the hour hand at 3 and minute hand at 12. What time is it?", "options": [...] }  ← use clock tool instead
 GOOD: { "type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","correctAnswer":"3:00","geometry":{"hours":3,"minutes":0,"clockMode":"read"} }
 The fallback question must be fully self-contained and answerable from the question text alone.
@@ -885,6 +937,11 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
   - missing: new shownPoints forming a shape/pattern + new target; keep same number of shown points
   - quadrant: new point in a different quadrant from the original + correct Quadrant I/II/III/IV options
   - error_detect: new point + new wrong claim (swap x and y); correctAnswer = "wrong"
+- classification_sort: { "type":"fill_in","measurementTool":"classification_sort","question":"Sort each item into the correct category.","hint":"...","correctAnswer":"sorted","selfContained":true,"geometry":{"mode":"two_way"|"three_way","categories":[...],"items":[...]} }
+  MATCH the same mode (two_way or three_way) and same subject/concept as the original.
+  Generate FRESH items — different words/examples than the original. Keep same categories (same labels and concept).
+  Each item: { "text": "...", "correctCategory": "<must exactly match a category label>" }
+  Aim for roughly equal items per category. 4–8 items total. correctAnswer is always "sorted".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEASUREMENT TOOL REGEN RULES — CRITICAL

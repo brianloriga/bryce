@@ -1126,7 +1126,7 @@ These tools extend the Enhanced Tool Framework beyond Math. They follow the same
 
 ### S1. Classification Sort
 
-**Status:** Specced — Pending Mockup
+**Status:** Done — two_way and three_way modes live, AI schema wired, regen wired
 
 **Description:**
 Two or three labeled columns (buckets). A bank of word or phrase chips below. The student taps a chip and then taps the correct bucket to place it. Covers the most common sorting/categorization concept across all subjects: living vs. non-living, needs vs. wants, fact vs. opinion, solid/liquid/gas, vertebrate/invertebrate, legislative/executive/judicial, and more.
@@ -1177,10 +1177,12 @@ Two or three labeled columns (buckets). A bank of word or phrase chips below. Th
 
 **Build notes:**
 - Chip bank sits below the two/three column layout
-- Tap chip → chip highlights → tap target bucket → chip snaps into bucket with color feedback
-- Tapping a placed chip returns it to the chip bank
+- Tap chip → chip highlights (+ columns show "Tap to place ↓") → tap column → chip snaps in with color theming
+- Tapping a placed chip (shows ✕) returns it to the chip bank; tapping the same chip again deselects
 - Category column headers use the `color` field for a top border accent (not background)
 - Items should be kept short (under 25 chars) to fit in chip UI
+- Drag-and-drop intentionally omitted — `PanResponder` is unreliable across web/native without `react-native-reanimated`; tap-tap interaction is the correct pattern for this codebase
+- Live step hint above columns guides the student through the 3-step flow (select → place → check)
 
 ---
 
@@ -1678,6 +1680,17 @@ A sentence displayed word by word as individual tappable chips. The student taps
 **Fallback:** `multiple_choice` — "What part of speech is the word 'quickly'?"
 
 **Mockup:** *Pending.*
+
+---
+
+## Prompt Scalability Note
+
+The classification flow above (single-pass system prompt) works well up to approximately **20 tools**. Beyond that, consider a two-pass architecture:
+
+- **Pass 1 (classify):** text-only call with a compact tool-menu list → GPT returns the tool type(s) needed
+- **Pass 2 (extract):** image + only the matched tool's schema → GPT extracts the full question JSON
+
+This mirrors the existing visual-aid parallel-call pattern already in production. See ROADMAP.md for the full design spec. Trigger this refactor when the Tier 2 tools (S6–S9) are complete.
 
 ---
 

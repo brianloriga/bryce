@@ -383,6 +383,7 @@ export default function ScanScreen() {
           fractionBarMode:          existing.measurementTool === 'fraction_bar'          ? existing.geometry?.mode : undefined,
           fractionNumberLineMode:   existing.measurementTool === 'fraction_number_line'  ? existing.geometry?.mode : undefined,
           cupMode:                  existing.measurementTool === 'measuring_cup'          ? existing.geometry?.mode : undefined,
+          sortMode:                 existing.measurementTool === 'classification_sort'    ? existing.geometry?.mode : undefined,
         },
       );
       setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));

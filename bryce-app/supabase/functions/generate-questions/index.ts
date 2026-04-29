@@ -134,6 +134,13 @@ serve(async (req) => {
         toolContextLine = `\nORIGINAL TOOL: measurementTool="measuring_cup", mode="${mode}". ` +
           `You MUST generate a fill_in question with measurementTool:"measuring_cup" and geometry.mode:"${mode}". ` +
           `${modeExtra} See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'classification_sort') {
+        const mode = qc.sortMode ?? 'two_way';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="classification_sort", mode="${mode}". ` +
+          `You MUST generate a fill_in question with measurementTool:"classification_sort" and geometry.mode:"${mode}". ` +
+          `Keep the SAME category labels and concept as the original. Generate FRESH items (different words/examples). ` +
+          `Each item.correctCategory MUST exactly match one of the category labels. correctAnswer is always "sorted". ` +
+          `4–8 items total; roughly equal per category. See MEASUREMENT TOOL REGEN RULES.`;
       }
 
       userContent.push({

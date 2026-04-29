@@ -119,7 +119,7 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 
 | # | Tool | Subject / Grade | Status |
 | --- | --- | --- | --- |
-| S1 | **Classification Sort** | Science, Social Studies, Reading, Math — Grades 2-6 | Specced — Pending Mockup |
+| S1 | **Classification Sort** | Science, Social Studies, Reading, Math — Grades 2-6 | Done — two_way + three_way modes live |
 | S2 | **Cause & Effect Mapper** | Reading, Science, Social Studies — Grades 2-6 | Specced — Pending Mockup |
 | S3 | **Chart Reader** (Bar / Line) | Science, Social Studies, Math — Grades 3-8 | Specced — Pending Mockup |
 | S4 | **Timeline Builder** | Social Studies, Science, Reading — Grades 3-8 | Specced — Pending Mockup |
@@ -161,6 +161,36 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 
 ### Pending Cleanup
 - **Clean up all development logging** — Remove or gate all `devLogger` calls, AsyncStorage log entries, and `console.log`/`console.warn` statements in the edge function before App Store submission. Replace with a structured, production-safe logging strategy (e.g., Supabase audit table or edge function metrics only).
+
+---
+
+## Prompt Scalability — Two-Pass Architecture (Trigger: ~20 tools)
+
+### Current approach (single-pass)
+Every scan sends one large system prompt containing all tool schemas to GPT-4o. GPT classifies the question type and extracts schema data in the same call. This works well today — the current prompt is well within GPT-4o's 128k context window and tools have distinct, non-overlapping trigger patterns.
+
+### The concern
+As the tool registry grows past ~20 entries, the single-pass approach risks:
+1. **Attention dilution** — GPT begins confusing similar tools (e.g. Classification Sort vs. Venn Diagram vs. Cause & Effect) or misses the right one
+2. **Prompt cost** — every scan pays for the full tool-menu token count regardless of how many tools are actually relevant to the worksheet
+
+### The fix (when needed)
+Split generation into two passes:
+
+```
+Pass 1 — classify (cheap, text-only, no images):
+  Input:  question text only + a compact tool-menu list (one line per tool)
+  Output: ["classification_sort", "fill_in", "clock"]  ← just the types needed
+
+Pass 2 — extract (one call per matched tool):
+  Input:  worksheet image + only the matching tool's full schema rules
+  Output: the complete structured question JSON
+```
+
+This mirrors the existing visual-aid parallel-call pattern (already in production) and keeps each extraction call small and focused.
+
+### When to implement
+Build this when the Tier 2 Science/Reading/SS tools (S6–S9) are complete and the total tool count reaches ~20. At that point the single-pass prompt becomes unwieldy and the two-pass design pays for itself in both accuracy and cost.
 
 ---
 

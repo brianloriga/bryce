@@ -39,6 +39,7 @@ import FractionBarRenderer          from '../renderers/tools/FractionBarRenderer
 import FractionBuildRenderer        from '../renderers/tools/FractionBuildRenderer';
 import FractionNumberLineRenderer   from '../renderers/tools/FractionNumberLineRenderer';
 import CoordinateGridRenderer       from '../renderers/tools/CoordinateGridRenderer';
+import ClassificationSortRenderer   from '../renderers/tools/ClassificationSortRenderer';
 import ScratchPadModal, { ScratchPadButton } from '../components/ScratchPadModal';
 
 // Standard renderers
@@ -380,6 +381,10 @@ export default function QuizScreen() {
         quadrant:     'Which Quadrant?',
         error_detect: 'Coordinate Grid · Error Detection',
       }[mode] ?? 'Coordinate Grid';
+    }
+    if (q.measurementTool === 'classification_sort') {
+      const mode = q.geometry?.mode ?? 'two_way';
+      return mode === 'three_way' ? 'Sort · 3 Categories' : 'Sort It Out';
     }
     return TYPE_LABELS[qType] ?? null;
   })();
@@ -797,6 +802,8 @@ export default function QuizScreen() {
             <MeasuringCupRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' && q.measurementTool === 'coordinate_grid' ? (
             <CoordinateGridRenderer     key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
+          ) : qType === 'fill_in' && q.measurementTool === 'classification_sort' ? (
+            <ClassificationSortRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (
