@@ -2532,6 +2532,174 @@ const measuringCup_compare = {
   },
 };
 
+// ─────────────────────────────────────────────────────────────
+// COORDINATE GRID — all 5 modes
+// ─────────────────────────────────────────────────────────────
+const coordGrid_plot = {
+  id: 'cg_plot',
+  label: 'Coordinate Grid – Plot a Point',
+  unit: {
+    title: 'Coordinate Grid: Plot',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Plot the point (3, 2) on the grid.',
+        hint: 'Move 3 right on the x-axis, then 2 up.',
+        correctAnswer: '3,2',
+        geometry: { mode: 'plot', target: [3, 2], gridRange: 5 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Plot the point (−4, 1) on the grid.',
+        hint: 'Move 4 left, then 1 up.',
+        correctAnswer: '-4,1',
+        geometry: { mode: 'plot', target: [-4, 1], gridRange: 5 },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Plot the point (2, −3) on the grid.',
+        hint: 'Move 2 right, then 3 down.',
+        correctAnswer: '2,-3',
+        geometry: { mode: 'plot', target: [2, -3], gridRange: 5 },
+      },
+    ],
+  },
+};
+
+const coordGrid_read = {
+  id: 'cg_read',
+  label: 'Coordinate Grid – Read a Point',
+  unit: {
+    title: 'Coordinate Grid: Read',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'What are the coordinates of the blue point?',
+        hint: 'Read across first (x), then up or down (y).',
+        options: ['(−3, 2)', '(−3, −2)', '(2, −3)', '(2, 3)'],
+        correctIndex: 0,
+        correctAnswer: '(-3, 2)',
+        geometry: {
+          mode: 'read', gridRange: 5,
+          points: [{ x: -3, y: 2, color: 'blue', label: null }],
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'What are the coordinates of the green point?',
+        hint: 'Right is positive x, up is positive y.',
+        options: ['(4, −1)', '(−1, 4)', '(4, 1)', '(−4, 1)'],
+        correctIndex: 0,
+        correctAnswer: '(4, -1)',
+        geometry: {
+          mode: 'read', gridRange: 5,
+          points: [{ x: 4, y: -1, color: 'green', label: null }],
+        },
+      },
+    ],
+  },
+};
+
+const coordGrid_multiPlot = {
+  id: 'cg_multi',
+  label: 'Coordinate Grid – Plot Multiple Points',
+  unit: {
+    title: 'Coordinate Grid: Multi-Plot',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Plot all of the points on the grid.',
+        hint: 'Tap the correct intersection for each point.',
+        correctAnswer: '-2,3;4,-1;1,-3',
+        geometry: {
+          mode: 'multi_plot', gridRange: 5,
+          targets: [
+            { x: -2, y:  3, label: 'A', color: 'red'    },
+            { x:  4, y: -1, label: 'B', color: 'green'  },
+            { x:  1, y: -3, label: 'C', color: 'purple' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+const coordGrid_missing = {
+  id: 'cg_missing',
+  label: 'Coordinate Grid – Find the Missing Point',
+  unit: {
+    title: 'Coordinate Grid: Missing Point',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'Points A, B, and C are shown. Plot point D at (−4, −2).',
+        hint: 'Move 4 left, then 2 down.',
+        correctAnswer: '-4,-2',
+        geometry: {
+          mode: 'missing', gridRange: 5,
+          shownPoints: [
+            { x: -2, y:  3, label: 'A', color: 'red'   },
+            { x:  4, y: -1, label: 'B', color: 'green' },
+            { x:  1, y:  3, label: 'C', color: 'blue'  },
+          ],
+          target: { x: -4, y: -2, label: 'D' },
+        },
+      },
+    ],
+  },
+};
+
+const coordGrid_quadrant = {
+  id: 'cg_quadrant',
+  label: 'Coordinate Grid – Which Quadrant?',
+  unit: {
+    title: 'Coordinate Grid: Quadrant',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'In which quadrant is the point (2, −3) located?',
+        hint: 'Right is +x. Down is −y. What quadrant has positive x and negative y?',
+        options: ['Quadrant I', 'Quadrant II', 'Quadrant III', 'Quadrant IV'],
+        correctIndex: 3,
+        correctAnswer: 'Quadrant IV',
+        geometry: {
+          mode: 'quadrant', gridRange: 5,
+          points: [{ x: 2, y: -3, color: 'purple', label: null }],
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'In which quadrant is the point (−3, 4) located?',
+        hint: 'Negative x is to the left. Positive y is up.',
+        options: ['Quadrant I', 'Quadrant II', 'Quadrant III', 'Quadrant IV'],
+        correctIndex: 1,
+        correctAnswer: 'Quadrant II',
+        geometry: {
+          mode: 'quadrant', gridRange: 5,
+          points: [{ x: -3, y: 4, color: 'orange', label: null }],
+        },
+      },
+      {
+        type: 'fill_in', measurementTool: 'coordinate_grid',
+        question: 'In which quadrant is the point (−2, −4) located?',
+        hint: 'Both x and y are negative. That is the bottom-left section.',
+        options: ['Quadrant I', 'Quadrant II', 'Quadrant III', 'Quadrant IV'],
+        correctIndex: 2,
+        correctAnswer: 'Quadrant III',
+        geometry: {
+          mode: 'quadrant', gridRange: 5,
+          points: [{ x: -2, y: -4, color: 'red', label: null }],
+        },
+      },
+    ],
+  },
+};
+
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
@@ -2549,6 +2717,10 @@ export const SAMPLE_GROUPS = [
       wordBank,
       ordering,
     ],
+  },
+  {
+    title: 'Coordinate Grid (Enhanced)',
+    items: [coordGrid_plot, coordGrid_read, coordGrid_multiPlot, coordGrid_missing, coordGrid_quadrant],
   },
   {
     title: 'Number Line',

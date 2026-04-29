@@ -594,9 +594,58 @@ QUESTION TYPE RULES — choose the best type for each question:
    - Prefer "missing" over plain fill_in for skip-counting gap questions — it is far more engaging
    - Prefer "distance" over plain fill_in for "how far apart" questions
 
+8. COORDINATE GRID — "type": "fill_in", "measurementTool": "coordinate_grid"
+   The app DRAWS a labeled x/y grid. Points snap to exact integer intersections.
+   Five modes — DECIDE THE MODE based on what the worksheet asks:
+
+   ┌──────────────────────────────────────────────────────────────────────────────────────┐
+   │ Worksheet asks…                                          → Mode                     │
+   │ "Plot / mark / place the point (x, y)"                  → plot                     │
+   │ "What are the coordinates of the marked point?"         → read   (MC)              │
+   │ "Plot all of these points: A, B, C"                     → multi_plot               │
+   │ "A, B, C are shown — plot point D at (x, y)"            → missing                 │
+   │ "In which quadrant is (x, y)?" / "What quadrant?"       → quadrant (MC)           │
+   └──────────────────────────────────────────────────────────────────────────────────────┘
+
+   gridRange defaults to 5 (grid runs −5 to 5). Use gridRange:4 for simpler grades.
+
+   ── MODE: plot ──
+   Student taps/snaps to place single point. Submit required.
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Plot the point (3, 2) on the grid.","hint":"Move 3 right, then 2 up.","correctAnswer":"3,2","geometry":{"mode":"plot","target":[3,2],"gridRange":5} }
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Plot the point (−4, 1).","hint":"Move 4 left, then 1 up.","correctAnswer":"-4,1","geometry":{"mode":"plot","target":[-4,1],"gridRange":5} }
+
+   ── MODE: read ──
+   Pre-placed colored point. Student picks coordinates from 4 MC options.
+   options: 4 coordinate strings; correctIndex; correctAnswer = correct string
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"What are the coordinates of the blue point?","hint":"Read x first, then y.","options":["(−3, 2)","(−3, −2)","(2, −3)","(2, 3)"],"correctIndex":0,"correctAnswer":"(-3, 2)","geometry":{"mode":"read","gridRange":5,"points":[{"x":-3,"y":2,"color":"blue"}]} }
+
+   ── MODE: multi_plot ──
+   Student plots 2–3 labeled colored points in sequence, then submits.
+   targets: array of {x, y, label, color}; correctAnswer: "x1,y1;x2,y2;..."
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Plot all of the points on the grid.","hint":"Tap the correct intersection for each point.","correctAnswer":"-2,3;4,-1;1,-3","geometry":{"mode":"multi_plot","gridRange":5,"targets":[{"x":-2,"y":3,"label":"A","color":"red"},{"x":4,"y":-1,"label":"B","color":"green"},{"x":1,"y":-3,"label":"C","color":"purple"}]} }
+
+   ── MODE: missing ──
+   2–3 points pre-shown (A, B, C). Student plots the missing one (D). Submit required.
+   shownPoints: [{x,y,label,color}]; target: {x,y,label}
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"Points A, B, and C are shown. Plot point D at (−4, −2).","hint":"Move 4 left, then 2 down.","correctAnswer":"-4,-2","geometry":{"mode":"missing","gridRange":5,"shownPoints":[{"x":-2,"y":3,"label":"A","color":"red"},{"x":4,"y":-1,"label":"B","color":"green"},{"x":1,"y":3,"label":"C","color":"blue"}],"target":{"x":-4,"y":-2,"label":"D"}} }
+
+   ── MODE: quadrant ──
+   Pre-placed point. Student picks which quadrant from 4 MC options.
+   options: ["Quadrant I","Quadrant II","Quadrant III","Quadrant IV"]; correctIndex; correctAnswer
+   { "type":"fill_in","measurementTool":"coordinate_grid","question":"In which quadrant is the point (2, −3)?","hint":"Right is +x. Down is −y.","options":["Quadrant I","Quadrant II","Quadrant III","Quadrant IV"],"correctIndex":3,"correctAnswer":"Quadrant IV","geometry":{"mode":"quadrant","gridRange":5,"points":[{"x":2,"y":-3,"color":"purple"}]} }
+
+   ── GENERAL coordinate_grid rules ──
+   - Use integers only for coordinates — no decimals
+   - Keep all points within the gridRange (|x| ≤ gridRange, |y| ≤ gridRange)
+   - colors: red | green | blue | purple | orange | yellow
+   - multi_plot: 2–3 points max; use distinct colors and single-letter labels (A, B, C)
+   - For read/quadrant: always provide 4 MC options; all must be plausible wrong answers
+   - selfContained: true for read/quadrant — the app draws the full stimulus
+   - HARD RULE: do NOT use coordinate_grid for questions that show the grid in the worksheet image without a clear x/y coordinate system — fall back to fill_in instead
+
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
-(examples: a coordinate grid to plot points on, a Venn diagram to fill,
+(examples: a Venn diagram to fill,
 a calendar, a pictograph you cannot embed, a map you cannot embed), you MUST
 fall back to a regular multiple_choice question about the CONCEPT shown instead. Never produce
 broken JSON, empty geometry objects, or placeholder fields for unsupported renderers.
@@ -608,6 +657,7 @@ NOTE: The following tool types ARE fully supported — do NOT fall back to MC fo
   • Fraction bar / shaded strip diagrams → measurementTool:"fraction_bar"
   • Build-a-fraction / construct-a-fraction → measurementTool:"fraction_build"
   • Fraction number line diagrams → measurementTool:"fraction_number_line"
+  • Coordinate grid (plot/read points) → measurementTool:"coordinate_grid"
 BAD:  { "question": "A clock shows the hour hand at 3 and minute hand at 12. What time is it?", "options": [...] }  ← use clock tool instead
 GOOD: { "type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","correctAnswer":"3:00","geometry":{"hours":3,"minutes":0,"clockMode":"read"} }
 The fallback question must be fully self-contained and answerable from the question text alone.
@@ -815,6 +865,13 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
   - missing: new missingValue that lands on a tick + 4 MC options + correctIndex
   - partition: new step (for different number of parts) + 4 MC options + correctIndex
   - distance: new pair of points + 4 MC options (in "N units" format) + correctIndex; correctAnswer = distance as string
+- coordinate_grid: { "type":"fill_in","measurementTool":"coordinate_grid","question":"...","hint":"...","correctAnswer":"...","geometry":{...} }
+  MATCH the same mode as the original. Fresh coordinates. See section 8 for full schemas.
+  - plot: new target [x, y] — integer coords within gridRange
+  - read: new point + 4 MC coordinate options + correctIndex
+  - multi_plot: new set of 2–3 targets with labels and colors
+  - missing: new shownPoints + new target; keep same number of shown points as original
+  - quadrant: new point in a different quadrant from the original + correct Quadrant I/II/III/IV options
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEASUREMENT TOOL REGEN RULES — CRITICAL

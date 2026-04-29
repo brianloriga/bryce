@@ -573,36 +573,115 @@ Displays labeled currency images — coins (penny, nickel, dime, quarter) and bi
 
 ### 6. Coordinate Grid
 
-**Status:** Pending Mockup
+**Status:** Done — 5 modes live (`plot`, `read`, `multi_plot`, `missing`, `quadrant`)
 
 **Description:**
-A labeled coordinate grid. Student plots a point by tapping, reads the coordinates of a marked point, or identifies a shape on the grid.
+A labeled x/y coordinate grid drawn in SVG. Points snap to exact integer intersections — no pixel-perfect dragging. Submit button required for placement modes. Quadrant tints provide subtle visual cues.
 
 **Grade range:** Grades 4–8
 
 **Interaction modes:**
 
-| Mode | What the student does |
-|---|---|
-| `read` | A point is pre-plotted. Student identifies its coordinates. |
-| `plot` | Student taps the grid to place a point at a stated coordinate. |
+| # | Mode | What the student does | Educational value |
+|---|---|---|---|
+| 1 | `plot` | Tap/drag to place a single point at a given coordinate. Submit required. | Ordered pairs, x/y axis navigation |
+| 2 | `read` | A pre-placed colored point is shown. Student picks its coordinates from 4 MC options. | Reading the grid, (x,y) notation |
+| 3 | `multi_plot` | Student places 2–3 labeled colored points sequentially, then submits. | Multiple ordered pairs, plotting fluency |
+| 4 | `missing` | Some points shown (A, B, C). Student plots the missing point (D). | Ordered pair recall, grid navigation |
+| 5 | `quadrant` | A pre-placed point shown. Student picks which quadrant from 4 MC options. | Quadrant awareness, negative coordinates |
 
-**AI schema:**
+**AI schema — `type: "fill_in"`, `measurementTool: "coordinate_grid"` for all modes:**
+
+*Mode 1 — plot:*
 ```json
 {
-  "toolType": "coordinate_grid",
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "Plot the point (3, 2) on the grid.",
+  "hint": "Move 3 right, then 2 up.",
+  "correctAnswer": "3,2",
+  "geometry": { "mode": "plot", "target": [3, 2], "gridRange": 5 }
+}
+```
+
+*Mode 2 — read:*
+```json
+{
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "What are the coordinates of the blue point?",
+  "hint": "Read across first (x), then up or down (y).",
+  "options": ["(−3, 2)", "(−3, −2)", "(2, −3)", "(2, 3)"],
+  "correctIndex": 0, "correctAnswer": "(-3, 2)",
+  "geometry": { "mode": "read", "gridRange": 5, "points": [{ "x": -3, "y": 2, "color": "blue" }] }
+}
+```
+
+*Mode 3 — multi_plot:*
+```json
+{
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "Plot all of the points on the grid.",
+  "hint": "Tap the correct intersection for each point.",
+  "correctAnswer": "-2,3;4,-1;1,-3",
   "geometry": {
-    "mode": "read",
-    "points": [{ "x": 3, "y": 4, "label": "A" }],
-    "quadrants": 1,
-    "gridMax": 6
+    "mode": "multi_plot", "gridRange": 5,
+    "targets": [
+      { "x": -2, "y":  3, "label": "A", "color": "red"    },
+      { "x":  4, "y": -1, "label": "B", "color": "green"  },
+      { "x":  1, "y": -3, "label": "C", "color": "purple" }
+    ]
   }
 }
 ```
 
-**Fallback:** `fill_in` — "What are the coordinates of point A?" with `correctAnswer: "(3, 4)"`
+*Mode 4 — missing:*
+```json
+{
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "Points A, B, and C are shown. Plot point D at (−4, −2).",
+  "hint": "Move 4 left, then 2 down.",
+  "correctAnswer": "-4,-2",
+  "geometry": {
+    "mode": "missing", "gridRange": 5,
+    "shownPoints": [
+      { "x": -2, "y":  3, "label": "A", "color": "red"   },
+      { "x":  4, "y": -1, "label": "B", "color": "green" },
+      { "x":  1, "y":  3, "label": "C", "color": "blue"  }
+    ],
+    "target": { "x": -4, "y": -2, "label": "D" }
+  }
+}
+```
 
-**Mockup:** *Waiting for designer mockup.*
+*Mode 5 — quadrant:*
+```json
+{
+  "type": "fill_in", "measurementTool": "coordinate_grid",
+  "question": "In which quadrant is the point (2, −3) located?",
+  "hint": "Right is +x. Down is −y.",
+  "options": ["Quadrant I", "Quadrant II", "Quadrant III", "Quadrant IV"],
+  "correctIndex": 3, "correctAnswer": "Quadrant IV",
+  "geometry": { "mode": "quadrant", "gridRange": 5, "points": [{ "x": 2, "y": -3, "color": "purple" }] }
+}
+```
+
+**Field reference:**
+
+| Field | Required by | Type | Notes |
+|---|---|---|---|
+| `geometry.mode` | all | string | `plot`, `read`, `multi_plot`, `missing`, `quadrant` |
+| `geometry.gridRange` | all | number | Half-width of grid (default 5 → grid from −5 to 5) |
+| `geometry.target` | plot | [x, y] | The coordinate to plot |
+| `geometry.points` | read, quadrant | array | `[{x, y, color, label?}]` — pre-placed |
+| `geometry.targets` | multi_plot | array | `[{x, y, label, color}]` — 2–3 points |
+| `geometry.shownPoints` | missing | array | Pre-placed points (A, B, C) |
+| `geometry.target` | missing | object | `{x, y, label}` — the point to find |
+| `options` | read, quadrant | string[] | 4 MC choices |
+| `correctIndex` | read, quadrant | number | 0–3 |
+| `correctAnswer` | all | string | `"x,y"` for placement; coordinate string for read/quadrant |
+
+**Point colors:** `red`, `green`, `blue`, `purple`, `orange`, `yellow`
+
+**Fallback:** `fill_in` for plot/missing; `multiple_choice` for read/quadrant.
 
 ---
 

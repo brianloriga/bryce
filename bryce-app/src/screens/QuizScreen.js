@@ -38,6 +38,7 @@ import CoinRenderer           from '../renderers/tools/CoinRenderer';
 import FractionBarRenderer          from '../renderers/tools/FractionBarRenderer';
 import FractionBuildRenderer        from '../renderers/tools/FractionBuildRenderer';
 import FractionNumberLineRenderer   from '../renderers/tools/FractionNumberLineRenderer';
+import CoordinateGridRenderer       from '../renderers/tools/CoordinateGridRenderer';
 import ScratchPadModal, { ScratchPadButton } from '../components/ScratchPadModal';
 
 // Standard renderers
@@ -368,6 +369,16 @@ export default function QuizScreen() {
         fill:    'Measuring Cup · Fill',
         compare: 'Measuring Cup · Compare',
       }[mode] ?? 'Measuring Cup';
+    }
+    if (q.measurementTool === 'coordinate_grid') {
+      const mode = q.geometry?.mode ?? q.mode ?? 'plot';
+      return {
+        plot:       'Coordinate Grid · Plot',
+        read:       'Coordinate Grid · Read',
+        multi_plot: 'Coordinate Grid · Multi-Plot',
+        missing:    'Coordinate Grid · Missing Point',
+        quadrant:   'Which Quadrant?',
+      }[mode] ?? 'Coordinate Grid';
     }
     return TYPE_LABELS[qType] ?? null;
   })();
@@ -783,6 +794,8 @@ export default function QuizScreen() {
             <FractionNumberLineRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' && q.measurementTool === 'measuring_cup' ? (
             <MeasuringCupRenderer       key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'coordinate_grid' ? (
+            <CoordinateGridRenderer     key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} setScrollEnabled={setScrollEnabled} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (
