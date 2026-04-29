@@ -301,22 +301,124 @@ const numberLine_read = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// NUMBER LINE – count mode (MC)
+// NUMBER LINE – partition mode (count equal parts)
 // ─────────────────────────────────────────────────────────────
 const numberLine_count = {
   id: 'nl_count',
-  label: 'Number Line – Count (MC)',
+  label: 'Number Line – Partition (Count Parts)',
   unit: {
-    title: 'Number Line: Count',
+    title: 'Number Line: Partition',
     subject: 'math',
     questions: [
       {
         type: 'number_line',
-        mode: 'count',
+        mode: 'partition',
         question: 'How many equal parts is the number line divided into?',
-        correctIndex: 0,
-        options: ['4', '5', '6'],
+        hint: 'Count the spaces between the tick marks, not the tick marks themselves.',
+        correctIndex: 1,
+        options: ['3', '4', '5', '6'],
+        correctAnswer: '4',
         geometry: { min: 0, max: 1, step: 0.25 },
+      },
+      {
+        type: 'number_line',
+        mode: 'partition',
+        question: 'How many equal parts is the number line divided into?',
+        hint: 'Count the spaces — not the end marks.',
+        correctIndex: 0,
+        options: ['3', '4', '5', '6'],
+        correctAnswer: '3',
+        geometry: { min: 0, max: 1, step: 0.333 },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// NUMBER LINE – missing number
+// ─────────────────────────────────────────────────────────────
+const numberLine_missing = {
+  id: 'nl_missing',
+  label: 'Number Line – Missing Number',
+  unit: {
+    title: 'Number Line: Missing Number',
+    subject: 'math',
+    questions: [
+      {
+        type: 'number_line',
+        mode: 'missing',
+        question: 'What number is missing from the pattern?',
+        hint: 'Find the pattern — each space goes up by the same amount.',
+        options: ['8', '10', '12', '14'],
+        correctIndex: 1,
+        correctAnswer: '10',
+        geometry: { min: 0, max: 20, step: 5, missingValue: 10 },
+      },
+      {
+        type: 'number_line',
+        mode: 'missing',
+        question: 'What number is missing?',
+        hint: 'Count by 2s to find the pattern.',
+        options: ['4', '6', '8', '10'],
+        correctIndex: 1,
+        correctAnswer: '6',
+        geometry: { min: 0, max: 10, step: 2, missingValue: 6 },
+      },
+      {
+        type: 'number_line',
+        mode: 'missing',
+        question: 'What value is marked with a "?" on the number line?',
+        hint: 'Skip count by 10s.',
+        options: ['25', '30', '35', '40'],
+        correctIndex: 1,
+        correctAnswer: '30',
+        geometry: { min: 0, max: 50, step: 10, missingValue: 30 },
+      },
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// NUMBER LINE – distance between two points
+// ─────────────────────────────────────────────────────────────
+const numberLine_distance = {
+  id: 'nl_distance',
+  label: 'Number Line – Distance Between Points',
+  unit: {
+    title: 'Number Line: Distance',
+    subject: 'math',
+    questions: [
+      {
+        type: 'number_line',
+        mode: 'distance',
+        question: 'How far apart are points A and B?',
+        hint: 'Count the spaces between the two points.',
+        options: ['4 units', '5 units', '6 units', '7 units'],
+        correctIndex: 1,
+        correctAnswer: '5',
+        geometry: {
+          min: 0, max: 8, step: 1,
+          points: [
+            { value: 2, label: 'A', color: 'green' },
+            { value: 7, label: 'B', color: 'blue' },
+          ],
+        },
+      },
+      {
+        type: 'number_line',
+        mode: 'distance',
+        question: 'What is the distance between points A and B?',
+        hint: 'Subtract the smaller value from the larger value.',
+        options: ['2', '3', '4', '5'],
+        correctIndex: 1,
+        correctAnswer: '3',
+        geometry: {
+          min: 0, max: 10, step: 1,
+          points: [
+            { value: 1, label: 'A', color: 'orange' },
+            { value: 4, label: 'B', color: 'purple' },
+          ],
+        },
       },
     ],
   },
@@ -2450,7 +2552,7 @@ export const SAMPLE_GROUPS = [
   },
   {
     title: 'Number Line',
-    items: [numberLine_place, numberLine_read, numberLine_count],
+    items: [numberLine_place, numberLine_read, numberLine_count, numberLine_missing, numberLine_distance],
   },
   {
     title: 'Protractor (Enhanced)',

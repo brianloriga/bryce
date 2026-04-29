@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
@@ -13,11 +13,73 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { generateQuestionsFromImage, regenerateQuestion, generateAudio } from '../services/aiService';
+import { devLogger } from '../utils/devLogger';
 import { saveCustomUnit } from '../services/supabase';
 import { DEFAULT_SUBJECTS } from '../utils/subjects';
 import { GAME_REGISTRY } from '../minigames/registry';
 
 const MAX_IMAGES = 10;
+
+// ── Stage messages shown sequentially during generation ────────
+const GEN_STAGES = [
+  { minSec: 0,  icon: '🔍', msg: 'Reading your lesson pages…' },
+  { minSec: 8,  icon: '✍️', msg: 'Writing practice questions…' },
+  { minSec: 20, icon: '🧠', msg: 'Checking question quality…' },
+  { minSec: 35, icon: '🖼️', msg: 'Processing visual aids…' },
+  { minSec: 55, icon: '⚙️', msg: 'Finalising and ordering questions…' },
+  { minSec: 80, icon: '⏳', msg: 'Almost there — large lessons take a little longer…' },
+];
+
+function GeneratingScreen({ images, questionCount, activeVisualQCount, totalQuestionCount, onCancel, styles, theme }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const stage = [...GEN_STAGES].reverse().find(s => elapsed >= s.minSec) ?? GEN_STAGES[0];
+  const mins  = Math.floor(elapsed / 60);
+  const secs  = elapsed % 60;
+  const timeLabel = mins > 0
+    ? `${mins}m ${String(secs).padStart(2, '0')}s`
+    : `${secs}s`;
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar style={theme.statusBar} />
+      <View style={styles.gate}>
+        <ActivityIndicator size="large" color="#4ade80" />
+
+        <Text style={styles.generatingTitle}>Generating questions…</Text>
+
+        <View style={styles.generatingStageRow}>
+          <Text style={styles.generatingStageIcon}>{stage.icon}</Text>
+          <Text style={styles.generatingStageMsg}>{stage.msg}</Text>
+        </View>
+
+        <Text style={styles.generatingMeta}>
+          {images.length > 1 ? `${images.length} pages` : '1 page'}
+          {' · '}
+          {totalQuestionCount} question{totalQuestionCount !== 1 ? 's' : ''}
+          {activeVisualQCount > 0 ? ` (${questionCount} + ${activeVisualQCount} visual)` : ''}
+        </Text>
+
+        <View style={styles.generatingTimerRow}>
+          <Ionicons name="time-outline" size={14} color="#64748b" />
+          <Text style={styles.generatingTimer}>{timeLabel}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.cancelGenerateBtn} onPress={onCancel} activeOpacity={0.7}>
+          <Text style={styles.cancelGenerateBtnText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
 
 // Resize any captured image to a max width of 1024px and compress to JPEG 0.7.
 // An iPhone 14 photo at full res is ~4000px wide and 2-4MB. After resize it drops
@@ -87,6 +149,13 @@ export default function ScanScreen() {
     if (qCount >= 15) return 2;
     return 1;
   }
+
+  // Total questions that will be generated = text questions + all active visual aid questions
+  const activeVisualQCount = visualImages
+    .slice(0, maxVisualSlots(questionCount))
+    .filter(v => v?.base64)
+    .reduce((sum, v) => sum + (v.questionCount ?? 1), 0);
+  const totalQuestionCount = questionCount + activeVisualQCount;
 
   function setVisualSlotImage(slotIdx, asset) {
     setVisualImages(prev => {
@@ -225,24 +294,42 @@ export default function ScanScreen() {
     cancelledRef.current = false;
     setStep('generating');
     setLoading(true);
+
+    const activeVisuals = visualImages
+      .slice(0, maxVisualSlots(questionCount))
+      .filter(v => v?.base64)
+      .map(v => ({ base64: v.base64, questionCount: v.questionCount ?? 1 }));
+
+    const session = devLogger.startScan({
+      pageCount:      images.length,
+      questionCount,
+      visualAidCount: activeVisuals.length,
+      totalRequested: totalQuestionCount,
+    });
+
     try {
       const base64Images = images.map(img => img.base64);
-      const activeVisuals = visualImages
-        .slice(0, maxVisualSlots(questionCount))
-        .filter(v => v?.base64)
-        .map(v => ({ base64: v.base64, questionCount: v.questionCount ?? 1 }));
 
-      const result = await generateQuestionsFromImage(
-        base64Images,
-        questionCount,
-        activeVisuals,
-      );
+      devLogger.event(session, 'api_call_start');
+      const result = await generateQuestionsFromImage(base64Images, questionCount, activeVisuals);
+      devLogger.event(session, 'api_call_end');
 
       // User cancelled while waiting — discard result and stay on pick
       if (cancelledRef.current) return;
 
+      const allQs      = result.questions ?? [];
+      const textQs     = allQs.filter(q => !q.image_url);
+      const visualQs   = allQs.filter(q =>  q.image_url);
+
+      devLogger.finishScan(session, {
+        success:          true,
+        questionsGenerated: allQs.length,
+        textGenerated:    textQs.length,
+        visualGenerated:  visualQs.length,
+      });
+
       setUnitTitle(result.title ?? 'New Lesson');
-      setQuestions(result.questions ?? []);
+      setQuestions(allQs);
       setPassage(result.passage ?? null);
       setLessonIntro(result.lesson_intro ?? null);
       setImageSearchQuery(result.image_search_query ?? null);
@@ -254,6 +341,7 @@ export default function ScanScreen() {
       );
       setStep('preview');
     } catch (err) {
+      devLogger.finishScan(session, { success: false, error: err.message });
       if (err.isValidationError) {
         setImages([]);
         setValidationError(err.message);
@@ -398,32 +486,15 @@ export default function ScanScreen() {
 
   // ── Generating ─────────────────────────────────────────────
   if (step === 'generating') {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <StatusBar style={theme.statusBar} />
-        <View style={styles.gate}>
-          <ActivityIndicator size="large" color="#4ade80" />
-          <Text style={styles.generatingTitle}>Generating questions…</Text>
-          <Text style={styles.generatingDesc}>
-            {images.length > 1
-              ? `Reading ${images.length} pages and writing ${questionCount} questions.`
-              : `Reading the page and writing ${questionCount} practice questions.`
-            }
-            {visualImages.filter(v => v?.base64).length > 0
-              ? `\nIncluding ${visualImages.filter(v => v?.base64).length} visual aid image${visualImages.filter(v => v?.base64).length > 1 ? 's' : ''}.`
-              : ''}
-            {'\n'}This takes about 10–20 seconds.
-          </Text>
-          <TouchableOpacity
-            style={styles.cancelGenerateBtn}
-            onPress={cancelGeneration}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelGenerateBtnText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
+    return <GeneratingScreen
+      images={images}
+      questionCount={questionCount}
+      activeVisualQCount={activeVisualQCount}
+      totalQuestionCount={totalQuestionCount}
+      onCancel={cancelGeneration}
+      styles={styles}
+      theme={theme}
+    />;
   }
 
   // ── Preview / Edit ─────────────────────────────────────────
@@ -536,27 +607,53 @@ export default function ScanScreen() {
               fill_in: 'Fill in the Blank', ordering: 'Ordering', true_false: 'True / False',
               word_bank: 'Word Bank', visual_mc: 'Visual MC', multiple_choice: 'Multiple Choice',
             };
+            const isVisualAid = !!q.image_url;
+            const isEnhanced  = !!q.measurementTool;
             return (
-            <View key={i} style={styles.questionCard}>
-              {/* Header row */}
-              <View style={styles.questionHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={styles.questionNum}>Q{i + 1}</Text>
-                  <View style={styles.qTypeBadge}>
-                    <Text style={styles.qTypeBadgeText}>{TYPE_LABEL[qType] ?? qType}</Text>
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <TouchableOpacity onPress={() => handleRegenerate(i)} style={styles.regenBtn} disabled={regeneratingIndex !== null}>
-                    {regeneratingIndex === i
-                      ? <ActivityIndicator size="small" color="#60a5fa" />
-                      : <Ionicons name="refresh-outline" size={18} color="#60a5fa" />}
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => removeQuestion(i)} style={styles.removeBtn}>
-                    <Text style={styles.removeBtnText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
+            <View key={i} style={[styles.questionCard, isVisualAid && styles.questionCardVisual]}>
+              {/* Row 1: Q number (left) + action buttons (right) */}
+              <View style={styles.questionHeaderTop}>
+                <Text style={styles.questionNum}>Q{i + 1}</Text>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  onPress={() => handleRegenerate(i)}
+                  style={styles.regenBtn}
+                  disabled={regeneratingIndex !== null}
+                >
+                  {regeneratingIndex === i
+                    ? <ActivityIndicator size="small" color="#60a5fa" />
+                    : <Ionicons name="refresh-outline" size={18} color="#60a5fa" />}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeQuestion(i)} style={styles.removeBtn}>
+                  <Text style={styles.removeBtnText}>Remove</Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Row 2: type badge + category badge(s) */}
+              <View style={styles.questionBadgeRow}>
+                <View style={styles.qTypeBadge}>
+                  <Text style={styles.qTypeBadgeText}>{TYPE_LABEL[qType] ?? qType}</Text>
+                </View>
+                {isVisualAid && (
+                  <View style={styles.qVisualBadge}>
+                    <Text style={styles.qVisualBadgeText}>📸 Visual Aid</Text>
+                  </View>
+                )}
+                {isEnhanced && !isVisualAid && (
+                  <View style={styles.qEnhancedBadge}>
+                    <Text style={styles.qEnhancedBadgeText}>⚙️ Enhanced</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Visual aid thumbnail (shown for image-ref questions) */}
+              {q.image_url && (
+                <Image
+                  source={{ uri: q.image_url }}
+                  style={styles.questionVisualThumb}
+                  resizeMode="cover"
+                />
+              )}
 
               {/* Question text — editable for all types */}
               <TextInput
@@ -926,7 +1023,11 @@ export default function ScanScreen() {
         {/* Question count picker — shown after first image is added */}
         {images.length > 0 && (
           <View style={styles.pickerSection}>
-            <Text style={styles.pickerLabel}>Questions to generate</Text>
+            <Text style={styles.pickerLabel}>
+              {activeVisualQCount > 0
+                ? `Questions to generate · ${questionCount} text + ${activeVisualQCount} visual = ${totalQuestionCount} total`
+                : 'Questions to generate'}
+            </Text>
             <View style={styles.pickerRow}>
               {QUESTION_OPTIONS.map(n => (
                 <TouchableOpacity
@@ -1045,8 +1146,15 @@ export default function ScanScreen() {
               disabled={loading}
             >
               <Text style={styles.generateBtnText}>
-                Generate {questionCount} Questions{images.length > 1 ? ` · ${images.length} pages` : ''}
+                Generate {totalQuestionCount} Question{totalQuestionCount !== 1 ? 's' : ''}
               </Text>
+              {(activeVisualQCount > 0 || images.length > 1) && (
+                <Text style={styles.generateBtnSub}>
+                  {activeVisualQCount > 0 ? `${questionCount} text + ${activeVisualQCount} visual` : ''}
+                  {activeVisualQCount > 0 && images.length > 1 ? '  ·  ' : ''}
+                  {images.length > 1 ? `${images.length} pages` : ''}
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1150,8 +1258,19 @@ function createStyles(t) {
       backgroundColor: t.accentDim,
     },
     learnBtnText: { fontSize: 15, fontWeight: '700', color: t.accent },
-    generatingTitle: { fontSize: 22, fontWeight: '800', color: t.text, marginTop: 24, marginBottom: 10 },
-    generatingDesc:  { fontSize: 14, color: t.textSub, textAlign: 'center', lineHeight: 22 },
+    generatingTitle: { fontSize: 22, fontWeight: '800', color: t.text, marginTop: 24, marginBottom: 16 },
+    generatingStageRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: 'rgba(74,222,128,0.08)',
+      borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10,
+      borderWidth: 1, borderColor: 'rgba(74,222,128,0.2)',
+      marginBottom: 14,
+    },
+    generatingStageIcon: { fontSize: 18 },
+    generatingStageMsg:  { fontSize: 14, fontWeight: '600', color: t.text, flex: 1 },
+    generatingMeta:      { fontSize: 13, color: t.textMuted, textAlign: 'center', marginBottom: 10 },
+    generatingTimerRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 32 },
+    generatingTimer:     { fontSize: 13, color: '#64748b', fontWeight: '600' },
 
     // Validation error
     errorCard: {
@@ -1304,6 +1423,7 @@ function createStyles(t) {
       shadowOpacity: 0.4, shadowRadius: 12, elevation: 6,
     },
     generateBtnText: { fontSize: 17, fontWeight: '800', color: '#fff' },
+    generateBtnSub:  { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginTop: 3 },
 
     // How it works modal
     modalOverlay: {
@@ -1386,9 +1506,15 @@ function createStyles(t) {
       backgroundColor: t.bgCard, borderRadius: 16, padding: 16, marginBottom: 12,
       borderWidth: 1, borderColor: t.border,
     },
-    questionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-    questionNum:    { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5 },
-    removeBtn:      { backgroundColor: t.dangerDim, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+    questionHeaderTop: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginBottom: 6,
+    },
+    questionBadgeRow: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10,
+    },
+    questionNum:    { fontSize: 14, fontWeight: '900', color: t.accent, letterSpacing: 0.5 },
+    removeBtn:      { backgroundColor: t.dangerDim, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
     regenBtn:       { backgroundColor: 'rgba(96,165,250,0.15)', borderRadius: 8, padding: 6, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
     removeBtnText:  { fontSize: 12, fontWeight: '700', color: t.danger },
     questionInput: {
@@ -1416,6 +1542,24 @@ function createStyles(t) {
       backgroundColor: 'rgba(96,165,250,0.1)',
     },
     qTypeBadgeText: { fontSize: 10, fontWeight: '700', color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+    questionCardVisual: { borderColor: 'rgba(192,132,252,0.4)' },
+    qVisualBadge: {
+      borderWidth: 1, borderColor: 'rgba(192,132,252,0.45)',
+      borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+      backgroundColor: 'rgba(192,132,252,0.12)',
+    },
+    qVisualBadgeText: { fontSize: 10, fontWeight: '700', color: '#c084fc' },
+    qEnhancedBadge: {
+      borderWidth: 1, borderColor: 'rgba(251,191,36,0.45)',
+      borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+      backgroundColor: 'rgba(251,191,36,0.1)',
+    },
+    qEnhancedBadgeText: { fontSize: 10, fontWeight: '700', color: '#fbbf24' },
+    questionVisualThumb: {
+      width: '100%', height: 120, borderRadius: 10, marginBottom: 10,
+      backgroundColor: '#1e293b',
+    },
 
     // Shared field group inside question card
     reviewFieldGroup: { marginTop: 4 },

@@ -316,38 +316,117 @@ A procedurally drawn measuring cup (pure React Native Views — no image assets)
 
 ### 3. Number Line
 
-**Status:** Pending Redesign
+**Status:** Done — 5 modes live (read, place, missing, partition, distance)
+
+**Design principle:** Number lines teach magnitude, intervals, fractions, and estimation — NOT "drag dot until green." Every mode uses staged thinking: student acts first, then taps "Check Answer". No live value readout while dragging.
 
 **Description:**
-A virtual number line. Depending on mode, the student drags a point to a target value, reads a pre-placed point, or counts equal parts.
+A responsive, touch-friendly number line drawn in SVG. Thick line (3px), large tick marks with grade-appropriate spacing, snap-to-interval placement. Color coding: negative values get red-tinted zone, student point is purple → green/red on feedback. Two points in distance mode are color-coded. No live value feedback during placement.
 
-**Grade range:** Grades 1–8
+**Grade range:** Grades 1–8 (primary: 1–5)
 
-**Interaction modes:**
+**Interaction modes (Priority 1–5):**
 
-| Mode | What the student does |
-|---|---|
-| `place` | Student drags a point to the target value. |
-| `read` | A point is pre-placed. Student picks its value from multiple choice. |
-| `count` | Equal-part tick marks shown. Student picks how many parts from multiple choice. |
+| # | Mode | What the student does | Educational value |
+|---|---|---|---|
+| 1 | `read` | A pre-placed colored dot is shown. Student picks its value from 4 MC options. | Interval counting, magnitude reasoning |
+| 2 | `place` | Student drags/taps to place a point; snaps to nearest tick only. Submit button required — no live readout while placing. | Equal spacing, count-to-place |
+| 3 | `missing` | A sequence is shown with one value hidden behind "?". Student picks the missing value from 4 MC options. | Skip counting, pattern recognition |
+| 4 | `partition` | Unlabeled number line (0 and max only). Student counts equal parts and picks from 4 MC options. | Fraction partitioning — CRITICAL for fraction understanding |
+| 5 | `distance` | Two labeled colored points (A and B) are shown. Student picks how far apart they are from MC. | Subtraction, absolute value, interval counting |
 
-**AI schema:**
+**AI schema — `type: "number_line"` for all 5 modes:**
+
+*Mode 1 — read:*
 ```json
 {
-  "toolType": "number_line",
+  "type": "number_line", "mode": "read",
+  "question": "What number is shown by the point?",
+  "hint": "Count the spaces between tick marks from 0.",
+  "options": ["2.5", "2.8", "3", "3.2"],
+  "correctIndex": 2, "correctAnswer": "3",
+  "geometry": { "min": 0, "max": 6, "step": 1, "target": 3, "pointColor": "purple" }
+}
+```
+
+*Mode 2 — place (default, mode field optional):*
+```json
+{
+  "type": "number_line",
+  "question": "Place the point at 3½.",
+  "hint": "Count 3 whole numbers, then one half step.",
+  "correctAnswer": "3.5",
+  "geometry": { "min": 0, "max": 6, "step": 0.5, "target": 3.5 }
+}
+```
+
+*Mode 3 — missing:*
+```json
+{
+  "type": "number_line", "mode": "missing",
+  "question": "What number is missing from the pattern?",
+  "hint": "Find the pattern — count the spaces between the numbers you can see.",
+  "options": ["8", "10", "12", "14"],
+  "correctIndex": 1, "correctAnswer": "10",
+  "geometry": { "min": 0, "max": 20, "step": 5, "missingValue": 10 }
+}
+```
+
+*Mode 4 — partition:*
+```json
+{
+  "type": "number_line", "mode": "partition",
+  "question": "How many equal parts is the number line divided into?",
+  "hint": "Count the spaces between tick marks, not the marks themselves.",
+  "options": ["2", "3", "4", "5"],
+  "correctIndex": 2, "correctAnswer": "4",
+  "geometry": { "min": 0, "max": 1, "step": 0.25 }
+}
+```
+
+*Mode 5 — distance:*
+```json
+{
+  "type": "number_line", "mode": "distance",
+  "question": "How far apart are points A and B?",
+  "hint": "Count the spaces between the two points.",
+  "options": ["4 units", "5 units", "6 units", "7 units"],
+  "correctIndex": 1, "correctAnswer": "5",
   "geometry": {
-    "min": 0,
-    "max": 1,
-    "step": 0.25,
-    "target": 0.75,
-    "mode": "place"
+    "min": 0, "max": 8, "step": 1,
+    "points": [
+      { "value": 2, "label": "A", "color": "green" },
+      { "value": 7, "label": "B", "color": "blue" }
+    ]
   }
 }
 ```
 
-**Fallback:** `fill_in` for place/read; `multiple_choice` for count.
+**Field reference:**
 
-**Mockup:** *Pending redesign after Ruler is complete.*
+| Field | Modes | Type | Notes |
+|---|---|---|---|
+| `mode` | all | string | `"read"`, `"missing"`, `"partition"`, `"distance"`, or omit for `place` |
+| `geometry.min` | all | number | Left end of line |
+| `geometry.max` | all | number | Right end of line |
+| `geometry.step` | all | number | Interval between ticks (2–20 ticks total) |
+| `geometry.target` | read, place | number | Where the dot is / where to place |
+| `geometry.pointColor` | read | string | `purple` (default), `blue`, `green`, `orange`, `red`, `yellow` |
+| `geometry.missingValue` | missing | number | The hidden value; must land exactly on a tick |
+| `geometry.points` | distance | array | `[{value, label, color}, ...]` — exactly 2 points |
+| `options` | read, missing, partition, distance | string[] | 4 MC choices |
+| `correctIndex` | read, missing, partition, distance | number | 0–3 |
+
+**Fallback:** `fill_in` for place; `multiple_choice` for read/missing/partition/distance.
+
+**Build notes:**
+- Canvas width is responsive: `min(screenWidth − 40, 360)` — not a fixed 280px
+- Negative number support: values left of zero get a red-tinted background zone
+- Partition mode hides all tick labels except 0 and max — student must count intervals
+- Missing mode replaces the missing tick label with a "?" badge (blue circle)
+- Distance mode draws a bracket/brace between the two labeled points
+- Submit button is always required for place mode — no auto-advance on snap
+- Backward compatible: old `"mode": "count"` falls through to partition renderer
 
 ---
 

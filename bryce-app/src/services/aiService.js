@@ -112,10 +112,12 @@ export async function generateQuestionsFromImage(base64Images, questionCount = 9
     return mapped;
   });
 
-  // Sanitize ALL AI-generated text before returning to the UI
+  // Sanitize ALL AI-generated text before returning to the UI.
+  // Do NOT slice here — the server already trims text questions to questionCount
+  // and appends visual aid questions on top of that total.
   const sanitized = sanitizeUnit({
     title:     data.title ?? 'New Lesson',
-    questions: rawQuestions.slice(0, questionCount),
+    questions: rawQuestions,
   });
 
   // Include reading passage if GPT extracted one

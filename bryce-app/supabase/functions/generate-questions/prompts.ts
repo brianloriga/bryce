@@ -537,65 +537,62 @@ QUESTION TYPE RULES — choose the best type for each question:
 
 7. NUMBER LINE — "type": "number_line"
    The app DRAWS its own number line. The student NEVER sees the original worksheet.
+   Five modes — DECIDE THE MODE FIRST before writing any other field.
 
-   ⚠️  DECIDE THE MODE FIRST — before writing any other field:
-   ┌────────────────────────────────────────────────────────────────────────────┐
-   │ What is the worksheet asking the student to DO?                            │
-   │                                                                            │
-   │ "Place/mark/where does X go on the line?"   → mode: PLACE  (omit field)   │
-   │ "What fraction/value does the dot/frog       → mode: "read"                │
-   │  represent?" / "Name the marked point"      → (app shows pre-placed dot)  │
-   │ "How many equal parts?" / "Count sections"  → mode: "count"               │
-   │                                             → (app shows tick marks)      │
-   └────────────────────────────────────────────────────────────────────────────┘
-
-   Three interaction modes — details for each:
-
-   MODE A — "place" (default, omit mode field)
-   Student drags a point to the correct position on the line.
-   Use for: "Place a point at X", "Where does N go?", "Mark X on the number line"
-   { "type": "number_line", "question": "Place a point at 3/4 on the number line.", "hint": "...", "correctAnswer": "0.75", "geometry": { "min": 0, "max": 1, "step": 0.25, "target": 0.75 } }
-   { "type": "number_line", "question": "Where does 14 go on the number line?", "hint": "...", "correctAnswer": "14", "geometry": { "min": 10, "max": 20, "step": 1, "target": 14 } }
-
-   MODE B — "read" (mode: "read")
-   App draws the number line with a pre-placed colored dot. Student identifies its value from MC options.
-   Use for: "What fraction does the point represent?", "What value is marked?", worksheet questions
-     where a specific point is shown on the number line and the student must name it.
-   TRANSFORMATION RULE: when a worksheet shows a labeled point on a number line, use mode "read" —
-     the app draws the same line and point, making the question fully self-contained.
-   geometry: same as place mode but MUST include "target" (where the dot goes) and optionally "pointColor"
-   pointColor options: "green" | "purple" | "blue" | "orange" | "red" | "yellow"
-   Also requires: "options" array (4 MC choices) and "correctIndex"
-   { "type": "number_line", "mode": "read", "question": "A point is marked on the number line below. What fraction does it represent?", "hint": "Count how many parts the line is divided into and where the dot lands.", "options": ["1/4","1/2","3/4","1"], "correctIndex": 1, "correctAnswer": "1/2", "geometry": { "min": 0, "max": 1, "step": 0.5, "target": 0.5, "pointColor": "green" } }
-   { "type": "number_line", "mode": "read", "question": "A purple point is marked on the number line. What fraction is it?", "hint": "The line is divided into 4 equal parts. Count from 0.", "options": ["1/4","1/2","0/4","1/3"], "correctIndex": 0, "correctAnswer": "1/4", "geometry": { "min": 0, "max": 1, "step": 0.25, "target": 0.25, "pointColor": "purple" } }
-
-   MODE C — "count" (mode: "count")
-   App draws the number line with tick marks showing equal parts. Student counts the parts from MC options.
-   Use for: "How many equal parts is this number line divided into?"
-   TRANSFORMATION RULE: when a worksheet asks to count tick-mark intervals, use mode "count" —
-     set step so the number of intervals equals the correct answer.
-   Also requires: "options" array (4 MC choices) and "correctIndex"
-   correctAnswer = number of equal parts as a string
-   { "type": "number_line", "mode": "count", "question": "The number line below is divided into equal parts. How many equal parts are there?", "hint": "Count the spaces between the tick marks, not the tick marks themselves.", "options": ["2","3","4","5"], "correctIndex": 0, "correctAnswer": "2", "geometry": { "min": 0, "max": 1, "step": 0.5 } }
-   { "type": "number_line", "mode": "count", "question": "The number line below is divided into equal parts. How many equal parts are there?", "hint": "Count each section from one tick mark to the next.", "options": ["3","5","4","6"], "correctIndex": 1, "correctAnswer": "5", "geometry": { "min": 0, "max": 1, "step": 0.2 } }
-
-   CRITICAL MODE SELECTION — choose mode FIRST based on what the student must do:
    ┌──────────────────────────────────────────────────────────────────────────────────────┐
-   │ Worksheet asks…                          → Use this mode                            │
-   │ "Place / mark / where does X go?"        → place  (student drags to the value)      │
-   │ "What fraction does the point/frog/dot   → read   (app shows pre-placed dot; MC)    │
-   │  represent?" or "What value is marked?"  →                                          │
-   │ "How many equal parts?"                  → count  (app shows tick marks; MC)        │
+   │ What is the worksheet asking the student to DO?    → Mode                           │
+   │ "Place / mark / where does X go?"                 → place  (default, omit field)   │
+   │ "What value is the marked point?"                 → read   (pre-placed dot; MC)    │
+   │ "What number is missing?" / skip count gap        → missing (? badge on line; MC)  │
+   │ "How many equal parts?"                           → partition (unlabeled; MC)      │
+   │ "How far apart are A and B?"                      → distance (2 labeled dots; MC)  │
    └──────────────────────────────────────────────────────────────────────────────────────┘
-   HARD RULE: NEVER generate mode "place" for a question that asks the student to identify
-   the value of an already-marked point. "place" shows NOTHING pre-placed — the student
-   would have no information. Use "read" mode so the app draws the dot they must identify.
 
-   GENERAL number_line rules:
-   - Keep ranges realistic: step should produce 2–20 tick intervals
-   - Integers: step 1 or 2 (e.g. 0–20); Halves: step 0.5; Quarters: step 0.25; Tenths: step 0.1
+   ── MODE: place (default — omit mode field) ──
+   Student snaps point to nearest tick. Submit button required.
+   geometry: { "min", "max", "step", "target" }
+   { "type":"number_line","question":"Place the point at 3½.","hint":"Count 3, then half a step more.","correctAnswer":"3.5","geometry":{"min":0,"max":6,"step":0.5,"target":3.5} }
+   { "type":"number_line","question":"Where does 14 go?","hint":"Count up from 10.","correctAnswer":"14","geometry":{"min":10,"max":20,"step":1,"target":14} }
+
+   ── MODE: read ──
+   App draws line with a pre-placed colored dot. Student picks value from 4 MC options.
+   geometry: { "min","max","step","target","pointColor"? }  pointColor: purple|blue|green|orange|red|yellow
+   ALSO requires: "options":[4 choices], "correctIndex"
+   { "type":"number_line","mode":"read","question":"What number is shown by the point?","hint":"Count the spaces from 0.","options":["2.5","2.8","3","3.2"],"correctIndex":2,"correctAnswer":"3","geometry":{"min":0,"max":6,"step":1,"target":3,"pointColor":"purple"} }
+   { "type":"number_line","mode":"read","question":"What fraction does the point represent?","hint":"Count equal parts from 0.","options":["1/4","1/2","3/4","1"],"correctIndex":1,"correctAnswer":"1/2","geometry":{"min":0,"max":1,"step":0.5,"target":0.5,"pointColor":"green"} }
+
+   ── MODE: missing ──
+   One tick label is replaced with "?". Student picks the missing value from 4 MC options.
+   Use for: skip-counting gaps, "What number is missing from the pattern?", sequence with one blank.
+   geometry: { "min","max","step","missingValue" }  — missingValue MUST land exactly on a tick
+   ALSO requires: "options":[4 choices], "correctIndex"
+   { "type":"number_line","mode":"missing","question":"What number is missing from the pattern?","hint":"Count by 5s — what comes between 5 and 15?","options":["8","10","12","14"],"correctIndex":1,"correctAnswer":"10","geometry":{"min":0,"max":20,"step":5,"missingValue":10} }
+   { "type":"number_line","mode":"missing","question":"What number is missing?","hint":"Count by 2s.","options":["4","6","8","10"],"correctIndex":1,"correctAnswer":"6","geometry":{"min":0,"max":10,"step":2,"missingValue":6} }
+
+   ── MODE: partition ──
+   Only 0 and max labeled. Student counts equal parts from MC options.
+   Use for: "How many equal parts?", "How many sections?", partition/fraction setup questions.
+   geometry: { "min","max","step" }  — step determines number of parts
+   ALSO requires: "options":[4 choices], "correctIndex"
+   { "type":"number_line","mode":"partition","question":"How many equal parts is the number line divided into?","hint":"Count the spaces between tick marks, not the marks themselves.","options":["2","3","4","5"],"correctIndex":2,"correctAnswer":"4","geometry":{"min":0,"max":1,"step":0.25} }
+
+   ── MODE: distance ──
+   Two labeled colored points (A and B) on the line. Student picks distance from MC options.
+   Use for: "How far apart are A and B?", "What is the distance between the two points?"
+   geometry: { "min","max","step","points":[{"value","label","color"},{"value","label","color"}] }
+   colors: purple|blue|green|orange|red|yellow
+   ALSO requires: "options":[4 choices like "4 units","5 units"], "correctIndex"
+   correctAnswer = the distance as a number string (e.g. "5")
+   { "type":"number_line","mode":"distance","question":"How far apart are points A and B?","hint":"Count the spaces between the two points.","options":["4 units","5 units","6 units","7 units"],"correctIndex":1,"correctAnswer":"5","geometry":{"min":0,"max":8,"step":1,"points":[{"value":2,"label":"A","color":"green"},{"value":7,"label":"B","color":"blue"}]} }
+
+   ── GENERAL number_line rules ──
+   - Keep ranges realistic: step must produce 2–20 tick intervals
+   - Integers: step 1 or 2; Halves: step 0.5; Quarters: step 0.25; Tenths: step 0.1
    - NEVER produce more than 20 tick intervals (keep max − min ≤ 20 × step)
-   - For read/count modes: selfContained must be true — the APP is drawing the number line
+   - selfContained: true for all modes except place (app draws the whole stimulus)
+   - HARD RULE: NEVER use mode "place" when the worksheet asks the student to IDENTIFY a marked value — use "read" so the app draws the dot
+   - Prefer "missing" over plain fill_in for skip-counting gap questions — it is far more engaging
+   - Prefer "distance" over plain fill_in for "how far apart" questions
 
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
@@ -811,7 +808,13 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
 - ordering: { "type": "ordering", "question": "...", "hint": "...", "items": [...], "correctOrder": [...] }
 - true_false: { "type": "true_false", "question": "...", "hint": "...", "correctAnswer": true|false }
 - word_bank: { "type": "word_bank", "question": "sentence with ____", "hint": "...", "wordBank": [...], "correctAnswer": "..." }
-- number_line: { "type": "number_line", "question": "Place a point at X on the number line.", "hint": "...", "correctAnswer": "X", "geometry": { "min": 0, "max": 10, "step": 1, "target": X } }
+- number_line: { "type": "number_line", "question": "...", "hint": "...", "correctAnswer": "X", "geometry": { "min": 0, "max": 10, "step": 1, "target": X } }
+  For number_line regen — MATCH the same mode as the original. If original had mode "missing", generate a new missing-number question; if "distance", generate a new distance question; etc. Use a fresh range/values. See section 7 for full schemas.
+  - place (default): new target on a fresh range
+  - read: new target + 4 MC options + correctIndex
+  - missing: new missingValue that lands on a tick + 4 MC options + correctIndex
+  - partition: new step (for different number of parts) + 4 MC options + correctIndex
+  - distance: new pair of points + 4 MC options (in "N units" format) + correctIndex; correctAnswer = distance as string
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEASUREMENT TOOL REGEN RULES — CRITICAL

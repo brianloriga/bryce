@@ -162,16 +162,60 @@ export function enrichNumberLineQuestions(
   return out;
 }
 
+// ── Quick text-based pre-filter ────────────────────────────────
+// Returns true if the question text explicitly references an external
+// visual that might not be rendered (diagram, chart, image without a
+// dedicated image_ref, etc.).  Questions WITHOUT such a reference are
+// trivially self-contained and skip the gpt-4o-mini round-trip.
+function hasVisualReference(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    /\b(the|this|which|these)\s+(image|images|diagram|diagrams|chart|charts|graph|graphs|figure|figures|picture|pictures|photo|photos|drawing|drawings|map|maps|visual|visuals)\b/.test(lower) ||
+    /\bshown\s+(above|below|here)\b/.test(lower) ||
+    /\bgraphic\s+organizer\b/.test(lower) ||
+    /\b(look\s+at|refer\s+to|use)\s+the\s+(image|diagram|chart|graph|figure|picture|photo)\b/.test(lower)
+  );
+}
+
 // ── Independent self-containedness validator ───────────────────
 // Uses gpt-4o-mini as a separate reviewer with no knowledge of the
 // original generation. Fails open: if the call errors, all pass.
+// Questions that are trivially self-contained (no visual reference in
+// their text, and no geometry/measurementTool needed) are pre-approved
+// in TypeScript to avoid gpt-4o-mini false-negatives.
 export async function validateSelfContained(
   questions: Array<Record<string, unknown>>,
   openaiKey: string,
 ): Promise<boolean[]> {
   if (questions.length === 0) return [];
 
-  const items = questions.map((q, i) => ({
+  // Pre-filter: auto-pass questions that obviously need no external visual.
+  // Only send questions that actually reference images/diagrams to gpt-4o-mini.
+  const needsLlmCheck = questions.map((q) => {
+    const imageRef   = q.image_ref != null ? Number(q.image_ref) : null;
+    const measureTool = String(q.measurementTool ?? '');
+    const nlMode      = String(q.mode ?? (q.type === 'number_line' ? 'place' : ''));
+
+    // Unconditional auto-pass (mirrors RULE 0 in the LLM prompt)
+    if (imageRef !== null)  return false; // rendered inline → always ok
+    if (measureTool)        return false; // interactive tool → always ok
+    if (nlMode === 'count' || nlMode === 'read') return false;
+    if (q.geometry)         return false; // geometry rendered by app → always ok
+
+    // If the question text doesn't reference any external visual, it's self-contained
+    return hasVisualReference(String(q.question ?? ''));
+  });
+
+  // If nothing needs the LLM, skip the network call entirely
+  if (!needsLlmCheck.some(Boolean)) return questions.map(() => true);
+
+  const ambiguousIdxs = questions
+    .map((_, i) => i)
+    .filter((i) => needsLlmCheck[i]);
+
+  const ambiguousQs = ambiguousIdxs.map((i) => questions[i]);
+
+  const items = ambiguousQs.map((q, i) => ({
     i,
     q: String(q.question ?? ''),
     hasContext:    !!q.context,
@@ -249,8 +293,12 @@ Return ONLY a JSON array — one object per input, same order:
     const match   = text.match(/\[[\s\S]*\]/);
     if (!match) throw new Error('no JSON array in validation response');
     const results = JSON.parse(match[0]) as Array<{ i: number; ok: boolean }>;
-    const okMap   = new Map(results.map((r) => [r.i, r.ok !== false]));
-    return questions.map((_, idx) => okMap.get(idx) ?? true);
+    // results[i].i is the index within ambiguousQs; map back to original question index
+    const okMap = new Map(results.map((r) => [ambiguousIdxs[r.i], r.ok !== false]));
+    return questions.map((_, idx) => {
+      if (!needsLlmCheck[idx]) return true; // pre-approved
+      return okMap.get(idx) ?? true;        // LLM verdict, default allow
+    });
   } catch (err) {
     console.warn('[generate-questions] Validation pass failed, allowing all through:', (err as Error).message);
     return questions.map(() => true);

@@ -70,7 +70,7 @@ export function sanitizeQuestion(q: Record<string, unknown>): Record<string, unk
 
   // Optional extras (selfContained is intentionally NOT forwarded — internal only)
   if (q.geometry)        sanitized.geometry        = q.geometry;
-  if (q.image_ref)       sanitized.image_ref       = true;
+  if (q.image_ref != null) sanitized.image_ref = q.image_ref; // preserve the numeric index (1, 2, 3…)
   if (q.context)         sanitized.context         = q.context;
   if (q.measurementTool) sanitized.measurementTool = q.measurementTool;
   if (q.rulerMaxCm)      sanitized.rulerMaxCm      = q.rulerMaxCm;

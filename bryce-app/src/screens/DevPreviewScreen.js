@@ -3,7 +3,7 @@
  * Lists every sample question set so you can jump straight into QuizScreen
  * for any question type / variant without needing a real scan or login.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Platform, useWindowDimensions,
@@ -12,12 +12,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SAMPLE_GROUPS } from '../dev/sampleQuestions';
+import { devLogger } from '../utils/devLogger';
 
 const HEADER_HEIGHT = 70;
 
 export default function DevPreviewScreen() {
-  const navigation = useNavigation();
-  const { height } = useWindowDimensions();
+  const navigation  = useNavigation();
+  const { height }  = useWindowDimensions();
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => devLogger.subscribe(setLogs), []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -67,6 +71,90 @@ export default function DevPreviewScreen() {
             ))}
           </View>
         ))}
+
+        {/* ── Scan Generation Logs ─────────────────────── */}
+        <View style={styles.group}>
+          <View style={logStyles.logHeader}>
+            <Text style={styles.groupTitle}>Scan Logs</Text>
+            <Text style={logStyles.logCount}>{logs.length} entr{logs.length === 1 ? 'y' : 'ies'}</Text>
+            {logs.length > 0 && (
+              <TouchableOpacity onPress={() => devLogger.clearAll()} style={logStyles.clearBtn}>
+                <Text style={logStyles.clearBtnText}>Clear all</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {logs.length === 0 ? (
+            <View style={styles.card}>
+              <Text style={styles.cardMeta}>No scans yet — run a generation and logs will appear here automatically.</Text>
+            </View>
+          ) : (
+            logs.map(log => {
+              const ok     = log.result?.success;
+              const dur    = log.durationMs ? (log.durationMs / 1000).toFixed(1) + 's' : '…';
+              const ts     = new Date(log.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              const date   = new Date(log.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' });
+              const apiEvt = log.events?.find(e => e.label === 'api_call_end');
+              const apiMs  = apiEvt ? apiEvt.elapsedMs : null;
+
+              return (
+                <View key={log.id} style={[styles.card, ok ? logStyles.cardOk : logStyles.cardFail]}>
+                  {/* Header row */}
+                  <View style={logStyles.row}>
+                    <Text style={ok ? logStyles.statusOk : logStyles.statusFail}>
+                      {ok ? '✅ Success' : '❌ Failed'}
+                    </Text>
+                    <Text style={logStyles.ts}>{date}  {ts}</Text>
+                    <Text style={logStyles.dur}>{dur}</Text>
+                  </View>
+
+                  {/* Input summary */}
+                  <Text style={logStyles.meta}>
+                    {log.pageCount} page{log.pageCount !== 1 ? 's' : ''}
+                    {log.visualAidCount > 0 ? `  ·  ${log.visualAidCount} visual aid${log.visualAidCount !== 1 ? 's' : ''}` : ''}
+                    {'  ·  '}requested {log.totalRequested}
+                  </Text>
+
+                  {/* Output summary */}
+                  {ok && (
+                    <Text style={logStyles.meta}>
+                      Generated {log.result.questionsGenerated}
+                      {log.result.textGenerated != null
+                        ? `  (${log.result.textGenerated} text + ${log.result.visualGenerated} visual)`
+                        : ''}
+                      {log.result.droppedCount ? `  ·  dropped ${log.result.droppedCount}` : ''}
+                    </Text>
+                  )}
+
+                  {/* API timing */}
+                  {apiMs != null && (
+                    <Text style={logStyles.timing}>
+                      ⏱  API call: {(apiMs / 1000).toFixed(1)}s  ·  total: {dur}
+                    </Text>
+                  )}
+
+                  {/* Error */}
+                  {!ok && log.result?.error && (
+                    <Text style={logStyles.errorText} numberOfLines={3}>
+                      {log.result.error}
+                    </Text>
+                  )}
+
+                  {/* Events timeline */}
+                  {log.events?.length > 0 && (
+                    <View style={logStyles.eventsBox}>
+                      {log.events.map((e, ei) => (
+                        <Text key={ei} style={logStyles.eventRow}>
+                          {String(e.elapsedMs).padStart(5, ' ')}ms  {e.label}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -166,4 +254,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
+});
+
+const logStyles = StyleSheet.create({
+  logHeader:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  logCount:    { fontSize: 11, color: '#475569', fontWeight: '600' },
+  clearBtn:    { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#7f1d1d', borderRadius: 8 },
+  clearBtnText:{ fontSize: 11, fontWeight: '700', color: '#fca5a5' },
+
+  cardOk:   { borderColor: '#166534' },
+  cardFail: { borderColor: '#7f1d1d' },
+
+  row:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  statusOk:  { fontSize: 13, fontWeight: '700', color: '#4ade80', flex: 1 },
+  statusFail:{ fontSize: 13, fontWeight: '700', color: '#f87171', flex: 1 },
+  ts:        { fontSize: 11, color: '#475569' },
+  dur:       { fontSize: 11, fontWeight: '700', color: '#94a3b8' },
+
+  meta:      { fontSize: 12, color: '#64748b', marginBottom: 2 },
+  timing:    { fontSize: 12, color: '#7c3aed', marginTop: 4, fontWeight: '600' },
+  errorText: { fontSize: 12, color: '#f87171', marginTop: 4, lineHeight: 18 },
+
+  eventsBox: {
+    marginTop: 8, backgroundColor: '#0f172a',
+    borderRadius: 8, padding: 8,
+    borderWidth: 1, borderColor: '#1e293b',
+  },
+  eventRow: { fontSize: 10, color: '#475569', fontFamily: 'monospace', lineHeight: 16 },
 });
