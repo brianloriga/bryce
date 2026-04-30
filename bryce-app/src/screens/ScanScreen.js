@@ -136,6 +136,7 @@ export default function ScanScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const [images, setImages]                       = useState([]);
+  const [processingImages, setProcessingImages]   = useState(false); // true while batch-resizing library picks
   // visualImages is an array of { uri, base64, questionCount } — one per visual aid slot
   const [visualImages, setVisualImages]           = useState([]);
   const [validationError, setValidationError]     = useState(null);
@@ -158,7 +159,8 @@ export default function ScanScreen() {
   const [imageSearchQuery, setImageSearchQuery]   = useState(null); // Pexels search keywords
   const [introImageUrls, setIntroImageUrls]       = useState([]);   // Pexels photo URLs for preview
   const [audioIntroEnabled, setAudioIntroEnabled] = useState(true); // parent toggle
-  const cancelledRef = useRef(false);
+  const cancelledRef   = useRef(false);
+  const stripScrollRef = useRef(null);
 
   function cancelGeneration() {
     cancelledRef.current = true;
@@ -206,9 +208,14 @@ export default function ScanScreen() {
   }
 
   // ── Image helpers ──────────────────────────────────────────
-  function addImage(asset) {
-    setImages(prev => [...prev, asset]);
+  function addImages(assets) {
+    setImages(prev => {
+      const combined = [...prev, ...assets].slice(0, MAX_IMAGES);
+      return combined;
+    });
     setValidationError(null);
+    // Scroll the strip to reveal the + button after a tick
+    setTimeout(() => stripScrollRef.current?.scrollToEnd({ animated: true }), 120);
   }
   function removeImage(index) {
     setImages(prev => prev.filter((_, i) => i !== index));
@@ -224,14 +231,34 @@ export default function ScanScreen() {
       Alert.alert('Permission needed', 'Please allow access to your photo library in Settings.');
       return;
     }
+    const remaining = MAX_IMAGES - images.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
     });
-    if (!result.canceled) {
-      const resized = await resizeForUpload(result.assets[0].uri);
-      addImage({ ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+    if (!result.canceled && result.assets.length > 0) {
+      setProcessingImages(true);
+      try {
+        const resized = await Promise.all(result.assets.map(a => resizeForUpload(a.uri)));
+        addImages(resized.map((r, i) => ({ ...result.assets[i], uri: r.uri, base64: r.base64 })));
+      } finally {
+        setProcessingImages(false);
+      }
     }
+  }
+
+  function promptAddPage() {
+    Alert.alert(
+      'Add Page',
+      'How would you like to add the next page?',
+      [
+        { text: 'Camera', onPress: takePhoto },
+        { text: 'Photo Library', onPress: pickFromLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   }
 
   async function takePhoto() {
@@ -247,7 +274,7 @@ export default function ScanScreen() {
     const result = await ImagePicker.launchCameraAsync({ quality: 1 });
     if (!result.canceled) {
       const resized = await resizeForUpload(result.assets[0].uri);
-      addImage({ ...result.assets[0], uri: resized.uri, base64: resized.base64 });
+      addImages([{ ...result.assets[0], uri: resized.uri, base64: resized.base64 }]);
     }
   }
 
@@ -988,12 +1015,16 @@ export default function ScanScreen() {
               <Text style={styles.stripCount}>
                 {images.length} / {MAX_IMAGES} pages
               </Text>
-              {images.length < MAX_IMAGES && (
-                <Text style={styles.stripHint}>tap + to add more</Text>
+              {processingImages && (
+                <View style={styles.stripProcessingRow}>
+                  <ActivityIndicator size="small" color="#4ade80" />
+                  <Text style={styles.stripProcessingText}>Adding photos…</Text>
+                </View>
               )}
             </View>
 
             <ScrollView
+              ref={stripScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.strip}
@@ -1001,7 +1032,6 @@ export default function ScanScreen() {
               {images.map((img, i) => (
                 <View key={i} style={styles.thumbnail}>
                   <Image source={{ uri: img.uri }} style={styles.thumbnailImage} resizeMode="cover" />
-                  {/* X inside the image, top-right corner */}
                   <TouchableOpacity
                     style={styles.thumbnailRemove}
                     onPress={() => removeImage(i)}
@@ -1016,24 +1046,29 @@ export default function ScanScreen() {
               ))}
 
               {images.length < MAX_IMAGES && (
-                <TouchableOpacity style={styles.addPageBtn} onPress={takePhoto} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.addPageBtn} onPress={promptAddPage} activeOpacity={0.7}>
                   <Ionicons name="add" size={28} color="#4ade80" />
                   <Text style={styles.addPageText}>Add page</Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
 
-            {/* Smaller camera/library row once images exist */}
-            <View style={styles.addMoreRow}>
-              <TouchableOpacity style={styles.addMoreBtn} onPress={takePhoto}>
-                <Ionicons name="camera-outline" size={18} color="#94a3b8" />
-                <Text style={styles.addMoreText}>Camera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.addMoreBtn} onPress={pickFromLibrary}>
-                <Ionicons name="images-outline" size={18} color="#94a3b8" />
-                <Text style={styles.addMoreText}>Library</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Camera / Library buttons — always visible below the strip */}
+            {images.length < MAX_IMAGES && (
+              <View style={styles.addMoreRow}>
+                <TouchableOpacity style={[styles.addMoreBtn, styles.addMoreBtnCamera]} onPress={takePhoto} activeOpacity={0.8}>
+                  <Ionicons name="camera" size={20} color="#4ade80" />
+                  <Text style={[styles.addMoreText, styles.addMoreTextCamera]}>Camera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.addMoreBtn, styles.addMoreBtnLibrary]} onPress={pickFromLibrary} activeOpacity={0.8} disabled={processingImages}>
+                  <Ionicons name="images" size={20} color="#c084fc" />
+                  <View style={styles.addMoreLibraryLabel}>
+                    <Text style={[styles.addMoreText, styles.addMoreTextLibrary]}>Photo Library</Text>
+                    <Text style={styles.addMoreBadge}>select multiple</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
 
@@ -1105,23 +1140,28 @@ export default function ScanScreen() {
                   </View>
 
                   {!vImg ? (
-                    <View style={styles.visualBtnRow}>
-                      <TouchableOpacity
-                        style={styles.visualCaptureBtn}
-                        onPress={() => showVisualCaptureTips('camera', slotIdx)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="camera-outline" size={17} color="#c084fc" />
-                        <Text style={styles.visualCaptureBtnText}>Take Photo</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.visualCaptureBtn}
-                        onPress={() => openVisualLibrary(slotIdx)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="images-outline" size={17} color="#c084fc" />
-                        <Text style={styles.visualCaptureBtnText}>From Library</Text>
-                      </TouchableOpacity>
+                    <View>
+                      <View style={styles.visualBtnRow}>
+                        <TouchableOpacity
+                          style={styles.visualCaptureBtn}
+                          onPress={() => showVisualCaptureTips('camera', slotIdx)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="camera-outline" size={17} color="#c084fc" />
+                          <Text style={styles.visualCaptureBtnText}>Take Photo</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.visualCaptureBtn}
+                          onPress={() => openVisualLibrary(slotIdx)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="images-outline" size={17} color="#c084fc" />
+                          <Text style={styles.visualCaptureBtnText}>From Library</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.visualLibraryNote}>
+                        After selecting and cropping, iOS may ask for photo access — tap Allow. This only happens once on the real app.
+                      </Text>
                     </View>
                   ) : (
                     <View style={styles.visualSlotFilled}>
@@ -1363,14 +1403,31 @@ function createStyles(t) {
     },
     addPageText: { fontSize: 11, color: t.accent, fontWeight: '600' },
 
+    stripProcessingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    stripProcessingText: { fontSize: 12, color: '#4ade80', fontWeight: '600' },
+
     addMoreRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
     addMoreBtn: {
       flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-      gap: 7, backgroundColor: t.bgInput,
-      borderRadius: 12, paddingVertical: 11,
-      borderWidth: 1, borderColor: t.border,
+      gap: 8, borderRadius: 14, paddingVertical: 14,
+      borderWidth: 1.5,
     },
-    addMoreText: { fontSize: 14, fontWeight: '600', color: t.textSub },
+    addMoreBtnCamera: {
+      backgroundColor: 'rgba(74,222,128,0.08)',
+      borderColor: 'rgba(74,222,128,0.4)',
+    },
+    addMoreBtnLibrary: {
+      backgroundColor: 'rgba(192,132,252,0.08)',
+      borderColor: 'rgba(192,132,252,0.4)',
+    },
+    addMoreLibraryLabel: { alignItems: 'center', gap: 2 },
+    addMoreText: { fontSize: 14, fontWeight: '700', color: t.textSub },
+    addMoreTextCamera:  { color: '#4ade80' },
+    addMoreTextLibrary: { color: '#c084fc' },
+    addMoreBadge: {
+      fontSize: 9, fontWeight: '700', color: 'rgba(192,132,252,0.65)',
+      textTransform: 'uppercase', letterSpacing: 0.6,
+    },
 
     // Question count picker
     pickerSection: { marginBottom: 16 },
@@ -1432,6 +1489,10 @@ function createStyles(t) {
       borderWidth: 1, borderColor: 'rgba(192,132,252,0.3)',
     },
     visualRetakeBtnText: { fontSize: 12, fontWeight: '700', color: '#c084fc' },
+    visualLibraryNote: {
+      fontSize: 11, color: t.textMuted, lineHeight: 15,
+      marginTop: 8, fontStyle: 'italic',
+    },
     tipsIntro:    { fontSize: 14, color: t.textSub, lineHeight: 20, marginBottom: 16 },
     tipsBtnRow:   { flexDirection: 'row', gap: 10, marginTop: 8 },
     tipsLibraryBtn: {

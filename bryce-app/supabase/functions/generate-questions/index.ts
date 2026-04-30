@@ -141,6 +141,12 @@ serve(async (req) => {
           `Keep the SAME category labels and concept as the original. Generate FRESH items (different words/examples). ` +
           `Each item.correctCategory MUST exactly match one of the category labels. correctAnswer is always "sorted". ` +
           `4–8 items total; roughly equal per category. See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'cause_effect_map') {
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="cause_effect_map". ` +
+          `You MUST generate a fill_in question with measurementTool:"cause_effect_map". ` +
+          `Keep the SAME subject/concept as the original. Generate FRESH cause-effect pairs (different examples). ` +
+          `2–4 pairs total; each cause and effect ≤ 35 characters. correctAnswer is always "matched". ` +
+          `See MEASUREMENT TOOL REGEN RULES.`;
       }
 
       userContent.push({
@@ -154,6 +160,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: 'gpt-4o',
           max_tokens: 800,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: REGEN_SYSTEM_PROMPT },
             { role: 'user',   content: userContent },
@@ -169,7 +176,10 @@ serve(async (req) => {
       const regenData    = await regenResponse.json();
       const regenContent = regenData.choices?.[0]?.message?.content ?? '';
       const jsonMatch    = regenContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('AI did not return valid JSON. Please try again.');
+      if (!jsonMatch) {
+        console.error('[generate-questions] Regen: no JSON in response. finish_reason:', regenData.choices?.[0]?.finish_reason, 'content preview:', regenContent.slice(0, 300));
+        throw new Error('AI did not return valid JSON. Please try again.');
+      }
       const parsed      = JSON.parse(repairLatexJson(jsonMatch[0]));
       const sanitizedQ  = sanitizeQuestion(parsed.question ?? parsed);
 
@@ -304,6 +314,7 @@ serve(async (req) => {
       headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o', max_tokens: 10000,
+        response_format: { type: 'json_object' },
         messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: textContent }],
       }),
     });
@@ -337,6 +348,7 @@ serve(async (req) => {
         headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gpt-4o', max_tokens: Math.max(1200, n * 600),
+          response_format: { type: 'json_object' },
           messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: vaContent }],
         }),
       });
@@ -354,7 +366,10 @@ serve(async (req) => {
     const content = data.choices?.[0]?.message?.content ?? '';
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('AI did not return valid JSON. Please try again.');
+    if (!jsonMatch) {
+      console.error('[generate-questions] Main: no JSON in response. finish_reason:', data.choices?.[0]?.finish_reason, 'content preview:', content.slice(0, 300));
+      throw new Error('AI did not return valid JSON. Please try again.');
+    }
     const parsed = JSON.parse(repairLatexJson(jsonMatch[0]));
 
     // ── Parse visual aid responses ────────────────────────────
@@ -460,6 +475,7 @@ serve(async (req) => {
             body: JSON.stringify({
               model: 'gpt-4o',
               max_tokens: 4000,
+              response_format: { type: 'json_object' },
               messages: [
                 { role: 'system', content: SYSTEM_PROMPT },
                 { role: 'user',   content: retryContent },

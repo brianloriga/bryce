@@ -381,6 +381,7 @@ const cStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 64,
   },
   chipSelected: {
     borderColor: '#f1f5f9',
@@ -394,7 +395,7 @@ const cStyles = StyleSheet.create({
     color: '#cbd5e1',
     fontWeight: '600',
     textAlign: 'center',
-    flex: 1,
+    flexShrink: 1,
   },
   chipTextSelected: {
     color: '#f1f5f9',

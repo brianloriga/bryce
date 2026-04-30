@@ -406,6 +406,9 @@ export default function QuizScreen() {
         Animated.timing(celebAnim, { toValue: 1.04, duration: 150, useNativeDriver: true }),
         Animated.timing(celebAnim, { toValue: 1,    duration: 150, useNativeDriver: true }),
       ]).start();
+      setShowSuccessAnim(true);
+      if (successAnimTimeout.current) clearTimeout(successAnimTimeout.current);
+      successAnimTimeout.current = setTimeout(() => setShowSuccessAnim(false), 1100);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
@@ -425,7 +428,7 @@ export default function QuizScreen() {
         setSelectedIndex(null);
         setAnswered(false);
       }
-    }, 200);
+    }, isCorrect ? 1200 : 200);
   }
 
   function handleMCAnswer(index) {
@@ -908,7 +911,7 @@ export default function QuizScreen() {
         onContentChange={setScratchHasContent}
       />
 
-      {/* ── Success Lottie overlay (MC correct answer) ── */}
+      {/* ── Success Lottie overlay (all correct answers) ── */}
       {showSuccessAnim && (
         <View style={styles.successLottieOverlay} pointerEvents="none">
           <LottieView

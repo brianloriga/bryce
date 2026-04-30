@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import LottieView from 'lottie-react-native';
 import {
@@ -51,6 +51,29 @@ function ShakeView({ isShaking, children, onLayout }) {
       {children}
     </Animated.View>
   );
+}
+
+// ── PulseView — gently pulses opacity to draw attention ───────────
+function PulseView({ active, children }) {
+  const anim = useRef(new Animated.Value(1)).current;
+  const loop = useRef(null);
+
+  useEffect(() => {
+    if (active) {
+      loop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, { toValue: 0.45, duration: 600, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 1,    duration: 600, useNativeDriver: true }),
+        ]),
+      );
+      loop.current.start();
+    } else {
+      loop.current?.stop();
+      anim.setValue(1);
+    }
+  }, [active]);
+
+  return <Animated.View style={{ opacity: anim }}>{children}</Animated.View>;
 }
 
 // ── EmojiChip ─────────────────────────────────────────────────────
@@ -154,20 +177,23 @@ export default function CauseEffectRenderer({ q, onResolve }) {
   }
 
   // ── Step hint ─────────────────────────────────────────────────
-  let stepHint = 'Tap a cause, then tap its matching effect';
+  let stepHint      = '① Tap a cause  →  ② tap its effect';
+  let stepHintStyle = ceStyles.stepHint;
   if (allDone) {
-    stepHint = 'All pairs matched!';
+    stepHint      = 'Every pair matched!';
+    stepHintStyle = [ceStyles.stepHint, ceStyles.stepHintDone];
   } else if (hasSelect) {
     const raw   = pairs[selectedCause]?.cause ?? '';
-    const short = raw.length > 28 ? raw.slice(0, 26) + '…' : raw;
-    stepHint = `"${short}" selected — now tap its effect`;
+    const short = raw.length > 24 ? raw.slice(0, 22) + '…' : raw;
+    stepHint      = `② Now tap the effect for "${short}"`;
+    stepHintStyle = [ceStyles.stepHint, ceStyles.stepHintActive];
   }
 
   return (
     <View style={ceStyles.root}>
 
       {/* Step hint */}
-      <Text style={ceStyles.stepHint}>{stepHint}</Text>
+      <Text style={stepHintStyle}>{stepHint}</Text>
 
       {/* ── Columns row with SVG overlay ── */}
       <View
@@ -179,12 +205,14 @@ export default function CauseEffectRenderer({ q, onResolve }) {
           style={ceStyles.column}
           onLayout={e => setCauseColLayout(e.nativeEvent.layout)}
         >
-          <View style={[ceStyles.columnHeader, { borderBottomColor: '#fb923c' }]}>
-            <Text style={[ceStyles.columnLabel, { color: '#fb923c' }]}>⚡ Cause</Text>
-            <Text style={[ceStyles.columnSub, { color: '#fb923c88' }]}>
-              {hasSelect ? 'Selected ✓' : 'Tap one'}
-            </Text>
-          </View>
+          <PulseView active={!hasSelect && !allDone}>
+            <View style={[ceStyles.columnHeader, { borderBottomColor: '#fb923c' }]}>
+              <Text style={[ceStyles.columnLabel, { color: '#fb923c' }]}>⚡ Cause</Text>
+              <Text style={[ceStyles.columnSub, { color: hasSelect ? '#fb923c44' : '#fb923ccc' }]}>
+                {hasSelect ? 'selected ✓' : '① tap one'}
+              </Text>
+            </View>
+          </PulseView>
           <View
             style={ceStyles.columnBody}
             onLayout={e => setCauseBodyLayout(e.nativeEvent.layout)}
@@ -233,12 +261,14 @@ export default function CauseEffectRenderer({ q, onResolve }) {
           style={ceStyles.column}
           onLayout={e => setEffectColLayout(e.nativeEvent.layout)}
         >
-          <View style={[ceStyles.columnHeader, { borderBottomColor: '#60a5fa' }]}>
-            <Text style={[ceStyles.columnLabel, { color: '#60a5fa' }]}>💥 Effect</Text>
-            <Text style={[ceStyles.columnSub, { color: '#60a5fa88' }]}>
-              {hasSelect ? 'Tap the match' : 'Match below'}
-            </Text>
-          </View>
+          <PulseView active={hasSelect && !allDone}>
+            <View style={[ceStyles.columnHeader, { borderBottomColor: '#60a5fa' }]}>
+              <Text style={[ceStyles.columnLabel, { color: '#60a5fa' }]}>💥 Effect</Text>
+              <Text style={[ceStyles.columnSub, { color: hasSelect ? '#60a5facc' : '#60a5fa44' }]}>
+                {hasSelect ? '② tap the match' : 'tap cause first'}
+              </Text>
+            </View>
+          </PulseView>
           <View
             style={ceStyles.columnBody}
             onLayout={e => setEffectBodyLayout(e.nativeEvent.layout)}
@@ -345,11 +375,28 @@ const ceStyles = StyleSheet.create({
   },
   stepHint: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: '700',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 10,
     lineHeight: 16,
+    backgroundColor: '#1e293b',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    alignSelf: 'center',
+  },
+  stepHintActive: {
+    color: '#e2e8f0',
+    borderColor: '#7c3aed',
+    backgroundColor: 'rgba(124,58,237,0.12)',
+  },
+  stepHintDone: {
+    color: '#4ade80',
+    borderColor: '#4ade80',
+    backgroundColor: 'rgba(74,222,128,0.1)',
   },
 
   columnsRow: {
@@ -408,9 +455,11 @@ const ceStyles = StyleSheet.create({
     borderColor: '#7c3aed',
     backgroundColor: 'rgba(124,58,237,0.14)',
   },
+  // Neutral "ready to tap" — deliberately not a pair color so it won't be confused
+  // with any locked pair highlight
   chipTappable: {
-    borderColor: '#4ade80',
-    backgroundColor: 'rgba(74,222,128,0.08)',
+    borderColor: '#94a3b8',
+    backgroundColor: 'rgba(148,163,184,0.1)',
   },
   chipText: {
     fontSize: 12,

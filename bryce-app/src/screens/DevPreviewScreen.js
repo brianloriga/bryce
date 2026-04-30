@@ -20,6 +20,11 @@ export default function DevPreviewScreen() {
   const navigation  = useNavigation();
   const { height }  = useWindowDimensions();
   const [logs, setLogs] = useState([]);
+  const [expandedIds, setExpandedIds] = useState({});
+
+  function toggleExpand(id) {
+    setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  }
 
   useEffect(() => devLogger.subscribe(setLogs), []);
 
@@ -90,15 +95,21 @@ export default function DevPreviewScreen() {
             </View>
           ) : (
             logs.map(log => {
-              const ok     = log.result?.success;
-              const dur    = log.durationMs ? (log.durationMs / 1000).toFixed(1) + 's' : '…';
-              const ts     = new Date(log.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-              const date   = new Date(log.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' });
-              const apiEvt = log.events?.find(e => e.label === 'api_call_end');
-              const apiMs  = apiEvt ? apiEvt.elapsedMs : null;
+              const ok       = log.result?.success;
+              const expanded = !!expandedIds[log.id];
+              const dur      = log.durationMs ? (log.durationMs / 1000).toFixed(1) + 's' : '…';
+              const ts       = new Date(log.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              const date     = new Date(log.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' });
+              const apiEvt   = log.events?.find(e => e.label === 'api_call_end');
+              const apiMs    = apiEvt ? apiEvt.elapsedMs : null;
 
               return (
-                <View key={log.id} style={[styles.card, ok ? logStyles.cardOk : logStyles.cardFail]}>
+                <TouchableOpacity
+                  key={log.id}
+                  activeOpacity={0.75}
+                  onPress={() => toggleExpand(log.id)}
+                  style={[styles.card, logStyles.logCard, ok ? logStyles.cardOk : logStyles.cardFail]}
+                >
                   {/* Header row */}
                   <View style={logStyles.row}>
                     <Text style={ok ? logStyles.statusOk : logStyles.statusFail}>
@@ -106,6 +117,11 @@ export default function DevPreviewScreen() {
                     </Text>
                     <Text style={logStyles.ts}>{date}  {ts}</Text>
                     <Text style={logStyles.dur}>{dur}</Text>
+                    <Ionicons
+                      name={expanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color="#475569"
+                    />
                   </View>
 
                   {/* Input summary */}
@@ -126,31 +142,36 @@ export default function DevPreviewScreen() {
                     </Text>
                   )}
 
-                  {/* API timing */}
-                  {apiMs != null && (
-                    <Text style={logStyles.timing}>
-                      ⏱  API call: {(apiMs / 1000).toFixed(1)}s  ·  total: {dur}
-                    </Text>
-                  )}
-
-                  {/* Error */}
+                  {/* Error — always show full message, no line clamp */}
                   {!ok && log.result?.error && (
-                    <Text style={logStyles.errorText} numberOfLines={3}>
+                    <Text style={logStyles.errorText}>
                       {log.result.error}
                     </Text>
                   )}
 
-                  {/* Events timeline */}
-                  {log.events?.length > 0 && (
-                    <View style={logStyles.eventsBox}>
-                      {log.events.map((e, ei) => (
-                        <Text key={ei} style={logStyles.eventRow}>
-                          {String(e.elapsedMs).padStart(5, ' ')}ms  {e.label}
+                  {/* Expanded details */}
+                  {expanded && (
+                    <>
+                      {/* API timing */}
+                      {apiMs != null && (
+                        <Text style={logStyles.timing}>
+                          ⏱  API call: {(apiMs / 1000).toFixed(1)}s  ·  total: {dur}
                         </Text>
-                      ))}
-                    </View>
+                      )}
+
+                      {/* Events timeline */}
+                      {log.events?.length > 0 && (
+                        <View style={logStyles.eventsBox}>
+                          {log.events.map((e, ei) => (
+                            <Text key={ei} style={logStyles.eventRow}>
+                              {String(e.elapsedMs).padStart(5, ' ')}ms  {e.label}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
@@ -264,6 +285,7 @@ const logStyles = StyleSheet.create({
 
   cardOk:   { borderColor: '#166534' },
   cardFail: { borderColor: '#7f1d1d' },
+  logCard:  { flexDirection: 'column', alignItems: 'stretch' },
 
   row:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   statusOk:  { fontSize: 13, fontWeight: '700', color: '#4ade80', flex: 1 },

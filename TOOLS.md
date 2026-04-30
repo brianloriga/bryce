@@ -1188,7 +1188,7 @@ Two or three labeled columns (buckets). A bank of word or phrase chips below. Th
 
 ### S2. Cause & Effect Mapper
 
-**Status:** Specced — Pending Mockup
+**Status:** Done — match mode live, AI schema wired, regen wired
 
 **Description:**
 Two columns: **Cause** and **Effect**. A set of chips in each column is shuffled. The student taps a cause chip, then taps its matching effect chip to form a pair. Correct pairs lock together with a connector line. Interaction pattern is identical to `AngleMatchingRenderer` — this is a low-lift build using the same two-column matching architecture.
@@ -1233,6 +1233,9 @@ Two columns: **Cause** and **Effect**. A set of chips in each column is shuffled
 - Left column: shuffled cause chips. Right column: shuffled effect chips.
 - Tap state: first tap selects a cause (highlighted), second tap on an effect attempts a match
 - 2–4 pairs recommended; above 4, the screen becomes cramped on small devices
+- Every pair requires `causeEmoji` and `effectEmoji` fields — single Apple emoji rendered in a bubble on the chip; AI schema rules enforce this
+- `PulseView` component pulses the active column (Cause before selection, Effect after) to guide student attention
+- Step hint uses numbered steps (① ②) with state-specific color styles (amber when cause selected, green when all matched)
 
 ---
 

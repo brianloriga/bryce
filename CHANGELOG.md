@@ -6,6 +6,78 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### S2 Cause & Effect Mapper — AI Wiring — 2026-04-29
+
+Wired the already-built `CauseEffectRenderer` into the full AI pipeline: scan → generation → regen all now produce `cause_effect_map` questions automatically.
+
+#### AI & Regen (`prompts.ts`, `index.ts`)
+- `prompts.ts`: section 10 added — `cause_effect_map` schema, rules, and emoji requirements; added to VISUAL INTERACTION FALLBACK RULE supported-tools list; added to `REGEN_SYSTEM_PROMPT`
+- `index.ts`: regen context handler added for `cause_effect_map` — preserves subject/concept, generates fresh pairs; `response_format: { type: 'json_object' }` added to all three OpenAI calls (regen, text-scan, visual-aid) to enforce structured JSON responses; improved error logging (finish_reason + content preview) when AI returns no JSON
+- Extended educational content detection to include digital quiz interfaces and educational app screenshots
+
+#### `sampleQuestions.js`
+- `causeEffect_weather`: 4 pairs — Too much rain / Drought / Strong winds / Freezing temps (Science)
+- `causeEffect_history`: 3 pairs — American Revolution / Gold Rush / Civil War (Social Studies)
+- Added "Cause & Effect Mapper (Enhanced)" group to `SAMPLE_GROUPS`
+
+---
+
+### Cause & Effect Mapper — UX Polish — 2026-04-29
+
+Second pass on `CauseEffectRenderer` focused on guiding the student through the two-step interaction.
+
+#### `CauseEffectRenderer.js`
+- Added `PulseView` component: gently pulses opacity (1 → 0.45 → 1, 600ms each) on the **active** column to direct attention — Cause column pulses until a cause is selected, then Effect column takes over
+- Step hint updated to numbered format: `① Tap a cause → ② tap its effect`; state-specific styles (`stepHintActive` amber when cause selected, `stepHintDone` green when all matched)
+- Column header subtext dynamically updates: Cause shows `① tap one` → `selected ✓`; Effect shows `tap cause first` → `② tap the match`
+- Subtext opacity also inverts between columns (active = bright, inactive = dimmed)
+
+---
+
+### Success Animation — Extended to All Tools — 2026-04-29
+
+#### `QuizScreen.js`
+- Success Lottie overlay (`showSuccessAnim`) now triggers on **all** correct answers, not just MC — applies to every enhanced tool and fill_in type
+- Auto-advance delay extended from 200ms → 1200ms on correct answers so the success animation plays through before moving to the next question
+
+---
+
+### Dev Log Screen — Collapsible Cards — 2026-04-29
+
+#### `DevPreviewScreen.js`
+- Log cards converted from static `View` to `TouchableOpacity` — tap to expand/collapse detail view
+- Chevron icon (`chevron-down` / `chevron-up`) in the header row shows expand state
+- Collapsed view: header row + input summary + error message only; expanded view: adds events timeline and API timing
+- Error text no longer line-clamped — full error message always visible in collapsed state
+
+---
+
+### Scan Screen — Multi-Image Selection — 2026-04-29
+
+#### `ScanScreen.js`
+- Photo library picker now supports **multi-select** (`allowsMultipleSelection: true`, `selectionLimit: remaining`) — student can pick multiple pages in a single library session
+- `addImage` refactored to `addImages` (batch) — processes all selected images with `Promise.all` for parallel resize
+- `promptAddPage` Alert (Camera / Photo Library / Cancel) replaces the plain `takePhoto` call on the `+` thumbnail button
+- `processingImages` state added — shows spinner + "Adding photos…" text while resizing batch
+- `stripScrollRef` auto-scrolls the thumbnail strip to reveal the `+` button after images are added
+- Camera and Photo Library buttons redesigned: colored icons (green camera / purple library), "select multiple" badge on library button
+- Removed the redundant Camera/Library secondary row — single set of buttons below the strip, hidden once max images reached
+
+---
+
+### Account Screen — Dark Mode Toggle Animation Sync — 2026-04-29
+
+#### `AccountScreen.js`
+- `toggleTheme()` now fires 700ms after the Lottie animation starts (via `setTimeout`) so the theme switch visually aligns with the sun→moon / moon→sun animation
+
+---
+
+### Dependencies — 2026-04-29
+- Added `lottie-react-native ~7.3.1`
+- Added `@lottiefiles/dotlottie-react ^0.13.5`
+
+---
+
 ### S1 Classification Sort — Enhanced Tool — 2026-04-29
 
 First Science/Reading/Social Studies enhanced tool. Covers any sorting or categorizing worksheet question across all subjects and grades 2–6.

@@ -194,7 +194,7 @@ export default function AccountScreen() {
     } else {
       lottieRef.current?.play(30, 115);  // sun → moon
     }
-    toggleTheme();
+    setTimeout(() => toggleTheme(), 700);
   }
 
   function handleLottieFinish() {

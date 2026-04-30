@@ -2,6 +2,50 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Expo: Start Server (tunnel)",
+      "type": "shell",
+      "command": "npx expo start --tunnel",
+      "options": {
+        "cwd": "${workspaceFolder}/bryce-app"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Expo: Reset & Start Server (tunnel + clear cache)",
+      "type": "shell",
+      "command": "npx expo start --tunnel --clear",
+      "options": {
+        "cwd": "${workspaceFolder}/bryce-app"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Expo: Stop Server",
+      "type": "shell",
+      "command": "Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*expo*' } | Stop-Process -Force; Write-Host 'Expo server stopped.'",
+      "options": {
+        "cwd": "${workspaceFolder}/bryce-app"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Deploy: generate-questions",
       "type": "shell",
       "command": "powershell -ExecutionPolicy Bypass -File deploy.ps1",

@@ -2907,6 +2907,62 @@ const classSort_threeWay = {
   },
 };
 
+// ─────────────────────────────────────────────────────────────
+// CAUSE & EFFECT MAPPER
+// ─────────────────────────────────────────────────────────────
+const causeEffect_weather = {
+  id: 'cause_effect_weather',
+  label: 'Cause & Effect – Weather',
+  unit: {
+    title: 'Weather Cause & Effect',
+    subject: 'science',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'cause_effect_map',
+        question: 'Match each cause to its effect.',
+        hint: 'Think about what happens as a result of each weather event.',
+        correctAnswer: 'matched',
+        selfContained: true,
+        geometry: {
+          pairs: [
+            { cause: 'Too much rain',    causeEmoji: '🌧️', effect: 'Flooding',       effectEmoji: '🌊' },
+            { cause: 'No rain for weeks', causeEmoji: '☀️',  effect: 'Drought',        effectEmoji: '🏜️' },
+            { cause: 'Strong winds',     causeEmoji: '💨',  effect: 'Trees fall down', effectEmoji: '🌳' },
+            { cause: 'Freezing temps',   causeEmoji: '🥶',  effect: 'Ice on roads',    effectEmoji: '🧊' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
+const causeEffect_history = {
+  id: 'cause_effect_history',
+  label: 'Cause & Effect – History',
+  unit: {
+    title: 'Historical Causes & Effects',
+    subject: 'social_studies',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'cause_effect_map',
+        question: 'Match each cause to its effect.',
+        hint: 'Think about what happened as a result of each event.',
+        correctAnswer: 'matched',
+        selfContained: true,
+        geometry: {
+          pairs: [
+            { cause: 'Colonists taxed without vote', causeEmoji: '📜', effect: 'American Revolution', effectEmoji: '⚔️' },
+            { cause: 'Gold found in California',     causeEmoji: '🪙', effect: 'Gold Rush begins',    effectEmoji: '⛏️' },
+            { cause: 'Southern states secede',       causeEmoji: '🗺️', effect: 'Civil War starts',    effectEmoji: '🏳️' },
+          ],
+        },
+      },
+    ],
+  },
+};
+
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
@@ -2973,6 +3029,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Classification Sort (Enhanced)',
     items: [classSort_twoWay, classSort_threeWay],
+  },
+  {
+    title: 'Cause & Effect Mapper (Enhanced)',
+    items: [causeEffect_weather, causeEffect_history],
   },
   {
     title: 'Extras',
