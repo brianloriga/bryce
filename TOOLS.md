@@ -795,7 +795,7 @@ A horizontal segmented bar split into equal parts. Supports four interaction mod
 
 ### 8. Bar / Line Chart (Chart Reader)
 
-**Status:** Pending Mockup
+**Status:** Done — 3 modes live (`read_value`, `compare`, `trend`), AI schema wired, regen wired
 
 **Description:**
 A rendered bar chart or line graph built entirely from AI-extracted data. The student reads a specific value, compares bars, or identifies a trend. No external image required — the chart is drawn from the `labels` and `values` arrays the AI extracts from the page. Applicable to Math (data and graphing units), Science (experiment results, weather data, population data), and Social Studies (population charts, historical data).

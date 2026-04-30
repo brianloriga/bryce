@@ -434,6 +434,8 @@ export default function ScanScreen() {
           fractionNumberLineMode:   existing.measurementTool === 'fraction_number_line'  ? existing.geometry?.mode : undefined,
           cupMode:                  existing.measurementTool === 'measuring_cup'          ? existing.geometry?.mode : undefined,
           sortMode:                 existing.measurementTool === 'classification_sort'    ? existing.geometry?.mode : undefined,
+          chartMode:                existing.measurementTool === 'chart'                  ? existing.geometry?.mode : undefined,
+          chartType:                existing.measurementTool === 'chart'                  ? existing.geometry?.chartType : undefined,
         },
       );
       setQuestions(prev => prev.map((q, i) => i === index ? replacement : q));

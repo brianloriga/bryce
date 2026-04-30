@@ -42,6 +42,7 @@ import FractionNumberLineRenderer   from '../renderers/tools/FractionNumberLineR
 import CoordinateGridRenderer       from '../renderers/tools/CoordinateGridRenderer';
 import ClassificationSortRenderer   from '../renderers/tools/ClassificationSortRenderer';
 import CauseEffectRenderer          from '../renderers/tools/CauseEffectRenderer';
+import ChartReaderRenderer          from '../renderers/tools/ChartReaderRenderer';
 import ScratchPadModal, { ScratchPadButton } from '../components/ScratchPadModal';
 
 // Standard renderers
@@ -394,6 +395,14 @@ export default function QuizScreen() {
       return mode === 'three_way' ? 'Sort · 3 Categories' : 'Sort It Out';
     }
     if (q.measurementTool === 'cause_effect_map') return 'Cause & Effect';
+    if (q.measurementTool === 'chart') {
+      const mode = q.geometry?.mode ?? 'read_value';
+      return {
+        read_value: 'Chart · Read',
+        compare:    'Chart · Compare',
+        trend:      'Chart · Trend',
+      }[mode] ?? 'Chart Reader';
+    }
     return TYPE_LABELS[qType] ?? null;
   })();
 
@@ -836,6 +845,8 @@ export default function QuizScreen() {
             <ClassificationSortRenderer key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' && q.measurementTool === 'cause_effect_map' ? (
             <CauseEffectRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} />
+          ) : qType === 'fill_in' && q.measurementTool === 'chart' ? (
+            <ChartReaderRenderer        key={currentIndex} q={q} onResolve={resolveAnswer} />
           ) : qType === 'fill_in' ? (
             <FillInRenderer      key={currentIndex} q={q} onResolve={resolveAnswer} styles={styles} />
           ) : qType === 'number_line' ? (

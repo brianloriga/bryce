@@ -6,6 +6,54 @@ All notable changes to this project are tracked here.
 
 ## [Unreleased] — iOS App Development
 
+### S3 Chart Reader — UI Polish — 2026-04-30
+
+#### `ChartReaderRenderer.js`
+- Removed redundant green "✓ Correct!" success banner — the Lottie overlay in QuizScreen handles correct-answer celebration; the banner was a double signal
+- Correct-answer `onResolve` delay reduced from 900ms → 400ms (minimal flash of green button before Lottie takes over)
+- Added **value labels** above every bar (bar chart) and above every dot (line chart) — exact values now readable without estimating from the y-axis grid; fixes ambiguity on questions like "what is the difference"
+- Fixed **MC button layout**: changed from `flex:1 / maxWidth:48%` to fixed `width:48%` + `justifyContent:'flex-start'`; with 3 options (trend mode) the third button now lands **bottom-left** in a 2×2 grid instead of stacking vertically or centering alone
+- Removed separate `optionsColumn` layout path — all modes now use the same 2-column grid
+- Added **diagnostic wrong-answer feedback** per mode:
+  - `read_value`: "Check the [label] bar — its label shows [value] [unit] at the top."
+  - `compare`: surfaces the AI-provided hint
+  - `trend`: "Trace the line from left to right — is each point higher, lower, or level with the one before?"
+
+#### `ClassificationSortRenderer.js`
+- Removed "✓ Perfect — every item sorted correctly! 🎉" success banner — Lottie handles it; the banner was redundant
+
+---
+
+First data-visualization enhanced tool. Renders bar charts and line graphs entirely in code from AI-extracted data. No external images needed — the chart is built from `labels` and `values` arrays.
+
+#### `ChartReaderRenderer.js` (new — Tool S3)
+- New `measurementTool: "chart"` renderer — three modes: `read_value`, `compare`, `trend`
+- **Bar chart** (React Native Views): proportional bars, highlighted target bar (amber) for `read_value`, horizontal grid lines at 25/50/75/100% of `niceMax(maxVal)`, y-axis value labels, x-axis category labels
+- **Line chart** (SVG): connected data-point dots, subtle area fill, same grid/axis label system as bar chart
+- `read_value` mode: target bar highlighted in amber; 4 MC options auto-generated from dataset values (other dataset values used as distractors first; arithmetic neighbors fill gaps)
+- `compare` mode: AI provides `options` (4 strings) + `correctIndex`; chart renders without special highlighting
+- `trend` mode: 3 fixed buttons ("Increasing" / "Decreasing" / "Stays the same"); `correctAnswer` is matched case-insensitively
+- Immediate tap feedback (no separate Check button) — consistent with Ruler, FractionBar, and MeasuringCup read modes
+- `niceMax()` helper rounds gridMax to a clean value (5, 10, 20, 25, 50, 100, or nearest magnitude ceiling)
+- Responsive `chartW = min(screenW − 44, 360)` — fills available width on all phone sizes
+- `selfContained: true` — renderer draws the entire interactive UI from extracted data
+
+#### AI Wiring
+- `prompts.ts`: section 11 added — `chart` schema, mode rules, trigger examples, and field rules; added to VISUAL INTERACTION FALLBACK RULE supported-tools list; added to SELF-CONTAINED RULE chart example (now recommends `measurementTool:"chart"` as a third GOOD option for chart questions); added to `REGEN_SYSTEM_PROMPT`
+- `index.ts`: regen context handler added for `chart` — preserves `mode` and `chartType`; generates fresh labels and values on the same topic
+- `ScanScreen.js`: `chartMode` and `chartType` added to `questionContext` for regen
+
+#### `sampleQuestions.js`
+- `chart_barReadValue`: 2 questions — Books Read (find Wednesday bar) + Favorite Lunch (find Pizza bar)
+- `chart_barCompare`: 2 questions — Rainfall by Month (which month most) + Favorite Pet (dog vs cat difference)
+- `chart_lineTrend`: 2 questions — Temperature rising over a week + Plant height over 5 weeks
+- Added "Chart Reader (Enhanced)" group to `SAMPLE_GROUPS`
+
+#### `QuizScreen.js`
+- Import added, typeLabel badges ("Chart · Read", "Chart · Compare", "Chart · Trend"), dispatcher added
+
+---
+
 ### S2 Cause & Effect Mapper — AI Wiring — 2026-04-29
 
 Wired the already-built `CauseEffectRenderer` into the full AI pipeline: scan → generation → regen all now produce `cause_effect_map` questions automatically.

@@ -2963,6 +2963,144 @@ const causeEffect_history = {
   },
 };
 
+// ── Chart Reader (S3) ────────────────────────────────────────────
+const chart_barReadValue = {
+  id: 'chart_bar_read_value',
+  label: 'Chart – Bar · Read Value',
+  unit: {
+    title: 'Books Read This Week',
+    subject: 'math',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'How many books did the student read on Wednesday?',
+        hint: 'Find the Wednesday bar and read its height.',
+        correctAnswer: '3',
+        selfContained: true,
+        geometry: {
+          chartType: 'bar',
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          values: [4, 7, 3, 8, 5],
+          yLabel: 'Books Read',
+          xLabel: 'Day of Week',
+          mode: 'read_value',
+          targetLabel: 'Wed',
+          unit: 'books',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'How many students chose Pizza as their favorite lunch?',
+        hint: 'Find the Pizza bar and read its value.',
+        correctAnswer: '12',
+        selfContained: true,
+        geometry: {
+          chartType: 'bar',
+          labels: ['Pizza', 'Tacos', 'Salad', 'Sandwich'],
+          values: [12, 8, 5, 9],
+          yLabel: 'Students',
+          xLabel: 'Lunch Choice',
+          mode: 'read_value',
+          targetLabel: 'Pizza',
+          unit: 'students',
+        },
+      },
+    ],
+  },
+};
+
+const chart_barCompare = {
+  id: 'chart_bar_compare',
+  label: 'Chart – Bar · Compare',
+  unit: {
+    title: 'Rainfall by Month',
+    subject: 'science',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'Which month had the most rainfall?',
+        hint: 'Find the tallest bar — that month had the most rain.',
+        options: ['January', 'March', 'April', 'June'],
+        correctIndex: 2,
+        correctAnswer: 'April',
+        selfContained: true,
+        geometry: {
+          chartType: 'bar',
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+          values: [2, 3, 5, 9, 6, 4],
+          yLabel: 'Rainfall (in)',
+          xLabel: 'Month',
+          mode: 'compare',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'How many more votes did Dogs get than Cats?',
+        hint: 'Subtract the Cats bar from the Dogs bar.',
+        options: ['2', '3', '5', '8'],
+        correctIndex: 1,
+        correctAnswer: '3',
+        selfContained: true,
+        geometry: {
+          chartType: 'bar',
+          labels: ['Dogs', 'Cats', 'Fish', 'Birds'],
+          values: [11, 8, 4, 6],
+          yLabel: 'Votes',
+          xLabel: 'Favorite Pet',
+          mode: 'compare',
+        },
+      },
+    ],
+  },
+};
+
+const chart_lineTrend = {
+  id: 'chart_line_trend',
+  label: 'Chart – Line · Trend',
+  unit: {
+    title: 'Temperature Over a Week',
+    subject: 'science',
+    questions: [
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'What is the overall trend of the temperature during the week?',
+        hint: 'Look at whether the line goes up, goes down, or stays flat overall.',
+        correctAnswer: 'Increasing',
+        selfContained: true,
+        geometry: {
+          chartType: 'line',
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          values: [52, 55, 58, 63, 70],
+          yLabel: 'Temperature (°F)',
+          xLabel: 'Day',
+          mode: 'trend',
+        },
+      },
+      {
+        type: 'fill_in',
+        measurementTool: 'chart',
+        question: 'What happened to the plant height over five weeks?',
+        hint: 'Follow the line from left to right — does it go up, down, or stay the same?',
+        correctAnswer: 'Increasing',
+        selfContained: true,
+        geometry: {
+          chartType: 'line',
+          labels: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5'],
+          values: [2, 4, 7, 9, 13],
+          yLabel: 'Height (cm)',
+          xLabel: 'Week',
+          mode: 'trend',
+        },
+      },
+    ],
+  },
+};
+
 export const SAMPLE_GROUPS = [
   {
     title: '⭐ Quick Showcases',
@@ -3033,6 +3171,10 @@ export const SAMPLE_GROUPS = [
   {
     title: 'Cause & Effect Mapper (Enhanced)',
     items: [causeEffect_weather, causeEffect_history],
+  },
+  {
+    title: 'Chart Reader (Enhanced)',
+    items: [chart_barReadValue, chart_barCompare, chart_lineTrend],
   },
   {
     title: 'Extras',

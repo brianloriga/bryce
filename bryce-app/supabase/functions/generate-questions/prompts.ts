@@ -743,6 +743,66 @@ QUESTION TYPE RULES — choose the best type for each question:
    - question: short — "Match each cause to its effect." is fine
    - hint: relates to the specific concept being matched
 
+11. CHART READER — "type": "fill_in", "measurementTool": "chart"
+   The app renders a bar chart or line graph built entirely from the data you extract.
+   No external image is needed — the chart is drawn in code from the labels and values arrays.
+   Used when the worksheet contains a bar chart or line graph with data to read.
+
+   ── MODE: read_value ──
+   A specific bar or data point is highlighted. Student picks its value from 4 auto-generated MC options.
+   USE when: "How many ___?" / "What is the value for ___?" / "How much did ___ get?"
+
+   ── MODE: compare ──
+   Student answers a comparison question about the chart (highest, lowest, or difference).
+   USE when: "Which ___ had the most?" / "Which day was coldest?" / "How many more ___ than ___?"
+   REQUIRED: provide "options" (4 strings) and "correctIndex" (0–3) in the question root.
+
+   ── MODE: trend ──
+   A line chart is shown. Student picks the trend direction from 3 fixed buttons.
+   USE when: "What is the trend?" / "How did ___ change over time?" / "Is ___ increasing or decreasing?"
+   The app always shows 3 buttons: "Increasing", "Decreasing", "Stays the same".
+   Set correctAnswer to one of those three strings exactly.
+
+   Schema — read_value example:
+   {
+     "type": "fill_in",
+     "measurementTool": "chart",
+     "question": "How many books did the student read on Wednesday?",
+     "hint": "Find the Wednesday bar and read its height.",
+     "correctAnswer": "3",
+     "selfContained": true,
+     "geometry": {
+       "chartType": "bar",
+       "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+       "values": [4, 7, 3, 8, 5],
+       "yLabel": "Books Read",
+       "xLabel": "Day of Week",
+       "mode": "read_value",
+       "targetLabel": "Wed",
+       "unit": "books"
+     }
+   }
+
+   Schema — compare example (options + correctIndex required):
+   { "type":"fill_in","measurementTool":"chart","question":"Which month had the most rainfall?","hint":"Find the tallest bar.","options":["January","March","April","June"],"correctIndex":2,"correctAnswer":"April","selfContained":true,"geometry":{"chartType":"bar","labels":["Jan","Feb","Mar","Apr","May","Jun"],"values":[2,3,5,9,6,4],"yLabel":"Rainfall (in)","xLabel":"Month","mode":"compare"} }
+
+   Schema — trend example:
+   { "type":"fill_in","measurementTool":"chart","question":"What is the overall trend in temperature?","hint":"Look at whether the line goes up, down, or stays flat.","correctAnswer":"Increasing","selfContained":true,"geometry":{"chartType":"line","labels":["Mon","Tue","Wed","Thu","Fri"],"values":[52,55,58,63,70],"yLabel":"Temperature (°F)","xLabel":"Day","mode":"trend"} }
+
+   RULES:
+   - chartType: "bar" for bar charts; "line" for line graphs (use "line" for trend mode)
+   - labels: array of category strings (x-axis) — keep short (≤ 6 chars per label)
+   - values: array of numbers, same length as labels — integers or simple decimals
+   - yLabel: y-axis label string (optional but recommended)
+   - xLabel: x-axis label string (optional)
+   - mode: "read_value" | "compare" | "trend"
+   - targetLabel (read_value): must exactly match one entry in labels
+   - unit (read_value, optional): suffix for MC option display (e.g. "books", "students", "°F")
+   - correctAnswer: the value as a string for read_value; a label or number string for compare; "Increasing"/"Decreasing"/"Stays the same" for trend
+   - selfContained: always true — the chart is drawn entirely from the extracted data
+   - NEVER generate a chart question for a chart you cannot fully extract into labels + values arrays
+   - Maximum recommended labels: 8 (above this, use a multiple_choice question about the data instead)
+
 VISUAL INTERACTION FALLBACK RULE (7.G.0):
 If the scanned worksheet shows a question format you cannot cleanly represent with the types above
 (examples: a Venn diagram to fill,
@@ -760,6 +820,7 @@ NOTE: The following tool types ARE fully supported — do NOT fall back to MC fo
   • Coordinate grid (plot/read points) → measurementTool:"coordinate_grid"
   • Sorting / categorizing items into 2–3 groups → measurementTool:"classification_sort"
   • Matching causes to effects → measurementTool:"cause_effect_map"
+  • Bar charts or line graphs where you can extract the full data → measurementTool:"chart"
 BAD:  { "question": "A clock shows the hour hand at 3 and minute hand at 12. What time is it?", "options": [...] }  ← use clock tool instead
 GOOD: { "type":"fill_in","measurementTool":"clock","question":"What time does the clock show?","correctAnswer":"3:00","geometry":{"hours":3,"minutes":0,"clockMode":"read"} }
 The fallback question must be fully self-contained and answerable from the question text alone.
@@ -818,6 +879,7 @@ HOW TO TRANSFORM (make self-contained before writing true):
     BAD (selfContained: false):  "According to the bar graph, how many students chose pizza?"
     GOOD (selfContained: true):  "Pizza = 8, Tacos = 5, Salad = 3. How many more chose pizza than salad?"
     GOOD (selfContained: true):  Use a "context" grid object so the data appears above the question.
+    GOOD (selfContained: true):  Use measurementTool:"chart" to render an interactive bar or line chart.
 
   External diagram / map:
     BAD (selfContained: false):  "Using the map, find the distance from A to B."
@@ -984,6 +1046,12 @@ Match the SAME question type as the original. Use the correct JSON shape for tha
   MATCH the same subject/concept as the original. Generate FRESH cause-effect pairs on the same topic.
   2–4 pairs total (3 is ideal). Each cause and effect string must be ≤ 35 characters. correctAnswer is always "matched".
   REQUIRED: every pair must include "causeEmoji" and "effectEmoji" — single Apple emoji representing each concept.
+- chart: { "type":"fill_in","measurementTool":"chart","question":"...","hint":"...","correctAnswer":"...","selfContained":true,"geometry":{"chartType":"bar"|"line","labels":[...],"values":[...],"yLabel":"...","xLabel":"...","mode":"read_value"|"compare"|"trend",...} }
+  MATCH the same mode (read_value / compare / trend) and same subject/concept as the original.
+  Generate FRESH data — different labels and values on the same topic. Keep the same chartType.
+  read_value: add "targetLabel" (must match one label) and optional "unit". correctAnswer = String(values[labels.indexOf(targetLabel)]).
+  compare:    add "options" (4 strings) and "correctIndex" (0–3). correctAnswer = the correct option string.
+  trend:      use chartType:"line". correctAnswer = "Increasing" | "Decreasing" | "Stays the same".
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEASUREMENT TOOL REGEN RULES — CRITICAL

@@ -121,7 +121,7 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 | --- | --- | --- | --- |
 | S1 | **Classification Sort** | Science, Social Studies, Reading, Math — Grades 2-6 | Done — two_way + three_way modes live |
 | S2 | **Cause & Effect Mapper** | Reading, Science, Social Studies — Grades 2-6 | Done — match mode live — **UI adjustments needed, under review** |
-| S3 | **Chart Reader** (Bar / Line) | Science, Social Studies, Math — Grades 3-8 | Specced — Pending Mockup |
+| S3 | **Chart Reader** (Bar / Line) | Science, Social Studies, Math — Grades 3-8 | Done — 3 modes live (read_value, compare, trend) |
 | S4 | **Timeline Builder** | Social Studies, Science, Reading — Grades 3-8 | Specced — Pending Mockup |
 | S5 | **Diagram Labeler** | Science — Grades 3-8 | Specced — Pending Mockup |
 
@@ -143,6 +143,50 @@ These five tools have the highest cross-subject reuse and lowest build risk. Two
 | S12 | **Parts of Speech Tagger** | Reading / ELA — Grades 2-5 | Specced — Pending Mockup |
 
 > When a tool is not yet built, the edge function falls back to the best-matching standard question type. No questions are lost — they just render without the interactive tool.
+
+---
+
+---
+
+## Tool Quality — Feedback & Interaction Depth (Pending)
+
+### Diagnostic Feedback System (High Priority)
+Replace generic "✓ Correct!" banners across all tools with educational reinforcement messages. The Lottie animation already handles "you got it right" celebration — the inline text should add WHY the answer is correct, not just that it is.
+
+Pattern (already applied to Chart Reader):
+- **Correct**: Lottie plays (celebration handled), no redundant success banner. Optionally add a one-line pedagogical note (e.g., "Right! The temperature rose 18° over the week 📈").
+- **Wrong**: Pointed diagnostic hint guiding the student to the exact thing they need to look at (e.g., "Find the Wednesday bar — the label at its top shows the exact value").
+
+**Status:** Applied to ChartReader and ClassificationSort. Needs audit across all tools — see each tool's feedback message for potential upgrade.
+
+Tools still showing generic "Correct!" banners (candidates for improvement):
+- `NumberLineRenderer` — "Correct! 🎯" + placement confirmation (low priority; educational value already there)
+- `ProtractorRenderer` — "Correct! 📐" (spot_mistake mode only)
+- `FractionBarRenderer`, `FractionNumberLineRenderer`, `FractionBuildRenderer`
+- `ClockRenderer`, `CoinRenderer`, `CoordinateGridRenderer`
+
+### Chart Reader — Interaction Depth Upgrades (Future Modes)
+The current Chart Reader covers baseline comprehension. Higher-order thinking requires additional modes:
+
+| Priority | Mode | Description |
+| --- | --- | --- |
+| 🟡 High | **Compare** (extended) | "Which two days had more than 5 books?" — multi-bar selection, not just single read |
+| 🔴 High | **Predict / Extend** | "What would Day 6 likely be if the pattern continues?" — pattern reasoning, not lookup |
+| 🔵 Medium | **Find the Mistake** | Show a chart with an intentionally wrong bar; student identifies the error — great for Grades 5–8 |
+| ⚪ Low | **Build** | Student drags a point or taps to set a bar height to complete a partial chart |
+
+Difficulty scaling when implemented:
+| Level | Mode | Behavior |
+| --- | --- | --- |
+| Easy | `read_value` | Read a single bar value |
+| Medium | `compare` | Compare two or more bars |
+| Hard | `predict` | Extend a pattern or trend |
+| Expert | `build` | Construct a missing bar/point |
+
+### Interaction Friction (Future Polish)
+- Visual anchoring: vertical guide line appears when a bar is tapped; highlighted axis value pulses
+- Animated dot pulse on line chart points in `trend` mode
+- Progressive reveal: chart appears first, question fades in after a 400ms pause (reduces initial cognitive load)
 
 ---
 

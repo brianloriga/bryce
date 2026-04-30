@@ -147,6 +147,18 @@ serve(async (req) => {
           `Keep the SAME subject/concept as the original. Generate FRESH cause-effect pairs (different examples). ` +
           `2–4 pairs total; each cause and effect ≤ 35 characters. correctAnswer is always "matched". ` +
           `See MEASUREMENT TOOL REGEN RULES.`;
+      } else if (qc?.measurementTool === 'chart') {
+        const mode      = qc.chartMode ?? 'read_value';
+        const chartType = qc.chartType ?? 'bar';
+        const modeExtra = mode === 'read_value'
+          ? 'Generate FRESH labels and values on the same topic. Add "targetLabel" matching one label. correctAnswer = String(values[indexOf(targetLabel)]).'
+          : mode === 'compare'
+          ? 'Generate FRESH labels and values on the same topic. Provide "options" (4 strings) and "correctIndex" (0–3). correctAnswer = the correct option string.'
+          : 'Use chartType:"line". Generate FRESH labels and values showing a clear trend. correctAnswer = "Increasing" | "Decreasing" | "Stays the same".';
+        toolContextLine = `\nORIGINAL TOOL: measurementTool="chart", mode="${mode}", chartType="${chartType}". ` +
+          `You MUST generate a fill_in question with measurementTool:"chart", geometry.mode:"${mode}", geometry.chartType:"${chartType}". ` +
+          `Keep the SAME subject/concept as the original. ${modeExtra} ` +
+          `See MEASUREMENT TOOL REGEN RULES.`;
       }
 
       userContent.push({
