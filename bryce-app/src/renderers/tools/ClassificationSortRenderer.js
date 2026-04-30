@@ -260,12 +260,7 @@ export default function ClassificationSortRenderer({ q, onResolve }) {
         </View>
       </View>
 
-      {/* Feedback banners */}
-      {feedback === 'correct' && (
-        <View style={cStyles.successBanner}>
-          <Text style={cStyles.successText}>✓ Perfect — every item sorted correctly! 🎉</Text>
-        </View>
-      )}
+      {/* Wrong feedback — Lottie handles correct celebration */}
       {feedback === 'wrong' && (
         <View style={cStyles.wrongBanner}>
           <Text style={cStyles.wrongText}>
@@ -420,18 +415,6 @@ const cStyles = StyleSheet.create({
   },
 
   // Feedback
-  successBanner: {
-    backgroundColor: '#052e16',
-    borderWidth: 1.5,
-    borderColor: '#4ade80',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  successText: { color: '#4ade80', fontWeight: '800', fontSize: 15, textAlign: 'center' },
   wrongBanner: {
     backgroundColor: '#1c0a0a',
     borderWidth: 1.5,
