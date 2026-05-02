@@ -4,7 +4,7 @@
     {
       "label": "Expo: Start Server (tunnel)",
       "type": "shell",
-      "command": "npx expo start --tunnel",
+      "command": "npx expo start --tunnel --port 8081",
       "options": {
         "cwd": "${workspaceFolder}/bryce-app"
       },
@@ -19,7 +19,7 @@
     {
       "label": "Expo: Reset & Start Server (tunnel + clear cache)",
       "type": "shell",
-      "command": "npx expo start --tunnel --clear",
+      "command": "npx expo start --tunnel --clear --port 8081",
       "options": {
         "cwd": "${workspaceFolder}/bryce-app"
       },
@@ -42,6 +42,28 @@
         "reveal": "always",
         "panel": "shared",
         "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Expo: Stop → Restart on 8081 (clear cache)",
+      "type": "shell",
+      "command": "$p = (Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue).OwningProcess | Select-Object -Unique; if ($p) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }; Get-Process -Name node -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*expo*' } | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; Write-Host 'Port 8081 cleared. Starting Expo...'; npx expo start --tunnel --clear --port 8081",
+      "options": {
+        "cwd": "${workspaceFolder}/bryce-app",
+        "shell": {
+          "executable": "powershell.exe",
+          "args": [
+            "-NoProfile",
+            "-Command"
+          ]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "clear": true,
+        "focus": true
       },
       "problemMatcher": []
     },

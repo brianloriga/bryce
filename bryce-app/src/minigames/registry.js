@@ -18,10 +18,20 @@
  *   available   — false = coming-soon chip (dimmed, not selectable)
  */
 
-import SpeedRound  from './SpeedRound';
-import MemoryFlip  from './MemoryFlip';
+import SpeedRound     from './SpeedRound';
+import MemoryFlip     from './MemoryFlip';
+import CastleDefense  from './CastleDefense';
 
 export const GAME_REGISTRY = [
+  {
+    id:          'castle_defense',
+    label:       'Castle Defense',
+    emoji:       '🏰',
+    description: 'Answer questions to fire cannons, lay slime traps, and hold off waves of monsters',
+    routeName:   'CastleDefense',
+    component:   CastleDefense,
+    available:   true,
+  },
   {
     id:          'speed_round',
     label:       'Speed Round',
@@ -40,16 +50,6 @@ export const GAME_REGISTRY = [
     component:   MemoryFlip,
     available:   true,
   },
-  // ── Future games ───────────────────────────────────────────────
-  // {
-  //   id:          'match_up',
-  //   label:       'Match-Up',
-  //   emoji:       '🧩',
-  //   description: 'Drag terms to their definitions',
-  //   routeName:   'MatchUp',
-  //   component:   null,
-  //   available:   false,
-  // },
 ];
 
 /** Return the registry entry for a given game id, or null. */

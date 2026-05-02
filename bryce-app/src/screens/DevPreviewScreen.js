@@ -13,17 +13,37 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SAMPLE_GROUPS } from '../dev/sampleQuestions';
 import { devLogger } from '../utils/devLogger';
+import { GAME_REGISTRY } from '../minigames/registry';
+
+// Sample units that have at least 2 MC questions — usable by every mini-game
+const MC_SAMPLES = SAMPLE_GROUPS
+  .flatMap(g => g.items.map(item => ({ groupTitle: g.title, ...item })))
+  .filter(item =>
+    (item.unit.questions ?? []).filter(q => Array.isArray(q.options) && q.options.length >= 2).length >= 2,
+  )
+  .map(item => ({
+    id:         item.id,
+    label:      item.label,
+    groupTitle: item.groupTitle,
+    unit:       item.unit,
+    mcCount:    item.unit.questions.filter(q => Array.isArray(q.options) && q.options.length >= 2).length,
+  }));
 
 const HEADER_HEIGHT = 70;
 
 export default function DevPreviewScreen() {
   const navigation  = useNavigation();
   const { height }  = useWindowDimensions();
-  const [logs, setLogs] = useState([]);
-  const [expandedIds, setExpandedIds] = useState({});
+  const [logs,         setLogs]         = useState([]);
+  const [expandedIds,  setExpandedIds]  = useState({});
+  const [expandedGames, setExpandedGames] = useState({});
 
   function toggleExpand(id) {
     setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  function toggleGame(id) {
+    setExpandedGames(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
   useEffect(() => devLogger.subscribe(setLogs), []);
@@ -52,6 +72,62 @@ export default function DevPreviewScreen() {
           <Text style={styles.bannerText}>
             Development mode — tap any card to open that question type in the quiz player
           </Text>
+        </View>
+
+        {/* ── Mini-Games ──────────────────────────────────── */}
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>Mini-Games</Text>
+          {GAME_REGISTRY.filter(g => g.available && g.component).map(game => {
+            const open = !!expandedGames[game.id];
+            return (
+              <View key={game.id} style={gameStyles.gameCard}>
+                {/* Game header row */}
+                <TouchableOpacity
+                  style={gameStyles.gameHeader}
+                  onPress={() => toggleGame(game.id)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={gameStyles.gameEmoji}>{game.emoji}</Text>
+                  <View style={gameStyles.gameInfo}>
+                    <Text style={gameStyles.gameName}>{game.label}</Text>
+                    <Text style={gameStyles.gameDesc} numberOfLines={2}>{game.description}</Text>
+                  </View>
+                  <Ionicons
+                    name={open ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color="#475569"
+                  />
+                </TouchableOpacity>
+
+                {/* Expanded sample unit list */}
+                {open && (
+                  <View style={gameStyles.sampleList}>
+                    {MC_SAMPLES.length === 0 ? (
+                      <Text style={gameStyles.noSamples}>No MC samples found</Text>
+                    ) : (
+                      MC_SAMPLES.map(sample => (
+                        <TouchableOpacity
+                          key={sample.id}
+                          style={gameStyles.sampleRow}
+                          onPress={() => navigation.navigate(game.routeName, { unit: sample.unit })}
+                          activeOpacity={0.75}
+                        >
+                          <View style={gameStyles.sampleLeft}>
+                            <Text style={gameStyles.sampleLabel}>{sample.label}</Text>
+                            <Text style={gameStyles.sampleMeta}>
+                              {sample.mcCount} MC question{sample.mcCount !== 1 ? 's' : ''}
+                              {'  ·  '}{sample.groupTitle}
+                            </Text>
+                          </View>
+                          <Ionicons name="play-circle-outline" size={20} color="#3b82f6" />
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
 
         {SAMPLE_GROUPS.map(group => (
@@ -275,6 +351,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
+});
+
+const gameStyles = StyleSheet.create({
+  gameCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  gameHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  gameEmoji: { fontSize: 28, lineHeight: 32 },
+  gameInfo:  { flex: 1 },
+  gameName:  { fontSize: 15, fontWeight: '700', color: '#f1f5f9' },
+  gameDesc:  { fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 16 },
+
+  sampleList: {
+    borderTopWidth: 1,
+    borderTopColor: '#0f172a',
+    paddingVertical: 4,
+  },
+  sampleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0f172a',
+  },
+  sampleLeft: { flex: 1 },
+  sampleLabel: { fontSize: 13, fontWeight: '600', color: '#e2e8f0' },
+  sampleMeta:  { fontSize: 11, color: '#475569', marginTop: 2 },
+  noSamples:   { fontSize: 13, color: '#475569', padding: 14, textAlign: 'center' },
 });
 
 const logStyles = StyleSheet.create({
